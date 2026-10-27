@@ -904,16 +904,16 @@ function play(ch,attempt){
   stopVideo();
   if(demo||!ch.url){$("novideo").hidden=false;$("novideo").textContent="Mode démo · ici passera la vidéo de "+ch.name;$("loading").hidden=true;return}
   video.muted=screen!=="live";videoOk=false;
-  $("novideo").hidden=true;$("loading").hidden=screen!=="live";$("loading-t").textContent="Chargement de "+ch.name+"…";
+  $("novideo").hidden=true;$("loading").hidden=screen!=="live";$("loading-t").textContent=attempt?ch.name+" redémarre, ça arrive…":"Chargement de "+ch.name+"…";
   const url=streamUrl(ch.url);
   if(window.Hls&&Hls.isSupported()){
     hls=new Hls({enableWorker:true,startFragPrefetch:true,liveSyncDurationCount:2,maxBufferLength:15,backBufferLength:300,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,manifestLoadingRetryDelay:350,manifestLoadingMaxRetryTimeout:1500,levelLoadingMaxRetry:15,levelLoadingRetryDelay:350,levelLoadingMaxRetryTimeout:1500,fragLoadingMaxRetry:15,fragLoadingRetryDelay:250,fragLoadingMaxRetryTimeout:1500});
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{video.play().catch(()=>{})});
     const mine=hls;
-    const fail=()=>{if(hls!==mine)return;if(attempt<1&&channels[cur]===ch){play(ch,attempt+1)}else{hls.destroy();hls=null;liveError()}};
+    const fail=()=>{if(hls!==mine)return;if(attempt<2&&channels[cur]===ch){$("loading-t").textContent=ch.name+" redémarre…";play(ch,attempt+1)}else{hls.destroy();hls=null;liveError()}};
     hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError()}else fail()});
     hls.loadSource(url);hls.attachMedia(video);
-    loadDog=setTimeout(()=>{if(hls===mine&&!videoOk)fail()},attempt?40000:50000);
+    loadDog=setTimeout(()=>{if(hls===mine&&!videoOk)fail()},attempt?40000:45000);
     clearTimeout(slowT);slowT=setTimeout(()=>{if(hls===mine&&!videoOk)$("loading-t").textContent=ch.name+" démarre, encore quelques secondes…"},7000);
   }else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=url;video.play().catch(()=>{})}
   else liveError("Ce navigateur ne sait pas lire les chaînes.");
