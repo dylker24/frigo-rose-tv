@@ -681,13 +681,21 @@ function toast(msg,ms){$("toast").textContent=msg;$("toast").hidden=false;clearT
 function dur(ms){const m=Math.round(ms/MIN);if(m<60)return m+" min";return Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")}
 
 /* ================= Données Tunarr ================= */
+/* Tunarr écrit l'adresse des logos avec son adresse à lui (souvent localhost) :
+   sur la télé, localhost c'est la télé elle-même, donc on remet l'adresse du serveur. */
+function fixLogo(u){
+  if(!u)return "";const base=cfg.server.replace(/\/+$/,"");
+  const m=/^https?:\/\/[^/]+(\/images\/.*)$/i.exec(u);if(m)return base+m[1];
+  if(/^\/(images|api)\//.test(u))return base+u;
+  return u;
+}
 function parseM3U(txt){
   const out=[];const lines=txt.split(/\r?\n/);let info=null;
   for(const raw of lines){
     const l=raw.trim();if(!l)continue;
     if(l.startsWith("#EXTINF")){
       const a={};l.replace(/([\w-]+)="([^"]*)"/g,(_,k,v)=>{a[k]=v});
-      info={key:a["tvg-id"]||a["channel-id"]||"",num:parseFloat(a["tvg-chno"])||0,name:a["tvg-name"]||l.slice(l.lastIndexOf(",")+1),logo:a["tvg-logo"]||""};
+      info={key:a["tvg-id"]||a["channel-id"]||"",num:parseFloat(a["tvg-chno"])||0,name:a["tvg-name"]||l.slice(l.lastIndexOf(",")+1),logo:fixLogo(a["tvg-logo"]||"")};
     }else if(!l.startsWith("#")&&info){
       if(!(info.name==="tunarr"&&/tunarr\.png/.test(info.logo)))out.push({...info,url:l,id:info.key||l});
       info=null;
@@ -1759,7 +1767,7 @@ function endIntro(){
 function skipIntro(){if(!introDone)endIntro()}
 function cacheKey(){return "frtv_cache_"+cfg.server}
 function saveCache(){try{const now=Date.now(),lim={};for(const k in progs)lim[k]=progs[k].filter(p=>p.stop>now-3600000&&p.start<now+18*3600000);LS.trySet(cacheKey(),JSON.stringify({t:now,channels,progs:lim}))}catch(e){}}
-function loadCache(){try{const c=JSON.parse(LS.get(cacheKey(),"null"));if(c&&Date.now()-c.t<12*3600000&&c.channels&&c.channels.length){channels=c.channels;progs=c.progs||{};return true}}catch(e){}return false}
+function loadCache(){try{const c=JSON.parse(LS.get(cacheKey(),"null"));if(c&&Date.now()-c.t<12*3600000&&c.channels&&c.channels.length){channels=c.channels;channels.forEach(x=>{x.logo=fixLogo(x.logo)});progs=c.progs||{};return true}}catch(e){}return false}
 function refreshViews(){if(screen==="home")renderHome();else if(screen==="guide")renderGuide();else if(screen==="chaines")renderChaines();if(mgOpen)renderMg()}
 async function refreshFromServer(){
   const keep=channels[cur]&&channels[cur].id,keepP=channels[prev]&&channels[prev].id,keepL=channels[lastLive]&&channels[lastLive].id;
