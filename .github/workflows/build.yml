@@ -6,13 +6,14 @@ on:
 permissions:
   contents: write
   pages: write
+  issues: write
   id-token: write
 concurrency:
   group: build
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -22,13 +23,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
       - name: Copie de secours de l'appli dans l'APK
         run: cp web/index.html android/app/src/main/assets/index.html
       - name: Fabrication de l'APK
-        run: gradle -p android assembleRelease --no-daemon
+        run: |
+          set -o pipefail
+          gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
       - name: Préparation des fichiers
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
@@ -48,3 +52,11 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
         continue-on-error: true
+      - name: Rapport d'erreur
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          touch build.log
+          { echo '```'; tail -n 120 build.log; echo '```'; } > report.md
+          gh issue create --repo ${{ github.repository }} --title "Erreur fabrication ${{ github.run_number }}" --body-file report.md
