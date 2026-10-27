@@ -32,6 +32,9 @@ button{font:inherit;color:inherit}
 
 /* Vidéo */
 #video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
+/* Aperçu dans la page Chaînes : la vidéo vient se poser dans la case survolée */
+body.chpv #video{inset:auto;z-index:60;border-radius:.6rem;object-fit:cover;pointer-events:none;animation:chpvIn .35s ease-out}
+@keyframes chpvIn{from{opacity:0}to{opacity:1}}
 body.panel-open .novideo{opacity:0}
 body.panel-open .lerr,body.panel-open .loading{display:none!important}
 .novideo{position:fixed;inset:0;display:grid;place-items:center;background:#111111;color:var(--faint);font-size:1rem}
@@ -969,7 +972,7 @@ function play(ch,attempt){
   else liveError("Ce navigateur ne sait pas lire les chaînes.");
 }
 function liveError(msg){$("loading").hidden=true;$("lerr").hidden=false;if(msg)$("lerr-t").textContent=msg}
-video.addEventListener("playing",()=>{clearTimeout(waitT);clearTimeout(loadDog);warmNeighbors();$("loading").hidden=true;$("lerr").hidden=true;videoOk=true;if($("zapfx").classList.contains("on"))zapRelease();if(screen==="home")renderHomeBg(homeFocus())});
+video.addEventListener("playing",()=>{setTimeout(chPreviewPos,60);clearTimeout(waitT);clearTimeout(loadDog);warmNeighbors();$("loading").hidden=true;$("lerr").hidden=true;videoOk=true;if($("zapfx").classList.contains("on"))zapRelease();if(screen==="home")renderHomeBg(homeFocus())});
 video.addEventListener("waiting",()=>{clearTimeout(waitT);waitT=setTimeout(()=>{if(screen==="live")$("loading").hidden=false},700)});
 
 let lastLive=-1,inPreview=false;
@@ -1171,7 +1174,7 @@ let cIdx=0,chFilter="all",chZone="grid",chTool=0;
 const CHT=["all","fav","refresh"];
 function chList(){const all=channels.map((c,i)=>i);return chFilter==="fav"?all.filter(i=>isFav(channels[i])):all}
 function chCols(){return 4}
-function openChaines(){const l=chList();cIdx=Math.max(0,l.indexOf(cur));chZone="grid";zone="content";setScreen("chaines")}
+function openChaines(){const l=chList();cIdx=Math.max(0,l.indexOf(cur));chZone="grid";zone="content";setScreen("chaines");chPreviewSched()}
 function applyTool(t){const v=CHT[t];if(v==="refresh"){manualRefresh();return}if(v&&v!==chFilter){chFilter=v;cIdx=0}}
 let refreshing=false;
 async function manualRefresh(){
@@ -1217,8 +1220,30 @@ function renderChaines(){
     g.append(t);if(foc)fEl=t;
   });
   if(fEl)fEl.scrollIntoView({block:"nearest"});
+  chPreviewPos();
 }
-function chKey(k){
+/* Aperçu : on s'arrête 1 s sur une chaîne → elle se lance (sans le son) dans sa case */
+let chPrevT=null;
+function chPreviewSched(){
+  clearTimeout(chPrevT);chPreviewPos();setTimeout(chPreviewPos,260);if(demo)return;
+  chPrevT=setTimeout(()=>{
+    if(screen!=="chaines"||zone!=="content"||chZone!=="grid")return;
+    const i=chList()[cIdx];if(i==null)return;
+    if(i!==cur)tune(i,true,true);else chPreviewPos();
+  },1000);
+}
+function chPreviewPos(){
+  const l=screen==="chaines"&&zone==="content"&&chZone==="grid"?chList():null;
+  const t=l&&videoOk&&!demo&&l[cIdx]===cur?document.querySelectorAll("#chgrid .chtile")[cIdx]:null;
+  const th=t&&t.querySelector(".hthumb");
+  if(!th){if(document.body.classList.contains("chpv")){document.body.classList.remove("chpv");video.style.left=video.style.top=video.style.width=video.style.height=""}return}
+  const r=th.getBoundingClientRect();
+  if(r.bottom<0||r.top>innerHeight){document.body.classList.remove("chpv");return}
+  video.style.left=r.left+"px";video.style.top=r.top+"px";video.style.width=r.width+"px";video.style.height=r.height+"px";
+  document.body.classList.add("chpv");
+}
+function chKey(k){chKey0(k);if(screen==="chaines")chPreviewSched();else chPreviewPos()}
+function chKey0(k){
   const l=chList(),n=l.length,C=chCols();
   if(chZone==="tools"){
     if(k==="left")chTool=Math.max(0,chTool-1);
@@ -1401,7 +1426,7 @@ function digit(d){
 /* ================= Écrans ================= */
 const TABS=["home","chaines","guide","demandes","settings"];
 function setScreen(s){
-  screen=s;
+  screen=s;if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
   $("splash").hidden=s!=="splash";$("error").hidden=s!=="error";$("profiles").hidden=s!=="profiles";$("pedit").hidden=s!=="pedit";
   const inPanel=["home","chaines","guide","demandes","settings"].includes(s);
   video.muted=s!=="live";
