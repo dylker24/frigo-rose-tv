@@ -6,8 +6,8 @@ on:
 permissions:
   contents: write
   pages: write
-  issues: write
   id-token: write
+  issues: write
 concurrency:
   group: build
   cancel-in-progress: true
@@ -19,24 +19,22 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-      - name: Copie de secours de l'appli dans l'APK
-        run: cp web/index.html android/app/src/main/assets/index.html
       - name: Fabrication de l'APK
         run: |
-          set -o pipefail
-          gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-      - name: Préparation des fichiers
-        run: |
+          set -eo pipefail
+          exec > >(tee build.log) 2>&1
+          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME"; ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
+          curl -sSL -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip -d "$RUNNER_TEMP"
+          cp web/index.html android/app/src/main/assets/index.html
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          "$RUNNER_TEMP/gradle-8.7/bin/gradle" -p android assembleRelease --no-daemon --stacktrace
           cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
           cp frigo-rose-tv.apk web/tv.apk
+          ls -la frigo-rose-tv.apk
       - name: Publication de l'APK
         uses: softprops/action-gh-release@v2
         with:
@@ -51,12 +49,11 @@ jobs:
           path: web
       - id: deploy
         uses: actions/deploy-pages@v4
-        continue-on-error: true
       - name: Rapport d'erreur
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           touch build.log
-          { echo '```'; tail -n 120 build.log; echo '```'; } > report.md
+          { echo '```'; tail -n 150 build.log; echo '```'; } > report.md
           gh issue create --repo ${{ github.repository }} --title "Erreur fabrication ${{ github.run_number }}" --body-file report.md
