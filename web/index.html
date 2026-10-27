@@ -817,17 +817,50 @@ function logoTone(url){
     }catch(e){if(!tried++){im.crossOrigin="anonymous";im.src=url}else res("unknown")}};
     im.onerror=()=>{if(!tried++){im.crossOrigin="anonymous";im.src=url}else res("unknown")};
     /* On passe par fetch : l'image arrive comme un fichier local, la télé peut lire ses couleurs */
-    rawBlob(url).then(b=>{im.src=URL.createObjectURL(b)},()=>{tried=1;im.crossOrigin="anonymous";im.src=url});
+    logoSmall(url).then(src=>{if(/^blob:/.test(src))im.src=src;else{tried=1;im.crossOrigin="anonymous";im.src=url}});
   });
   return toneCache[url];
 }
 /* couleur inconnue : gris moyen, un logo blanc comme un logo noir reste lisible */
+/* Les logos Tunarr sont des PNG énormes (1500 px, ~2 Mo chacun) : trop lourd pour la télé.
+   On les télécharge une fois, on les réduit à 256 px (transparence gardée) et on les garde sur l'appareil. */
+const LOGO={ready:new Map(),pend:new Map()};
+function logoSmall(url){
+  if(!url)return Promise.resolve("");
+  if(LOGO.ready.has(url))return Promise.resolve(LOGO.ready.get(url));
+  if(LOGO.pend.has(url))return LOGO.pend.get(url);
+  const k="logo256|"+url;
+  const pr=(async()=>{
+    const hit=await imgGet(k);
+    let b=hit&&hit.b&&Date.now()-hit.t<30*864e5?hit.b:null;
+    if(!b){
+      b=await queued(async()=>{
+        const raw=await rawBlob(url);
+        if(!window.createImageBitmap)return raw;
+        const d=await imgDims(raw);const S=256;
+        if(d&&d.w<=S*1.2&&d.h<=S*1.2)return raw;
+        const opt=d&&d.h>d.w?{resizeHeight:S,resizeQuality:"high"}:{resizeWidth:S,resizeQuality:"high"};
+        let bm;try{bm=await createImageBitmap(raw,opt)}catch(e){return raw}
+        const c=document.createElement("canvas");c.width=bm.width;c.height=bm.height;c.getContext("2d").drawImage(bm,0,0);if(bm.close)bm.close();
+        return await new Promise(res=>{try{c.toBlob(x=>res(x||raw),"image/png")}catch(e){res(raw)}});
+      },true);
+      imgPut({k,b,t:Date.now()});
+    }
+    const src=URL.createObjectURL(b);LOGO.ready.set(url,src);return src;
+  })().catch(()=>url).then(src=>{LOGO.pend.delete(url);return src});
+  LOGO.pend.set(url,pr);return pr;
+}
+function setLogo(im,url){
+  const s=LOGO.ready.get(url);if(s){im.src=s;return}
+  im.removeAttribute("src");
+  logoSmall(url).then(src=>{if(src&&(im.dataset.u===undefined||im.dataset.u===url))im.src=src});
+}
 function toneBg(t){return t==="dark"?"#151515":t==="unknown"?"#7b7f87":"#ffffff"}
 function toneEl(elm,url){elm.style.background="#7b7f87";logoTone(url).then(t=>{elm.style.background=toneBg(t)})}
 function plateIfNeeded(im,url){logoTone(url).then(()=>{const f=toneInfo[url];if(f&&!f.opaque&&!f.bright)im.classList.add("plate")})}
 function initials(n){const w=(n||"").replace(/\btv\b/ig,"").trim().split(/\s+/).filter(x=>x&&!/^(la|le|les|de|du|des|à|a|l')$/i.test(x));return ((w[0]||n||"?")[0]+((w[1]||"")[0]||"")).toUpperCase()}
 function logoPh(ch){const p=el("span","lph",initials(ch.name));p.style.background=chColor(ch);return p}
-function logoImg(url,cls){const im=el("img",cls||"ltile");im.src=url;im.alt="";im.decoding="async";im.onerror=()=>im.remove();toneEl(im,url);return im}
+function logoImg(url,cls){const im=el("img",cls||"ltile");setLogo(im,url);im.alt="";im.decoding="async";im.onerror=()=>im.remove();toneEl(im,url);return im}
 
 /* ================= Images des programmes ================= */
 /* Tunarr donne pour chaque programme une image venant de Jellyfin. On prend la version paysage
@@ -946,7 +979,7 @@ let videoOk=false,zapT=null,zapMin=0;
 function zapEffect(ch){
   const z=$("zapfx"),n=$("zid-n");n.textContent="";n.classList.remove("logo");
   n.style.background="";
-  if(ch.logo){const im=el("img");im.src=ch.logo;im.alt="";im.onerror=()=>{n.textContent=ch.num||cur+1;n.classList.remove("logo");n.style.background=""};n.classList.add("logo");n.append(im,el("span","zn",String(ch.num||cur+1)));toneEl(n,ch.logo);$("zid-name").textContent=""}
+  if(ch.logo){const im=el("img");setLogo(im,ch.logo);im.alt="";im.onerror=()=>{n.textContent=ch.num||cur+1;n.classList.remove("logo");n.style.background=""};n.classList.add("logo");n.append(im,el("span","zn",String(ch.num||cur+1)));toneEl(n,ch.logo);$("zid-name").textContent=""}
   else{n.textContent=ch.num||cur+1;$("zid-name").textContent=ch.name}
   z.classList.remove("on");void z.offsetWidth;z.classList.add("on");zapSound();
   zapMin=Date.now()+650;clearTimeout(zapT);zapT=setTimeout(zapRelease,(demo||!ch.url)?720:3200);
@@ -992,7 +1025,7 @@ function chColor(ch){return AVC[hash(ch.name)%8][0]}
 function artEl(ch){
   const a=el("div","art");const c=chColor(ch);
   a.style.background="radial-gradient(circle at 78% 26%,"+c+"cc,rgba(0,0,0,0) 60%),linear-gradient(140deg,"+c+"77,#000000 78%)";
-  if(ch.logo){const im=el("img");im.src=ch.logo;im.alt="";im.onerror=()=>{im.remove();a.append(el("span","an",String(ch.num||"")))};plateIfNeeded(im,ch.logo);a.append(im)}else a.append(el("span","an",String(ch.num||"")));
+  if(ch.logo){const im=el("img");setLogo(im,ch.logo);im.alt="";im.onerror=()=>{im.remove();a.append(el("span","an",String(ch.num||"")))};plateIfNeeded(im,ch.logo);a.append(im)}else a.append(el("span","an",String(ch.num||"")));
   return a;
 }
 function homeRows(){
@@ -1028,7 +1061,7 @@ function renderHomeBg(it){
     f.style.background="radial-gradient(ellipse at 72% 30%,"+c+"aa,rgba(0,0,0,0) 62%),linear-gradient(160deg,"+c+"55,#000000 70%)";art.append(f);
     art.classList.remove("has-pic");
     if(pu)addPic(art,it.p,1280,null,480);
-    else if(it.ch.logo){const im=el("img","lg");im.src=it.ch.logo;im.alt="";im.onerror=()=>{im.remove();art.append(el("span","big",String(it.ch.num||"")))};plateIfNeeded(im,it.ch.logo);art.append(im)}
+    else if(it.ch.logo){const im=el("img","lg");setLogo(im,it.ch.logo);im.alt="";im.onerror=()=>{im.remove();art.append(el("span","big",String(it.ch.num||"")))};plateIfNeeded(im,it.ch.logo);art.append(im)}
     else art.append(el("span","big",String(it.ch.num||"")));
   }
   art.classList.remove("off");
@@ -1252,7 +1285,7 @@ function renderBanner(){
   const ch=channels[cur];if(!ch)return;const now=Date.now();const p=progAt(ch,now),n=progAfter(ch,p);
   $("b-num").textContent=ch.num||cur+1;$("b-logo").hidden=true;
   const box=$("b-box"),cl=$("b-cl");
-  if(ch.logo){box.classList.add("haslogo");cl.hidden=false;if(cl.dataset.u!==ch.logo){cl.dataset.u=ch.logo;cl.src=ch.logo;toneEl(box,ch.logo)}cl.onerror=()=>{box.classList.remove("haslogo");cl.hidden=true;$("b-cn").hidden=true;box.style.background=""};$("b-cn").hidden=false;$("b-cn").textContent=ch.num||cur+1;$("b-name").textContent="Chaîne "+(ch.num||cur+1)}
+  if(ch.logo){box.classList.add("haslogo");cl.hidden=false;if(cl.dataset.u!==ch.logo){cl.dataset.u=ch.logo;setLogo(cl,ch.logo);toneEl(box,ch.logo)}cl.onerror=()=>{box.classList.remove("haslogo");cl.hidden=true;$("b-cn").hidden=true;box.style.background=""};$("b-cn").hidden=false;$("b-cn").textContent=ch.num||cur+1;$("b-name").textContent="Chaîne "+(ch.num||cur+1)}
   else{box.classList.remove("haslogo");box.style.background="";cl.hidden=true;cl.dataset.u="";$("b-cn").hidden=true;$("b-name").textContent=ch.name}$("b-title").textContent=p.title+(p.sub?" · "+p.sub:"");
   $("b-start").textContent=hhmm(p.start);$("b-stop").textContent=hhmm(p.stop);
   $("b-bar").style.width=Math.max(0,Math.min(100,(now-p.start)/(p.stop-p.start)*100))+"%";
@@ -1405,7 +1438,7 @@ function renderGuide(){
   // Infos du haut
   const pv=$("g-prev");pv.textContent="";
   const ph=()=>el("span","ph",String(ch.num||gRow+1));
-  if(ch.logo){const im=el("img","lg");im.src=ch.logo;im.alt="";im.onerror=()=>{im.remove();pv.prepend(ph())};plateIfNeeded(im,ch.logo);pv.append(im)}
+  if(ch.logo){const im=el("img","lg");setLogo(im,ch.logo);im.alt="";im.onerror=()=>{im.remove();pv.prepend(ph())};plateIfNeeded(im,ch.logo);pv.append(im)}
   else pv.append(ph());
   pv.classList.remove("has-pic");addPic(pv,fp,640);
   pv.append(el("span","n",String(ch.num||gRow+1)));
