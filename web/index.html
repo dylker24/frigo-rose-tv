@@ -803,8 +803,9 @@ const toneCache={},toneInfo={};
 function logoTone(url){
   if(!url)return Promise.resolve("light");
   if(toneCache[url])return toneCache[url];
-  toneCache[url]=new Promise(res=>{
-    const im=new Image();im.crossOrigin="anonymous";
+  toneCache[url]=new Promise(done=>{
+    const res=t=>{if(t==="unknown")toneInfo[url]=toneInfo[url]||{opaque:false,bright:false,unknown:true};done(t)};
+    const im=new Image();let tried=0;
     im.onload=()=>{try{
       const w=48,h=Math.max(1,Math.round(48*(im.naturalHeight||1)/(im.naturalWidth||1)));
       const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.drawImage(im,0,0,w,h);
@@ -813,13 +814,16 @@ function logoTone(url){
       if(!n||clear<(w*h)*.04){toneInfo[url]={opaque:true,bright:false};res("light");return}
       toneInfo[url]={opaque:false,bright:L/n>.6};
       res(L/n>.6?"dark":"light");
-    }catch(e){res("light")}};
-    im.onerror=()=>res("light");im.src=url;
+    }catch(e){if(!tried++){im.crossOrigin="anonymous";im.src=url}else res("unknown")}};
+    im.onerror=()=>{if(!tried++){im.crossOrigin="anonymous";im.src=url}else res("unknown")};
+    /* On passe par fetch : l'image arrive comme un fichier local, la télé peut lire ses couleurs */
+    rawBlob(url).then(b=>{im.src=URL.createObjectURL(b)},()=>{tried=1;im.crossOrigin="anonymous";im.src=url});
   });
   return toneCache[url];
 }
-function toneBg(t){return t==="dark"?"#151515":"#ffffff"}
-function toneEl(elm,url){elm.style.background="#ffffff";logoTone(url).then(t=>{elm.style.background=toneBg(t)})}
+/* couleur inconnue : gris moyen, un logo blanc comme un logo noir reste lisible */
+function toneBg(t){return t==="dark"?"#151515":t==="unknown"?"#7b7f87":"#ffffff"}
+function toneEl(elm,url){elm.style.background="#7b7f87";logoTone(url).then(t=>{elm.style.background=toneBg(t)})}
 function plateIfNeeded(im,url){logoTone(url).then(()=>{const f=toneInfo[url];if(f&&!f.opaque&&!f.bright)im.classList.add("plate")})}
 function initials(n){const w=(n||"").replace(/\btv\b/ig,"").trim().split(/\s+/).filter(x=>x&&!/^(la|le|les|de|du|des|à|a|l')$/i.test(x));return ((w[0]||n||"?")[0]+((w[1]||"")[0]||"")).toUpperCase()}
 function logoPh(ch){const p=el("span","lph",initials(ch.name));p.style.background=chColor(ch);return p}
@@ -1922,7 +1926,10 @@ setInterval(()=>{if(!demo&&channels.length)refreshFromServer()},10*60000);
 const IN_TV_APP=/FrigoRoseTV/.test(navigator.userAgent);
 window.frtvResume=()=>{try{if(!demo&&channels[cur]&&["live","home"].includes(screen))play(channels[cur])}catch(e){}};
 function quitApp(){try{stopVideo()}catch(e){}try{if(window.FRTV&&FRTV.exit){FRTV.exit();return}}catch(e){}toast("Appuie sur le bouton Accueil de la télécommande pour quitter")}
-if(IN_TV_APP){const fb=document.querySelector('#ctrl .cb[data-c="full"]');if(fb)fb.remove();$("s-quit").hidden=false}
+if(IN_TV_APP){const fb=document.querySelector('#ctrl .cb[data-c="full"]');if(fb)fb.remove();$("s-quit").hidden=false;
+  /* Appli télé ancienne version : on le dit (une seule réinstallation suffit) */
+  const av=+((/FrigoRoseTV\/(\d+)/.exec(navigator.userAgent)||[])[1]||1);
+  if(av<2)setTimeout(()=>toast("Nouvelle version de l'appli télé : réinstalle-la depuis dylker24.github.io/frigo-rose-tv/tv.apk",9000),6000)}
 $("s-quit").onclick=()=>quitApp();
 function loadPrefs(){
   cfg.server=LS.get("frtv_server","http://100.107.91.60:8000");cfg.demandes=LS.get("frtv_demandes","");

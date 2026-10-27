@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseTV/1");
+        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseTV/2");
 
         web.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -159,7 +159,13 @@ public class MainActivity extends Activity {
         quitting = true;
         try { web.loadUrl("about:blank"); web.destroy(); } catch (Exception e) { }
         finishAndRemoveTask();
+        // et on coupe vraiment le programme, pour qu'il ne reste pas en veille
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> android.os.Process.killProcess(android.os.Process.myPid()), 400);
     }
+
+    /** Bouton Accueil de la télécommande : on quitte pour de vrai. */
+    @Override
+    protected void onUserLeaveHint() { super.onUserLeaveHint(); quit(); }
 
     @Override
     protected void onStop() { super.onStop(); if (!isChangingConfigurations()) quit(); }
