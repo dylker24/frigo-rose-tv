@@ -33,7 +33,7 @@ button{font:inherit;color:inherit}
 /* Vidéo */
 #video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
 /* Aperçu dans la page Chaînes : la vidéo vient se poser dans la case survolée */
-body.chpv #video{inset:auto;z-index:60;border-radius:.6rem;object-fit:cover;pointer-events:none;animation:chpvIn .35s ease-out}
+.hthumb canvas.pvc{position:absolute;inset:0;top:0;left:0;width:100%;height:100%;z-index:3;border-radius:inherit;animation:chpvIn .35s ease-out;pointer-events:none}
 @keyframes chpvIn{from{opacity:0}to{opacity:1}}
 body.panel-open .novideo{opacity:0}
 body.panel-open .lerr,body.panel-open .loading{display:none!important}
@@ -1232,15 +1232,29 @@ function chPreviewSched(){
     if(i!==cur)tune(i,true,true);else chPreviewPos();
   },1000);
 }
+/* La vidéo reste à sa place (la télé n'aime pas qu'on la déplace) : on recopie ses images dans la case. */
+let pvCan=null,pvRaf=0,pvBad=false,pvChecked=0;
 function chPreviewPos(){
   const l=screen==="chaines"&&zone==="content"&&chZone==="grid"?chList():null;
-  const t=l&&videoOk&&!demo&&l[cIdx]===cur?document.querySelectorAll("#chgrid .chtile")[cIdx]:null;
+  const t=l&&videoOk&&!demo&&!pvBad&&l[cIdx]===cur?document.querySelectorAll("#chgrid .chtile")[cIdx]:null;
   const th=t&&t.querySelector(".hthumb");
-  if(!th){if(document.body.classList.contains("chpv")){document.body.classList.remove("chpv");video.style.left=video.style.top=video.style.width=video.style.height=""}return}
-  const r=th.getBoundingClientRect();
-  if(r.bottom<0||r.top>innerHeight){document.body.classList.remove("chpv");return}
-  video.style.left=r.left+"px";video.style.top=r.top+"px";video.style.width=r.width+"px";video.style.height=r.height+"px";
-  document.body.classList.add("chpv");
+  if(!th){if(pvCan){pvCan.remove();pvCan=null}cancelAnimationFrame(pvRaf);pvRaf=0;return}
+  if(pvCan&&pvCan.parentNode===th)return;
+  if(pvCan)pvCan.remove();
+  pvCan=el("canvas","pvc");pvCan.width=480;pvCan.height=270;th.append(pvCan);pvChecked=Date.now();
+  const x=pvCan.getContext("2d");let odd=0;
+  cancelAnimationFrame(pvRaf);
+  const draw=()=>{
+    if(!pvCan)return;pvRaf=requestAnimationFrame(draw);if(odd++%2)return;
+    if(video.readyState<2)return;
+    try{
+      const vw=video.videoWidth||16,vh=video.videoHeight||9,sc=Math.max(480/vw,270/vh),w=vw*sc,h=vh*sc;
+      x.drawImage(video,(480-w)/2,(270-h)/2,w,h);
+      // si la télé renvoie une image toute noire au bout de 3 s, on abandonne l'aperçu
+      if(pvChecked&&Date.now()-pvChecked>3000){pvChecked=0;const d=x.getImageData(0,0,480,270).data;let m=0;for(let i=0;i<d.length;i+=4000)m=Math.max(m,d[i],d[i+1],d[i+2]);if(m<6){pvBad=true;chPreviewPos()}}
+    }catch(e){pvBad=true;chPreviewPos()}
+  };
+  pvRaf=requestAnimationFrame(draw);
 }
 function chKey(k){chKey0(k);if(screen==="chaines")chPreviewSched();else chPreviewPos()}
 function chKey0(k){
