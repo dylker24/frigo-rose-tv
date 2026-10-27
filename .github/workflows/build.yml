@@ -1,0 +1,50 @@
+name: Appli télé
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: build
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Copie de secours de l'appli dans l'APK
+        run: cp web/index.html android/app/src/main/assets/index.html
+      - name: Fabrication de l'APK
+        run: gradle -p android assembleRelease --no-daemon
+      - name: Préparation des fichiers
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
+          cp frigo-rose-tv.apk web/tv.apk
+      - name: Publication de l'APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tv-${{ github.run_number }}
+          name: Frigo Rosé TV ${{ github.run_number }}
+          files: frigo-rose-tv.apk
+          make_latest: true
+      - uses: actions/configure-pages@v5
+        continue-on-error: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true

@@ -1,0 +1,20 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'tv.frigorose.app'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'tv.frigorose.app'
+        minSdk 22
+        targetSdk 34
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ? System.getenv('GITHUB_RUN_NUMBER').toInteger() : 1)
+        versionName '1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+    signingConfigs {
+        release { storeFile file('../frigo.keystore'); storePassword 'frigorosetv'; keyAlias 'frigo'; keyPassword 'frigorosetv' }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
