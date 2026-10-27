@@ -1,7 +1,14 @@
 package tv.frigorose.app;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
@@ -13,7 +20,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-/** Frigo Rosé TV : ouvre l'appli (mise à jour en ligne), avec une copie de secours intégrée. */
+/** Frigo Rosé TV : télécharge la dernière version de l'appli, la garde sur la télé et l'ouvre
+ *  comme un fichier local (comme sur le PC : aucune restriction pour parler à Tunarr en http). */
 public class MainActivity extends Activity {
     private static final String ONLINE = "https://dylker24.github.io/frigo-rose-tv/";
     private static final String OFFLINE = "file:///android_asset/index.html";
@@ -43,7 +51,10 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         s.setUserAgentString(s.getUserAgentString() + " FrigoRoseTV/1");
 
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public Bitmap getDefaultVideoPoster() { return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); }
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
@@ -60,7 +71,34 @@ public class MainActivity extends Activity {
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
         web.requestFocus();
-        web.loadUrl(ONLINE + "?v=" + System.currentTimeMillis());
+        final File local = new File(getFilesDir(), "index.html");
+        new Thread(() -> {
+            byte[] fresh = download(ONLINE + "?v=" + System.currentTimeMillis());
+            try {
+                if (fresh != null && fresh.length > 20000) {
+                    FileOutputStream o = new FileOutputStream(local); o.write(fresh); o.close();
+                } else if (!local.exists()) {
+                    InputStream in = getAssets().open("index.html"); byte[] b = readAll(in);
+                    FileOutputStream o = new FileOutputStream(local); o.write(b); o.close();
+                }
+            } catch (Exception e) { }
+            runOnUiThread(() -> web.loadUrl(local.exists() ? "file://" + local.getAbsolutePath() : OFFLINE));
+        }).start();
+    }
+
+    private static byte[] readAll(InputStream in) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] buf = new byte[16384]; int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        in.close(); return out.toByteArray();
+    }
+
+    private static byte[] download(String u) {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+            c.setConnectTimeout(5000); c.setReadTimeout(6000); c.setUseCaches(false);
+            if (c.getResponseCode() != 200) return null;
+            return readAll(c.getInputStream());
+        } catch (Exception e) { return null; }
     }
 
     private void fallback(WebView v) {
