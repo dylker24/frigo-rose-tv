@@ -29,7 +29,7 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"; ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
           curl -sSL -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
           unzip -q gradle.zip -d "$RUNNER_TEMP"
-          cp web/index.html android/app/src/main/assets/index.html
+          mkdir -p android/app/src/main/assets && cp web/index.html android/app/src/main/assets/index.html
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           "$RUNNER_TEMP/gradle-8.7/bin/gradle" -p android assembleRelease --no-daemon --stacktrace
           cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
