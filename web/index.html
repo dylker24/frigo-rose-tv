@@ -243,7 +243,12 @@ body.panel-open .lerr,body.panel-open .loading{display:none!important}
 .imark.has-img img{height:7rem;width:auto;max-width:24rem;object-fit:contain}
 #splash.play .imark.has-img{animation:imark 1s cubic-bezier(.2,1.5,.35,1) .15s forwards}
 .pav img{width:100%;height:100%;object-fit:cover;display:block}
-.epick{grid-template-columns:repeat(9,minmax(0,1fr))!important}
+.epick{display:flex!important;flex-direction:column;gap:1rem}
+.prow{display:flex;flex-direction:column;gap:.45rem;min-width:0}
+.prow b{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.pstrip{display:flex;gap:.7rem;overflow:hidden;padding:.35rem;margin:-.35rem;scroll-behavior:smooth}
+.pstrip button{width:5.6rem;flex:none}
+.pstrip button img{width:100%;height:100%;object-fit:cover;display:block}
 .ephoto{background:var(--s2)!important;display:grid!important;place-items:center;opacity:.8!important}
 .ephoto svg{width:45%!important;height:45%!important}
 .ephoto img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1659,7 +1664,13 @@ const PEN='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
 let profiles=[];try{profiles=JSON.parse(LS.get("frtv_profiles","[]"))||[]}catch(e){profiles=[]}
 let profile=null,pIdx=0,managing=false,ed=null,eZone=0,eBtn=0,delSure=false;
 function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles))){toast("Plus de place pour les photos, utilise une image plus légère");return false}return true}
-function avatarHTML(p){if(p&&p.img){return '<img src="'+p.img+'" alt="">'}return avatarSVG(p?p.av:0)}
+/* Collections de photos de profil (comme Netflix). Pour en ajouter : un dossier dans avatars/ et une ligne ici. */
+const AVBASE="https://dylker24.github.io/frigo-rose-tv/avatars/";
+const AVPACKS=[
+  {name:"Friends",dir:"friends",n:6}
+];
+function packItems(pk){const a=[];for(let i=1;i<=pk.n;i++)a.push(pk.dir+"/"+i+".jpg");return a}
+function avatarHTML(p){if(p&&p.pic)return '<img src="'+AVBASE+p.pic+'" alt="">';if(p&&p.img){return '<img src="'+p.img+'" alt="">'}return avatarSVG(p?p.av:0)}
 function updateChip(){const c=$("pchip");c.textContent="";if(!profile){c.hidden=true;return}c.hidden=false;const a=el("span","pav");a.innerHTML=avatarHTML(profile);c.append(a,el("span",null,profile.name))}
 $("pchip").onclick=()=>showProfiles();
 
@@ -1709,30 +1720,47 @@ function chooseProfile(i){
 
 function openEdit(p,first){
   const used=profiles.map(x=>x.av);let free=[1,3,2,0,4,5,6,7].find(i=>!used.includes(i));if(free==null)free=profiles.length%8;
-  ed={id:p?p.id:null,name:p?p.name:"",av:p?p.av:free,img:p&&p.img?p.img:"",useImg:!!(p&&p.img),first:!!first};ePick=ed.useImg?8:ed.av;
+  ed={id:p?p.id:null,name:p?p.name:"",av:p?p.av:free,img:p&&p.img?p.img:"",pic:p&&p.pic?p.pic:"",useImg:!!(p&&p.img&&!p.pic),first:!!first};
+  ePick={r:0,c:ed.useImg?8:ed.av};
+  if(ed.pic)AVPACKS.forEach((pk,ri)=>{const c=packItems(pk).indexOf(ed.pic);if(c>=0)ePick={r:ri+1,c}});
   eZone=0;eBtn=0;delSure=false;
   $("ed-kick").textContent=first?"Bienvenue sur Frigo Rosé TV":(p?"Modifier le profil":"Nouveau profil");
   $("ed-title").textContent=first?"Crée ton profil pour commencer":(p?"Modifier "+p.name:"Ajoute un profil");
   $("ed-name").value=ed.name;
   $("ed-cancel").hidden=!!first;$("ed-del").hidden=!p;
   const pk=$("ed-pick");pk.textContent="";
-  for(let i=0;i<8;i++){const b=el("button");b.innerHTML=avatarSVG(i);b.setAttribute("aria-label","Avatar "+(i+1));b.onclick=()=>{ed.av=i;ed.useImg=false;ePick=i;eZone=1;renderEdit()};pk.append(b)}
-  const ph=el("button","ephoto");ph.id="ed-photo";ph.setAttribute("aria-label","Ajouter ma photo");ph.onclick=()=>{ePick=8;eZone=1;pickPhoto()};pk.append(ph);
+  const row=(name)=>{const r=el("div","prow");r.append(el("b",null,name));const st=el("div","pstrip");r.append(st);pk.append(r);return st};
+  const st0=row("Frigo Rosé");
+  for(let i=0;i<8;i++){const b=el("button");b.innerHTML=avatarSVG(i);b.setAttribute("aria-label","Avatar "+(i+1));b.onclick=()=>{ePick={r:0,c:i};eZone=1;choosePick()};st0.append(b)}
+  const ph=el("button","ephoto");ph.id="ed-photo";ph.setAttribute("aria-label","Ajouter ma photo");ph.onclick=()=>{ePick={r:0,c:8};eZone=1;pickPhoto()};st0.append(ph);
+  AVPACKS.forEach((pkk,ri)=>{const st=row(pkk.name);packItems(pkk).forEach((path,c)=>{const b=el("button");const im=el("img");im.src=AVBASE+path;im.alt="";im.decoding="async";b.append(im);b.onclick=()=>{ePick={r:ri+1,c};eZone=1;choosePick()};st.append(b)})});
   setScreen("pedit");renderEdit();
 }
 function edButtons(){return [$("ed-save"),$("ed-cancel"),$("ed-del")].filter(b=>!b.hidden)}
 const CAM='<svg viewBox="0 0 24 24" fill="none" stroke="#F5F5F5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
-let ePick=0;
+let ePick={r:0,c:0};
+function pickRowLen(r){return r===0?9:packItems(AVPACKS[r-1]).length}
+/* Applique la case sélectionnée */
+function choosePick(){
+  const {r,c}=ePick;
+  if(r===0){if(c<8){ed.av=c;ed.useImg=false;ed.pic=""}else if(ed.img){ed.useImg=true;ed.pic=""}}
+  else{ed.pic=packItems(AVPACKS[r-1])[c];ed.useImg=false}
+  renderEdit();
+}
 function pickPhoto(){$("ed-file").click()}
 $("ed-file").onchange=async()=>{
   const f=$("ed-file").files[0];$("ed-file").value="";if(!f)return;
-  try{ed.img=await loadImage(f,320,true,"image/jpeg");ed.useImg=true;ePick=8;eZone=1;renderEdit()}catch(e){toast("Cette image n'a pas pu être lue")}
+  try{ed.img=await loadImage(f,320,true,"image/jpeg");ed.useImg=true;ed.pic="";ePick={r:0,c:8};eZone=1;renderEdit()}catch(e){toast("Cette image n'a pas pu être lue")}
 };
 function renderEdit(){
-  $("ed-av").innerHTML=ed.useImg&&ed.img?'<img src="'+ed.img+'" alt="">':avatarSVG(ed.av);$("ed-nm").textContent=ed.name||"Ton prénom";
+  $("ed-av").innerHTML=ed.pic?'<img src="'+AVBASE+ed.pic+'" alt="">':ed.useImg&&ed.img?'<img src="'+ed.img+'" alt="">':avatarSVG(ed.av);$("ed-nm").textContent=ed.name||"Ton prénom";
   const ph=$("ed-photo");if(ph){ph.innerHTML=ed.img?'<img src="'+ed.img+'" alt="">':CAM}
-  $("ed-hint").textContent=ed.img?"Ta photo est prête. OK sur la dernière case pour en choisir une autre.":"La dernière case permet d'ajouter une image depuis l'appareil.";
-  $("ed-pick").querySelectorAll("button").forEach((b,i)=>{const sel=i===8?ed.useImg:(!ed.useImg&&i===ed.av);b.classList.toggle("sel",sel);b.classList.toggle("f",eZone===1&&i===ePick)});
+  $("ed-hint").textContent=ed.img?"Ta photo est prête. OK sur la dernière case pour en choisir une autre.":"Sur la 1re ligne, la dernière case permet d'ajouter ta propre photo.";
+  $("ed-pick").querySelectorAll(".pstrip").forEach((st,r)=>{[...st.children].forEach((b,c)=>{
+    const sel=r===0?(c===8?ed.useImg&&!ed.pic:(!ed.useImg&&!ed.pic&&c===ed.av)):ed.pic===packItems(AVPACKS[r-1])[c];
+    const f=eZone===1&&ePick.r===r&&ePick.c===c;b.classList.toggle("sel",sel);b.classList.toggle("f",f);
+    if(f){const x=b.offsetLeft-st.offsetLeft;if(x+b.offsetWidth>st.scrollLeft+st.clientWidth)st.scrollLeft=x+b.offsetWidth-st.clientWidth+8;else if(x<st.scrollLeft)st.scrollLeft=Math.max(0,x-8)}
+  })});
   $("ed-name").classList.toggle("f-ring",eZone===0);
   edButtons().forEach((b,i)=>b.classList.toggle("f-ring",eZone===2&&i===eBtn));
   $("ed-del").textContent=delSure?"Sûr ? Supprimer":"Supprimer le profil";
@@ -1742,22 +1770,22 @@ $("ed-name").oninput=()=>{ed.name=$("ed-name").value.trim();$("ed-nm").textConte
 $("ed-name").onfocus=()=>{if(screen==="pedit"&&eZone!==0){eZone=0;renderEdit()}};
 function editKey(k){
   if(k==="back"){if(!ed.first)showProfiles();return}
-  if(k==="up"){if(eZone>0)eZone--}
-  else if(k==="down"){if(eZone<2){eZone++;eBtn=0}}
+  if(k==="up"){if(eZone===1&&ePick.r>0){ePick={r:ePick.r-1,c:Math.min(ePick.c,pickRowLen(ePick.r-1)-1)};choosePick();return}else if(eZone>0)eZone--}
+  else if(k==="down"){if(eZone===1&&ePick.r<AVPACKS.length){ePick={r:ePick.r+1,c:Math.min(ePick.c,pickRowLen(ePick.r+1)-1)};choosePick();return}else if(eZone<2){eZone++;eBtn=0}}
   else if(k==="left"||k==="right"){
-    if(eZone===1){ePick=(ePick+(k==="left"?8:1))%9;if(ePick<8){ed.av=ePick;ed.useImg=false}else if(ed.img)ed.useImg=true}
+    if(eZone===1){const n=pickRowLen(ePick.r);ePick={r:ePick.r,c:(ePick.c+(k==="left"?n-1:1))%n};choosePick();return}
     else if(eZone===2){if(k==="left"&&eBtn>0)eBtn--;if(k==="right"&&eBtn<edButtons().length-1)eBtn++}
   }
-  else if(k==="ok"){if(eZone===1&&ePick===8){pickPhoto();return}if(eZone<2){eZone++;eBtn=0}else{edButtons()[eBtn].click();return}}
+  else if(k==="ok"){if(eZone===1&&ePick.r===0&&ePick.c===8){pickPhoto();return}if(eZone<2){eZone++;eBtn=0}else{edButtons()[eBtn].click();return}}
   if(k!=="ok"&&!(eZone===2&&edButtons()[eBtn]===$("ed-del")))delSure=false;
   renderEdit();
 }
 $("ed-save").onclick=()=>{
   ed.name=$("ed-name").value.trim();
   if(!ed.name){toast("Écris un prénom");eZone=0;renderEdit();return}
-  const img=ed.useImg&&ed.img?ed.img:undefined;
-  if(ed.id){const p=profiles.find(x=>x.id===ed.id);p.name=ed.name;p.av=ed.av;if(img)p.img=img;else delete p.img;if(profile&&profile.id===p.id){profile=p;updateChip()}}
-  else{const np={id:"p"+Date.now().toString(36),name:ed.name,av:ed.av};if(img)np.img=img;profiles.push(np)}
+  const img=!ed.pic&&ed.useImg&&ed.img?ed.img:undefined,pic=ed.pic||undefined;
+  if(ed.id){const p=profiles.find(x=>x.id===ed.id);p.name=ed.name;p.av=ed.av;if(img)p.img=img;else delete p.img;if(pic)p.pic=pic;else delete p.pic;if(profile&&profile.id===p.id){profile=p;updateChip()}}
+  else{const np={id:"p"+Date.now().toString(36),name:ed.name,av:ed.av};if(img)np.img=img;if(pic)np.pic=pic;profiles.push(np)}
   if(!saveProfiles())return;
   const i=ed.id?profiles.findIndex(x=>x.id===ed.id):profiles.length-1;
   if(ed.first){chooseProfileFromEdit(i);return}
