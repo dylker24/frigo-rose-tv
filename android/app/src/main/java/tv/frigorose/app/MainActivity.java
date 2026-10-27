@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -68,6 +69,10 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) { return false; }
         });
+        web.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void exit() { runOnUiThread(() -> quit()); }
+        }, "FRTV");
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
         web.requestFocus();
@@ -82,7 +87,7 @@ public class MainActivity extends Activity {
                     FileOutputStream o = new FileOutputStream(local); o.write(b); o.close();
                 }
             } catch (Exception e) { }
-            runOnUiThread(() -> web.loadUrl(local.exists() ? "file://" + local.getAbsolutePath() : OFFLINE));
+            runOnUiThread(() -> { if (!quitting) web.loadUrl(local.exists() ? "file://" + local.getAbsolutePath() : OFFLINE); });
         }).start();
     }
 
@@ -147,9 +152,21 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(e);
     }
 
-    @Override
-    protected void onPause() { super.onPause(); if (web != null) { web.evaluateJavascript("try{document.querySelector('video').pause()}catch(e){}", null); web.onPause(); } }
+    /** Quitter pour de vrai : on coupe la vidéo (Tunarr arrête la conversion) et on ferme l'appli. */
+    private boolean quitting = false;
+    private void quit() {
+        if (quitting) return;
+        quitting = true;
+        try { web.loadUrl("about:blank"); web.destroy(); } catch (Exception e) { }
+        finishAndRemoveTask();
+    }
 
     @Override
-    protected void onResume() { super.onResume(); hideBars(); if (web != null) { web.onResume(); web.evaluateJavascript("try{window.frtvResume&&frtvResume()}catch(e){}", null); } }
+    protected void onStop() { super.onStop(); if (!isChangingConfigurations()) quit(); }
+
+    @Override
+    protected void onPause() { super.onPause(); if (web != null && !quitting) { web.evaluateJavascript("try{document.querySelector('video').pause()}catch(e){}", null); web.onPause(); } }
+
+    @Override
+    protected void onResume() { super.onResume(); hideBars(); if (web != null && !quitting) { web.onResume(); web.evaluateJavascript("try{window.frtvResume&&frtvResume()}catch(e){}", null); } }
 }
