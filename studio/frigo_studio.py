@@ -731,7 +731,8 @@ def do_download(j):
            "--replace-in-metadata", "title", EMOJI_RE, "", "--replace-in-metadata", "title", r"\s*[｜|]\s*", " - ",
            "--replace-in-metadata", "title", r"\s{2,}", " ",
            "--no-mtime", "--windows-filenames", "-o", tpl,
-           "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s",
+           # --print rend yt-dlp silencieux : --progress remet l'avancement
+           "--progress", "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s/%(progress.speed)s/%(progress.eta)s",
            "--print", "before_dl:FRT %(title)s", "--print", "after_move:FRF %(filepath)s", "--no-simulate"]
     if j.get("thumb", True):
         cmd += ["--embed-thumbnail", "--convert-thumbnails", "jpg"]
@@ -750,17 +751,25 @@ def do_download(j):
             files.append(line[4:].strip())
         elif line.startswith("FRP "):
             try:
-                d, t, te, idx, n = line[4:].split("/")
+                d, t, te, idx, n, sp, eta = (line[4:].split("/") + ["NA", "NA"])[:7]
                 tot = float(t) if t not in ("NA", "None", "") else (float(te) if te not in ("NA", "None", "") else 0)
                 frac = float(d) / tot if tot else 0
                 # vidéo et son arrivent en 2 fichiers : chaque moitié compte pour la moitié de la barre
                 if frac < 0.02 and j.get("_lastfrac", 0) > 0.9:
                     part = min(part + 1, 1)
                 j["_lastfrac"] = frac
-                one = (part + frac) / 2
+                one = 0.85 * frac if part == 0 else 0.85 + 0.15 * frac  # la vidéo pèse bien plus lourd que le son
                 if idx not in ("NA", "None", "") and n not in ("NA", "None", ""):
                     one = (int(idx) - 1 + one) / max(1, int(n))
                 j["pct"] = max(0, min(95, 95 * one))
+                extra = []
+                if sp not in ("NA", "None", ""):
+                    extra.append("%.1f Mo/s" % (float(sp) / 1e6))
+                if eta not in ("NA", "None", "") and part == 0:
+                    e = int(float(eta))
+                    extra.append("encore %d min" % max(1, round(e / 60)) if e >= 60 else "encore %d s" % e)
+                if extra and j.get("cur"):
+                    j["msg"] = "Téléchargement : %s · %s" % (j["cur"], " · ".join(extra))
             except (ValueError, ZeroDivisionError):
                 pass
         elif line.startswith("ERROR:"):
