@@ -355,8 +355,13 @@ def refresh_soon(j):
                     if x.get("req"):
                         req_steps(x["req"], {"jellyfin": True})
                 # Tunarr garde sa propre liste : on lui demande de relire la médiathèque quand Jellyfin a fini
-                for d in (float(os.environ.get("FRS_TUNARR_DELAY", "45")), float(os.environ.get("FRS_TUNARR_DELAY2", "150"))):
+                d1, d2 = float(os.environ.get("FRS_TUNARR_DELAY", "45")), float(os.environ.get("FRS_TUNARR_DELAY2", "150"))
+                for d in (d1, d2):
                     t = threading.Timer(d, tunarr_scan_for, args=(js,))
+                    t.daemon = True
+                    t.start()
+                for d, last in ((d1 + 15, False), (d2 + 20, False), (d2 * 2 + 20, True)):
+                    t = threading.Timer(d, auto_add_to_channels, args=(js, last))
                     t.daemon = True
                     t.start()
         _ref["timer"] = threading.Timer(delay, go)
@@ -1160,7 +1165,7 @@ def check_sub(sb, first_take=None):
         fresh = [e for e in ents if e["id"] not in seen]
     for e in reversed(fresh):
         new_job("dl", url=e["url"], dest=sb["dest"], quality=sb.get("quality") or "1080", sub=sb.get("sub") or "", playlist=False, thumb=True,
-                title=e["title"] or e["url"], req="", req_title="", from_sub=sb.get("name") or "")
+                title=e["title"] or e["url"], req="", req_title="", from_sub=sb.get("name") or "", tchan=sb.get("tchan") or "")
         seen.add(e["id"])
     sb["seen"] = list(seen)[-400:]
     sb["last"] = time.time()
@@ -1194,13 +1199,252 @@ def safe_name(n):
     return n or "video.mp4"
 
 
-def after_upload(path, dest):
+def after_upload(path, dest, tchan=""):
     """Fichier reçu : s'il est déjà en MP4 H.264, c'est fini ; sinon on le convertit à la même place."""
     if os.path.splitext(path)[1].lower() in VIDEO_EXT and needs_conversion(path):
-        return new_job("conv", src=path, dest=dest, delete=True, title=os.path.basename(path), uploaded=True)
-    j = new_job("up", title=os.path.basename(path), out=[path], pct=100, msg="Reçu · déjà en MP4", status="fini")
+        return new_job("conv", src=path, dest=dest, delete=True, title=os.path.basename(path), uploaded=True, tchan=tchan)
+    j = new_job("up", title=os.path.basename(path), out=[path], pct=100, msg="Reçu · déjà en MP4", status="fini", tchan=tchan)
     refresh_soon(j)
     return j
+
+
+# ---------------------------------------------------------------- programmation des chaînes Tunarr (onglet « Chaînes »)
+BACKUPS = os.path.join(DATA, "sauvegardes-chaines")
+os.makedirs(BACKUPS, exist_ok=True)
+
+
+def tn(path, method="GET", body=None, timeout=20):
+    req = urllib.request.Request(conf.get("tunarr_url", "http://localhost:8000").rstrip("/") + path, method=method,
+                                 data=json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            t = r.read()
+            return json.loads(t) if t.strip() else None
+    except urllib.error.HTTPError as e:
+        msg = ""
+        try:
+            msg = json.loads(e.read() or b"{}").get("message", "")
+        except Exception:
+            pass
+        raise RuntimeError("Tunarr a refusé (%d) %s" % (e.code, msg[:160]))
+    except (urllib.error.URLError, OSError):
+        raise RuntimeError("Tunarr ne répond pas (il est lancé ?)")
+
+
+def tn_channels():
+    out = []
+    for c in tn("/api/channels") or []:
+        out.append({"id": c["id"], "number": c.get("number"), "name": (c.get("name") or "").strip(), "icon": (c.get("icon") or {}).get("path", ""),
+                    "count": c.get("programCount"), "duration": c.get("duration") or 0})
+    return sorted(out, key=lambda c: c["number"] or 0)
+
+
+def tn_libraries():
+    out = []
+    for ms in tn("/api/media-sources") or []:
+        for l in ms.get("libraries") or []:
+            if l.get("enabled", True):
+                out.append({"id": l["id"], "name": (l.get("name") or "").strip(), "type": l.get("mediaType") or "", "source": ms.get("id")})
+    return sorted(out, key=lambda l: _key(l["name"]))
+
+
+_libc = {}
+
+
+def tn_library_programs(lib_id, fresh=False):
+    """Tout le contenu d'une médiathèque Tunarr (on passe par sa base, pas par sa recherche qui oublie certains titres)."""
+    c = _libc.get(lib_id)
+    if c and not fresh and time.time() - c[0] < 30:
+        return c[1]
+    r = tn("/api/media-libraries/%s/programs" % lib_id, timeout=60)
+    arr = r if isinstance(r, list) else (r or {}).get("result") or []
+    out = []
+    for x in arr:
+        pg = x.get("program") or x
+        if not pg.get("uuid") and not x.get("id"):
+            continue
+        out.append({"id": pg.get("uuid") or x.get("id"), "title": pg.get("title") or "", "duration": x.get("duration") or pg.get("duration") or 0,
+                    "type": pg.get("type") or "", "year": pg.get("year"), "show": (pg.get("grandparent") or {}).get("title") if isinstance(pg.get("grandparent"), dict) else "",
+                    "season": pg.get("seasonNumber") or (pg.get("parent") or {}).get("index") if isinstance(pg.get("parent"), dict) else pg.get("seasonNumber"),
+                    "episode": pg.get("episodeNumber") or pg.get("index")})
+    _libc[lib_id] = (time.time(), out)
+    return out
+
+
+_LINEUP_KEYS = {"content": ("type", "id", "duration"), "custom": ("type", "id", "duration", "customShowId", "index"),
+                "filler": ("type", "id", "duration", "fillerListId", "fillerType"), "redirect": ("type", "duration", "channel", "channelNumber", "channelName"),
+                "flex": ("type", "duration", "fillerConfig")}
+
+
+def _clean_item(it):
+    keys = _LINEUP_KEYS.get(it.get("type"))
+    if not keys:
+        return None
+    o = {k: it[k] for k in keys if k in it and it[k] is not None}
+    if "duration" not in o:
+        o["duration"] = it.get("durationMs") or 0
+    return o if o.get("duration") else None
+
+
+def tn_programming(cid):
+    r = tn("/api/channels/%s/programming" % cid, timeout=30) or {}
+    progs = r.get("programs") or {}
+    items = []
+    for i, it in enumerate(r.get("lineup") or []):
+        t = it.get("type")
+        pg = (progs.get(it.get("id")) or {}).get("program") or {}
+        title = pg.get("title") or {"flex": "Pause (écran de chaîne)", "redirect": "Renvoi vers « %s »" % it.get("channelName", ""), "custom": "Programme personnalisé"}.get(t, "Programme")
+        items.append({"i": i, "type": t, "id": it.get("id"), "title": title, "duration": it.get("duration") or it.get("durationMs") or 0})
+    return {"name": (r.get("name") or "").strip(), "number": r.get("number"), "lineup": items, "raw": r.get("lineup") or []}
+
+
+def tn_backup(cid, raw):
+    f = os.path.join(BACKUPS, "%s-%d.json" % (cid, int(time.time() * 1000)))
+    with open(f, "w", encoding="utf-8") as fh:
+        json.dump(raw, fh)
+    # on garde les 20 dernières sauvegardes par chaîne
+    mine = sorted(x for x in os.listdir(BACKUPS) if x.startswith(cid + "-"))
+    for old in mine[:-20]:
+        try:
+            os.remove(os.path.join(BACKUPS, old))
+        except OSError:
+            pass
+
+
+def tn_save(cid, lineup):
+    items = [x for x in (_clean_item(i) for i in lineup) if x]
+    tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": False}, timeout=60)
+
+
+def tn_add(cid, progs):
+    """Ajoute des contenus à la fin de la programmation (sans toucher au reste)."""
+    cur = tn_programming(cid)
+    tn_backup(cid, cur["raw"])
+    items = [{"type": "content", "id": p["id"], "duration": p["duration"]} for p in progs if p.get("id") and p.get("duration")]
+    if not items:
+        raise RuntimeError("Rien à ajouter")
+    tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": True}, timeout=60)
+    return len(items)
+
+
+def tn_edit(cid, action, b):
+    import random
+    cur = tn_programming(cid)
+    raw = list(cur["raw"])
+    if action == "undo":
+        mine = sorted(x for x in os.listdir(BACKUPS) if x.startswith(cid + "-"))
+        if not mine:
+            raise RuntimeError("Rien à annuler")
+        with open(os.path.join(BACKUPS, mine[-1]), encoding="utf-8") as fh:
+            old = json.load(fh)
+        tn_save(cid, old)
+        os.remove(os.path.join(BACKUPS, mine[-1]))
+        return "Dernière modification annulée"
+    tn_backup(cid, raw)
+    if action == "remove":
+        idx = sorted({int(i) for i in (b.get("indexes") or [b.get("index")]) if i is not None and 0 <= int(i) < len(raw)}, reverse=True)
+        if not idx:
+            raise RuntimeError("Rien à retirer")
+        for i in idx:
+            raw.pop(i)
+        if not raw:
+            raise RuntimeError("Une chaîne doit garder au moins un programme")
+        msg = "%d programme%s retiré%s" % (len(idx), "s" if len(idx) > 1 else "", "s" if len(idx) > 1 else "")
+    elif action == "move":
+        i, d = int(b.get("index")), int(b.get("dir") or 0)
+        j = max(0, min(len(raw) - 1, i + d if abs(d) == 1 else (0 if d < 0 else len(raw) - 1)))
+        it = raw.pop(i)
+        raw.insert(j, it)
+        msg = "Déplacé"
+    elif action == "shuffle":
+        random.shuffle(raw)
+        msg = "Programmation mélangée"
+    elif action == "dedupe":
+        seen, out = set(), []
+        for it in raw:
+            k = (it.get("type"), it.get("id"))
+            if it.get("type") == "content" and k in seen:
+                continue
+            seen.add(k)
+            out.append(it)
+        msg = "%d doublon%s retiré%s" % ((len(raw) - len(out),) + (("s", "s") if len(raw) - len(out) > 1 else ("", "")))
+        raw = out
+    else:
+        raise RuntimeError("Action inconnue")
+    tn_save(cid, raw)
+    return msg
+
+
+def channel_for_lib(path):
+    """La chaîne qui va avec une médiathèque (même nom : « Dessin Animé TV » ↔ « Dessin Animé TV »)."""
+    lib = next((l for l in jf_cache.get("libs") or [] if os.path.normcase(os.path.abspath(path)).startswith(os.path.normcase(os.path.abspath(l["path"])))), None)
+    name = lib["name"] if lib else os.path.basename(path.rstrip("\\/"))
+    try:
+        for c in tn_channels():
+            if _key(c["name"]) == _key(name):
+                return c["id"]
+    except Exception:
+        pass
+    return ""
+
+
+def auto_add_to_channels(js, last=False):
+    """Après l'analyse Tunarr : on cherche les vidéos dans la médiathèque et on les ajoute à la chaîne choisie."""
+    todo = [j for j in js if j.get("tchan") and not j.get("tchan_done") and j.get("out")]
+    if not todo:
+        return
+    try:
+        libs = tn_libraries()
+        jlibs = jf_libraries(force=True)["libs"]
+        chans = {c["id"]: c for c in tn_channels()}
+    except Exception:
+        return
+    for j in todo:
+        try:
+            # médiathèque Tunarr où est arrivé le fichier
+            f0 = j["out"][0]
+            jl = next((l for l in jlibs if os.path.normcase(os.path.abspath(f0)).startswith(os.path.normcase(os.path.abspath(l["path"])))), None)
+            cand = [l for l in libs if jl and _key(l["name"]) == _key(jl["name"])] or libs
+            wanted = []
+            for f in j["out"]:
+                stem = os.path.splitext(os.path.basename(f))[0]
+                wanted.append({_key(stem), _key(j.get("title") or ""), _key(re.sub(r"\s+-\s+", " ", stem))})
+            found = []
+            for l in cand:
+                for pg in tn_library_programs(l["id"], fresh=True):
+                    k = _key(pg["title"])
+                    for wi, w in enumerate(wanted):
+                        if k and k in w and wi not in [x[0] for x in found]:
+                            found.append((wi, pg))
+                if len(found) == len(wanted):
+                    break
+            if found:
+                cur_ids = {it.get("id") for it in tn_programming(j["tchan"])["raw"]}
+                add = [pg for _, pg in found if pg["id"] not in cur_ids]
+                if add:
+                    tn_add(j["tchan"], add)
+                c = chans.get(j["tchan"]) or {}
+                j["tchan_done"] = True
+                j["msg"] += " · sur la chaîne n°%s %s" % (c.get("number", "?"), c.get("name", ""))
+                if j.get("req"):
+                    req_steps(j["req"], {"tunarr": True}, {"channel": tunarr_to_fb_channel(c)} if c else None)
+            elif last:
+                j["msg"] += " · pas encore visible dans Tunarr : ajoute-la depuis l'onglet Chaînes"
+        except Exception as e:
+            if last:
+                j["msg"] += " · ajout à la chaîne raté (%s)" % e
+
+
+def tunarr_to_fb_channel(c):
+    """Clé de la chaîne dans la base des demandes (même nom)."""
+    try:
+        for k, v in (fb("/channels") or {}).items():
+            if _key((v or {}).get("name")) == _key(c.get("name")):
+                return k
+    except Exception:
+        pass
+    return None
 
 # ---------------------------------------------------------------- serveur web local
 class H(BaseHTTPRequestHandler):
@@ -1287,6 +1531,24 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, f.read(), "image/png")
         if u.path.startswith("/api/") and not self.authed():
             return self.need_auth()
+        if u.path.startswith("/api/tn/"):
+            q = parse_qs(u.query)
+            try:
+                if u.path == "/api/tn/channels":
+                    return self.send(200, {"channels": tn_channels()})
+                if u.path == "/api/tn/channel":
+                    d = tn_programming((q.get("id") or [""])[0])
+                    d.pop("raw", None)
+                    d["can_undo"] = any(x.startswith((q.get("id") or [""])[0] + "-") for x in os.listdir(BACKUPS))
+                    return self.send(200, d)
+                if u.path == "/api/tn/libs":
+                    return self.send(200, {"libs": tn_libraries()})
+                if u.path == "/api/tn/lib":
+                    return self.send(200, {"programs": tn_library_programs((q.get("id") or [""])[0], fresh=(q.get("fresh") or [""])[0] == "1")})
+                if u.path == "/api/tn/for":
+                    return self.send(200, {"channel": channel_for_lib((q.get("path") or [""])[0])})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/pc":
             return self.send(200, pc_state())
         if u.path == "/api/yt":
@@ -1355,7 +1617,7 @@ class H(BaseHTTPRequestHandler):
             except OSError:
                 pass
             return self.send(400, {"error": "L'envoi a été coupé, réessaie"})
-        j = after_upload(final, folder)
+        j = after_upload(final, folder, (q.get("tchan") or [""])[0])
         return self.send(200, {"ok": True, "path": final, "job": j["id"]})
 
     def do_POST(self):
@@ -1394,7 +1656,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": "Choisis où ranger la vidéo"})
             pl = bool(b.get("playlist")) if b.get("playlist") is not None else is_playlist(url)
             j = new_job("dl", url=url, dest=dest, quality=b.get("quality") or "1080", sub=b.get("sub") or "", playlist=pl, thumb=bool(b.get("thumb", True)),
-                        title=(b.get("title") or url), req=(b.get("req") or "") if re.fullmatch(r"[-\w]{1,64}", b.get("req") or "") else "", req_title=b.get("req_title") or "")
+                        title=(b.get("title") or url), req=(b.get("req") or "") if re.fullmatch(r"[-\w]{1,64}", b.get("req") or "") else "", req_title=b.get("req_title") or "",
+                        tchan=b.get("tchan") or "")
             conf["last_dest"] = dest
             conf["quality"] = b.get("quality") or conf["quality"]
             save_conf(conf)
@@ -1481,6 +1744,41 @@ class H(BaseHTTPRequestHandler):
             if WIN and os.path.exists(p):
                 subprocess.Popen(["explorer", "/select,", p] if os.path.isfile(p) else ["explorer", p])
             return self.send(200, {"ok": True})
+        if u.path == "/api/tn/add":
+            try:
+                cid = b.get("channel") or ""
+                ids = set(b.get("ids") or [])
+                pool = []
+                for lid in b.get("libs") or []:
+                    pool += tn_library_programs(lid)
+                progs = [p for p in pool if p["id"] in ids]
+                seen, uniq = set(), []
+                for p in progs:
+                    if p["id"] not in seen:
+                        seen.add(p["id"])
+                        uniq.append(p)
+                if b.get("order") == "shuffle":
+                    import random
+                    random.shuffle(uniq)
+                n = tn_add(cid, uniq)
+                return self.send(200, {"msg": "%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
+        if u.path == "/api/tn/edit":
+            try:
+                return self.send(200, {"msg": tn_edit(b.get("channel") or "", b.get("action"), b)})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
+        if u.path == "/api/tn/job":
+            # « Mettre sur une chaîne » après coup, depuis la file d'attente
+            with jobs_lock:
+                j = next((x for x in jobs if x["id"] == b.get("id")), None)
+            if not j or j["status"] != "fini":
+                return self.send(400, {"error": "Vidéo introuvable"})
+            j["tchan"], j["tchan_done"] = b.get("channel") or "", False
+            threading.Thread(target=lambda: (tunarr_scan_for([j]), time.sleep(float(os.environ.get("FRS_TUNARR_DELAY", "20"))), auto_add_to_channels([j], False),
+                                             time.sleep(60), auto_add_to_channels([j], True)), daemon=True).start()
+            return self.send(200, {"msg": "Studio l'ajoute dès que Tunarr la voit (moins d'une minute)"})
         if u.path == "/api/restart":
             k = b.get("what")
             if k == "pc":
@@ -1517,7 +1815,8 @@ class H(BaseHTTPRequestHandler):
                         return self.send(400, {"error": "Choisis la médiathèque"})
                     if any(x["url"] == url for x in subs):
                         return self.send(400, {"error": "Déjà dans tes abonnements"})
-                    sb = {"id": uuid.uuid4().hex[:8], "url": url, "dest": b["dest"], "sub": b.get("sub") or "", "quality": b.get("quality") or "1080", "name": "", "seen": [], "last": 0}
+                    sb = {"id": uuid.uuid4().hex[:8], "url": url, "dest": b["dest"], "sub": b.get("sub") or "", "quality": b.get("quality") or "1080", "name": "", "seen": [], "last": 0,
+                          "tchan": b.get("tchan") or ""}
                     try:
                         n = check_sub(sb, first_take=max(0, min(20, int(b.get("take") or 0))))
                     except Exception as e:

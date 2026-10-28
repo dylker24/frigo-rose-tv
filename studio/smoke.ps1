@@ -38,6 +38,7 @@ try { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress 
 try { $pc = Invoke-RestMethod "$api/api/pc" -TimeoutSec 20; $log += "Onglet PC : cpu=$($pc.cpu) ram=$($pc.ram.pct)% disques=" + (($pc.disks | ForEach-Object { "$($_.root) $([int]($_.free/1GB)) Go libres" }) -join ", ") + " gpu=$($pc.gpu.name) tunarr=$($pc.tunarr.ok) jellyfin=$($pc.jellyfin.ok)" } catch { $log += "Onglet PC KO $_" }
 try { $f = Join-Path $out "Vieux film é.avi"; $r = Invoke-RestMethod ("$api/api/upload?dest=" + [uri]::EscapeDataString($out) + "&sub=Envoi&name=" + [uri]::EscapeDataString("Vidéo du tel.avi")) -Method Put -InFile $f -ContentType "application/octet-stream" -TimeoutSec 60; $log += "Envoi de fichier : $($r.path)"; Start-Sleep 12; $log += "Après envoi : " + ((Get-ChildItem (Join-Path $out "Envoi") | ForEach-Object { $_.Name }) -join ", ") } catch { $log += "Envoi KO $_" }
 try { $r = Post "/api/subs" @{ action = "add"; url = "youtube.com/@disneyjuniorfr"; dest = $out; take = 0 }; $log += "Abonnement : nom=$($r.name) en route=$($r.queued)" } catch { $log += "Abonnement KO : $($_.ErrorDetails.Message)" }
+try { $r = Invoke-RestMethod "$api/api/tn/channels" -TimeoutSec 10; $log += "Chaînes : $($r.channels.Count)" } catch { $log += "Chaînes (sans Tunarr, normal ici) : $($_.ErrorDetails.Message)" }
 try { Post "/api/quit" @{} | Out-Null } catch {}
 Start-Sleep 2; if (-not $p.HasExited) { $log += "ATTENTION : l'appli ne s'est pas fermée"; Stop-Process $p -Force }
 ($log -join "`n") | Out-File -Encoding utf8 smoke.md
