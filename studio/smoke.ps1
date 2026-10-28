@@ -24,6 +24,13 @@ foreach ($j in $s.jobs) { $log += "- [$($j.kind)] $($j.status) | $($j.title) | $
 $log += "Fichiers : " + ((Get-ChildItem $out -Recurse | ForEach-Object { "$($_.Name) ($([int]($_.Length/1KB)) ko)" }) -join " ; ")
 $mp4 = Get-ChildItem $out -Filter *.mp4 -Recurse | Select-Object -First 3
 foreach ($f in $mp4) { $log += "$($f.Name) : " + ((& "$bin\ffprobe.exe" -v error -show_entries stream=codec_name,width,height,channels -of csv=p=0 $f.FullName) -join " / ") }
+try { $r = Post "/api/autostart" @{ on = $true }; $v = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name FrigoRoseStudio -ErrorAction SilentlyContinue).FrigoRoseStudio; $log += "Démarrage auto : on=$($r.on) valeur=$v"; $r = Post "/api/autostart" @{ on = $false }; $log += "Démarrage auto retiré : on=$($r.on)" } catch { $log += "autostart KO $_" }
+$lot = Join-Path $out "lot\Saison 1"; New-Item -ItemType Directory -Force -Path $lot | Out-Null
+foreach ($n in 1..3) { & "$bin\ffmpeg.exe" -v error -y -f lavfi -i "testsrc2=s=1280x720:r=25:d=15" -f lavfi -i "sine=d=15" -c:v mpeg4 -c:a ac3 (Join-Path $lot "E0$n.avi") }
+try { $r = Post "/api/convert_dir" @{ path = (Join-Path $out "lot"); dest = "" }; $log += "Dossier entier : $($r.added) ajoutées, $($r.skipped) sautées" } catch { $log += "convert_dir KO $_" }
+$t0 = Get-Date; $maxp = 0
+while (((Get-Date) - $t0).TotalSeconds -lt 240) { $s = St; $c = @($s.jobs | Where-Object { $_.status -eq "en cours" }).Count; if ($c -gt $maxp) { $maxp = $c }; if ($s -and -not ($s.jobs | Where-Object { $_.status -in @("attente","en cours") })) { break }; Start-Sleep 1 }
+$log += "Dossier entier : max $maxp en même temps, " + (($s.jobs | Where-Object { $_.kind -eq "conv" } | ForEach-Object { "$($_.title)=$($_.status)" }) -join ", ")
 try { Post "/api/quit" @{} | Out-Null } catch {}
 Start-Sleep 2; if (-not $p.HasExited) { $log += "ATTENTION : l'appli ne s'est pas fermée"; Stop-Process $p -Force }
 ($log -join "`n") | Out-File -Encoding utf8 smoke.md

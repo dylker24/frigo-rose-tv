@@ -28,7 +28,8 @@ os.makedirs(BIN, exist_ok=True)
 VIDEO_EXT = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts", ".mts", ".3gp", ".vob", ".divx", ".ogv", ".rmvb", ".asf"}
 
 # ---------------------------------------------------------------- réglages
-DEFAULT_CONF = {"jellyfin_url": "http://localhost:8096", "jellyfin_key": "", "folders": [], "last_dest": "", "quality": "1080", "keep_thumb": True}
+DEFAULT_CONF = {"jellyfin_url": "http://localhost:8096", "jellyfin_key": "", "folders": [], "last_dest": "", "quality": "1080", "keep_thumb": True,
+                "watch_on": False, "watch_src": "", "watch_dest": "", "watch_delete": False, "parallel": 2}
 _conf_lock = threading.Lock()
 
 
@@ -289,15 +290,16 @@ def public_job(j):
     return {k: v for k, v in j.items() if k not in ("proc",)}
 
 
-def worker():
+def worker(kind):
     while True:
         wake.wait(2)
-        wake.clear()
         if not setup["ready"]:
             continue
         while True:
             with jobs_lock:
-                j = next((x for x in jobs if x["status"] == "attente"), None)
+                busy = sum(1 for x in jobs if x["status"] == "en cours" and x["kind"] == kind)
+                lim = 1 if kind == "dl" else max(1, min(4, int(conf.get("parallel") or 2)))
+                j = None if busy >= lim else next((x for x in jobs if x["status"] == "attente" and x["kind"] == kind), None)
                 if j:
                     j["status"] = "en cours"
             if not j:
@@ -308,14 +310,37 @@ def worker():
                     j.update(status="annulé", msg="Annulé")
                 else:
                     j["status"] = "fini"
-                    if jf_refresh():
-                        j["msg"] += " · Jellyfin actualisé"
+                    refresh_soon(j)
             except Exception as e:
                 if j["cancel"]:
                     j.update(status="annulé", msg="Annulé")
                 else:
                     j.update(status="erreur", error=str(e), msg=str(e))
             j["proc"] = None
+
+
+_ref = {"timer": None, "jobs": []}
+
+
+def refresh_soon(j):
+    """Plusieurs vidéos finissent en même temps : on actualise Jellyfin une seule fois, 15 s après la dernière."""
+    if not conf["jellyfin_key"]:
+        return
+    with jobs_lock:
+        _ref["jobs"].append(j)
+        if _ref["timer"]:
+            _ref["timer"].cancel()
+        delay = 0.5 if os.environ.get("FRS_FAST_REFRESH") else 15
+
+        def go():
+            with jobs_lock:
+                js, _ref["jobs"] = _ref["jobs"], []
+            if jf_refresh():
+                for x in js:
+                    x["msg"] += " · Jellyfin actualisé"
+        _ref["timer"] = threading.Timer(delay, go)
+        _ref["timer"].daemon = True
+        _ref["timer"].start()
 
 
 def popen(cmd):
@@ -403,6 +428,140 @@ def do_convert(j):
     j["out"] = [dst]
     j["pct"] = 100
     j["msg"] = "Terminé · " + notes
+
+
+def scan_videos(root, recursive=True):
+    out = []
+    if recursive:
+        for d, dirs, files in os.walk(root):
+            dirs[:] = [x for x in dirs if not x.startswith((".", "$"))]
+            out += [os.path.join(d, f) for f in files if os.path.splitext(f)[1].lower() in VIDEO_EXT and not f.endswith((".part.mp4", ".new.mp4", ".conv.mp4"))]
+    else:
+        out = [e.path for e in os.scandir(root) if e.is_file() and os.path.splitext(e.name)[1].lower() in VIDEO_EXT]
+    return sorted(out, key=lambda x: x.lower())
+
+
+_probe_cache = {}
+
+
+def already_ok(path):
+    """MP4 déjà en H.264 + AAC : rien à faire (résultat gardé tant que le fichier ne change pas)."""
+    if not path.lower().endswith(".mp4"):
+        return False
+    try:
+        st = os.stat(path)
+    except OSError:
+        return True
+    k = (path, st.st_mtime, st.st_size)
+    if k not in _probe_cache:
+        _probe_cache[k] = not needs_conversion(path)
+    return _probe_cache[k]
+
+
+def queue_folder(root, dest, delete, recursive=True, auto=False):
+    """Ajoute toutes les vidéos d'un dossier à convertir. Avec une destination, on garde les sous-dossiers."""
+    n = skipped = 0
+    with jobs_lock:
+        busy = {x["src"] for x in jobs if x["kind"] == "conv" and x["status"] in ("attente", "en cours")}
+    for f in scan_videos(root, recursive):
+        if f in busy:
+            continue
+        if already_ok(f):
+            skipped += 1
+            continue
+        d = ""
+        if dest:
+            rel = os.path.relpath(os.path.dirname(f), root)
+            d = dest if rel in (".", "") else os.path.join(dest, rel)
+        if converted_exists(f, d):
+            skipped += 1
+            continue
+        new_job("conv", src=f, dest=d, delete=delete, title=os.path.basename(f), auto=auto)
+        n += 1
+    return n, skipped
+
+
+def converted_exists(src, dest):
+    """Ce fichier a déjà été converti (le MP4 est là) ?"""
+    base = os.path.splitext(os.path.basename(src))[0]
+    d = dest or os.path.dirname(src)
+    same = os.path.normcase(os.path.abspath(d)) == os.path.normcase(os.path.abspath(os.path.dirname(src)))
+    if src.lower().endswith(".mp4") and same:
+        return os.path.exists(os.path.join(d, base + " (MP4).mp4"))
+    return os.path.exists(os.path.join(d, base + ".mp4")) or os.path.exists(os.path.join(d, base + " (MP4).mp4"))
+
+
+_watch = {"sizes": {}, "seen": set(), "last": 0, "msg": ""}
+
+
+def watcher():
+    """Dossier automatique : tout ce qu'on y dépose est converti tout seul."""
+    while True:
+        time.sleep(float(os.environ.get("FRS_WATCH_EVERY", "20")))
+        try:
+            if not (setup["ready"] and conf.get("watch_on") and conf.get("watch_src") and os.path.isdir(conf["watch_src"])):
+                _watch["msg"] = ""
+                continue
+            root, dest = conf["watch_src"], conf.get("watch_dest") or ""
+            with jobs_lock:
+                known = {x["src"] for x in jobs if x["kind"] == "conv"}
+            fresh = []
+            for f in scan_videos(root, True):
+                if f in known or f in _watch["seen"]:
+                    continue
+                try:
+                    st = os.stat(f)
+                except OSError:
+                    continue
+                # fichier encore en train d'être copié : on attend qu'il ne bouge plus
+                prev = _watch["sizes"].get(f)
+                _watch["sizes"][f] = (st.st_size, st.st_mtime)
+                if prev != (st.st_size, st.st_mtime) or time.time() - st.st_mtime < 10:
+                    continue
+                _watch["seen"].add(f)
+                if already_ok(f) or converted_exists(f, (os.path.join(dest, os.path.relpath(os.path.dirname(f), root)) if dest and os.path.relpath(os.path.dirname(f), root) != "." else dest)):
+                    continue
+                fresh.append(f)
+            for f in fresh:
+                rel = os.path.relpath(os.path.dirname(f), root)
+                d = "" if not dest else (dest if rel == "." else os.path.join(dest, rel))
+                new_job("conv", src=f, dest=d, delete=bool(conf.get("watch_delete")), title=os.path.basename(f), auto=True)
+            _watch["last"] = time.time()
+            _watch["msg"] = ("%d nouvelle%s vidéo%s ajoutée%s" % ((len(fresh),) + (("s",) * 3 if len(fresh) > 1 else ("",) * 3))) if fresh else "Surveille le dossier"
+        except Exception as e:
+            _watch["msg"] = "Problème : %s" % e
+
+
+# ---------------------------------------------------------------- démarrage avec Windows
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+
+def autostart_get():
+    if not WIN:
+        return False
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+            winreg.QueryValueEx(k, "FrigoRoseStudio")
+            return True
+    except OSError:
+        return False
+
+
+def autostart_set(on):
+    if not WIN:
+        return False
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
+        if on:
+            exe = sys.executable if getattr(sys, "frozen", False) else '"%s" "%s"' % (sys.executable, os.path.abspath(__file__))
+            winreg.SetValueEx(k, "FrigoRoseStudio", 0, winreg.REG_SZ, ('"%s"' % exe if getattr(sys, "frozen", False) else exe) + " --silent")
+        else:
+            try:
+                winreg.DeleteValue(k, "FrigoRoseStudio")
+            except OSError:
+                pass
+    return autostart_get()
 
 
 def is_playlist(url):
@@ -586,6 +745,8 @@ class H(BaseHTTPRequestHandler):
             libs = jf_libraries()
             c = {k: v for k, v in conf.items() if k != "jellyfin_key"}
             c["has_key"] = bool(conf["jellyfin_key"])
+            c["autostart"] = autostart_get()
+            c["watch_msg"] = _watch["msg"]
             return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "win": WIN})
         if u.path == "/api/ls":
             q = parse_qs(u.query)
@@ -652,6 +813,33 @@ class H(BaseHTTPRequestHandler):
             save_conf(conf)
             libs = jf_libraries(force=True)
             return self.send(200, {"ok": True, "libs": libs["libs"], "jf_error": libs["error"]})
+        if u.path == "/api/convert_dir":
+            root = (b.get("path") or "").strip()
+            if not os.path.isdir(root):
+                return self.send(400, {"error": "Dossier introuvable"})
+            n, skipped = queue_folder(root, (b.get("dest") or "").strip(), bool(b.get("delete")), b.get("recursive", True) is not False)
+            return self.send(200, {"added": n, "skipped": skipped})
+        if u.path == "/api/watch":
+            for k in ("watch_src", "watch_dest"):
+                if isinstance(b.get(k), str):
+                    conf[k] = b[k].strip()
+            for k in ("watch_on", "watch_delete"):
+                if k in b:
+                    conf[k] = bool(b[k])
+            if b.get("parallel"):
+                conf["parallel"] = max(1, min(4, int(b["parallel"])))
+            if conf["watch_on"] and not os.path.isdir(conf.get("watch_src") or ""):
+                conf["watch_on"] = False
+                save_conf(conf)
+                return self.send(400, {"error": "Choisis d'abord le dossier à surveiller"})
+            save_conf(conf)
+            _watch["seen"].clear()
+            return self.send(200, {"ok": True})
+        if u.path == "/api/autostart":
+            try:
+                return self.send(200, {"on": autostart_set(bool(b.get("on")))})
+            except Exception:
+                return self.send(400, {"error": "Impossible de régler le démarrage automatique"})
         if u.path == "/api/mkdir":
             p = os.path.join(b.get("path") or "", (b.get("name") or "").strip())
             try:
@@ -682,8 +870,11 @@ def main():
         webbrowser.open("http://localhost:%d/" % PORT)
         return
     threading.Thread(target=ensure_tools, daemon=True).start()
-    threading.Thread(target=worker, daemon=True).start()
-    if not os.environ.get("FRS_NO_BROWSER"):
+    threading.Thread(target=worker, args=("dl",), daemon=True).start()
+    for _ in range(4):
+        threading.Thread(target=worker, args=("conv",), daemon=True).start()
+    threading.Thread(target=watcher, daemon=True).start()
+    if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
     srv.serve_forever()
 

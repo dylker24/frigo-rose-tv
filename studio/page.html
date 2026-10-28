@@ -106,6 +106,14 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .lib:last-child{border-bottom:0}
 .lib code{color:var(--mute);font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gpu{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.auto{margin-top:20px}
+.ahead{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.sw{flex:none;width:54px;height:31px;border-radius:99px;border:0;background:var(--s3);position:relative;transition:background .2s;margin-top:4px}
+.sw i{position:absolute;top:4px;left:4px;width:23px;height:23px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"] i{transform:translateX(23px)}
+.pickbtn{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.auto.on{border-color:rgba(224,36,94,.45)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -155,7 +163,20 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       </div>
       <label class="chk"><input type="checkbox" id="del"> Supprimer l'original une fois converti</label>
       <div class="err" id="cv-err"></div>
-      <div class="acts"><button class="btn pri" id="go-cv" disabled>Convertir</button><span class="hint" id="cv-n" style="margin:0"></span></div>
+      <div class="acts"><button class="btn pri" id="go-dir">Convertir tout ce dossier</button><button class="btn" id="go-cv" disabled>Convertir</button><span class="hint" id="cv-n" style="margin:0"></span></div>
+      <div class="hint" id="dir-h">Prend toutes les vidéos du dossier ouvert, sous-dossiers compris. Celles déjà en MP4 ou déjà converties sont sautées.</div>
+    </div>
+
+    <div class="card auto" id="v-auto" hidden>
+      <div class="ahead"><div><h1 style="font-size:20px">Conversion automatique</h1><p class="sub" style="margin:0">Dépose des vidéos dans un dossier : elles sont converties toutes seules, sans rien toucher.</p></div>
+        <button class="sw" id="w-on" role="switch" aria-checked="false"><i></i></button></div>
+      <div class="row">
+        <div><label class="l">Dossier à surveiller</label><button class="inp pickbtn" id="w-src">Choisir un dossier…</button></div>
+        <div><label class="l">Mettre les MP4</label><select class="inp" id="w-dest"></select></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="w-del"> Supprimer l'original une fois converti</label>
+      <div class="hint" id="w-msg"></div>
+      <div class="err" id="w-err"></div>
     </div>
 
     <!-- Réglages -->
@@ -173,6 +194,11 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <label class="l">Autres dossiers</label>
       <div id="folders"></div>
       <div class="acts" style="margin-top:10px"><button class="btn sm" id="add-folder">Ajouter un dossier</button></div>
+      <label class="l">Démarrage</label>
+      <label class="chk" style="margin-top:4px"><input type="checkbox" id="autostart"> Lancer Studio en arrière-plan quand le PC s'allume (pour la conversion automatique)</label>
+      <label class="l">Conversions en même temps</label>
+      <div class="seg" id="par" style="max-width:340px"><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button></div>
+      <div class="hint">2 est le bon réglage pour ta carte graphique. Les téléchargements YouTube se font à part, ils n'attendent pas les conversions.</div>
       <label class="l">Infos</label>
       <div class="gpu" id="infos"></div>
       <div class="acts"><button class="btn ghost" id="quit">Fermer l'appli</button></div>
@@ -207,7 +233,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-  $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-set").hidden=v!=="set";
+  $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";
   if(v==="conv"&&!fbData)browse(fbPath||"");if(v==="set")renderSet();
   try{localStorage.setItem("frs_view",v)}catch(e){}}
 
@@ -229,7 +255,8 @@ function bindDest(sel){let prev=sel.value;sel.onfocus=()=>{prev=sel.value};sel.o
   const p=await pickFolder(prev&&prev!=="__pick"?prev:"");if(!p){sel.value=prev;return}
   const f=S.conf.folders||[];if(!f.includes(p)&&!(S.libs||[]).some(l=>l.path===p)){f.push(p);await api("/api/config",{folders:f});S.conf.folders=f}
   destOptions(sel,sel.id==="cdest");sel.value=p;prev=p}}
-bindDest($("dest"));bindDest($("cdest"));
+bindDest($("dest"));bindDest($("cdest"));bindDest($("w-dest"));
+$("w-dest").addEventListener("change",()=>{if($("w-dest").value!=="__pick")api("/api/watch",{watch_dest:$("w-dest").value}).then(refresh)});
 
 /* téléchargement */
 $("paste").onclick=async()=>{try{$("url").value=(await navigator.clipboard.readText()).trim();urlHint()}catch(e){$("url").focus()}};
@@ -244,7 +271,7 @@ $("go-dl").onclick=async()=>{
   $("dl-err").textContent="";const url=$("url").value.trim(),dest=$("dest").value;
   if(!url){$("dl-err").textContent="Colle d'abord un lien";return}
   if(!dest||dest==="__pick"){$("dl-err").textContent="Choisis où ranger la vidéo";return}
-  try{await api("/api/download",{url,dest,quality,sub:$("sub").value,thumb:$("thumb").checked});$("url").value="";$("url-h").textContent="";refresh()}
+  try{await api("/api/download",{url,dest,quality,sub:$("sub").value,thumb:$("thumb").checked});if($("url").value.trim()===url){$("url").value="";$("url-h").textContent=""}refresh()}
   catch(e){$("dl-err").textContent=e.message}};
 $("url").onkeydown=e=>{if(e.key==="Enter")$("go-dl").click()};
 
@@ -271,6 +298,24 @@ function selInfo(){const n=fbSel.size;$("go-cv").disabled=!n;$("go-cv").textCont
 $("go-cv").onclick=async()=>{$("cv-err").textContent="";const dest=$("cdest").value==="__pick"?"":$("cdest").value;
   try{await api("/api/convert",{files:[...fbSel],dest,delete:$("del").checked});fbSel.clear();browse(fbPath);refresh()}catch(e){$("cv-err").textContent=e.message}};
 
+$("go-dir").onclick=async()=>{$("cv-err").textContent="";if(!fbPath){$("cv-err").textContent="Ouvre d'abord le dossier à convertir";return}
+  const dest=$("cdest").value==="__pick"?"":$("cdest").value;
+  try{const r=await api("/api/convert_dir",{path:fbPath,dest,delete:$("del").checked});
+    $("dir-h").textContent=r.added?r.added+" vidéo"+(r.added>1?"s":"")+" ajoutée"+(r.added>1?"s":"")+" à la file"+(r.skipped?" · "+r.skipped+" déjà bonne"+(r.skipped>1?"s":"")+", sautée"+(r.skipped>1?"s":""):""):r.skipped?"Tout est déjà converti dans ce dossier 👍":"Pas de vidéo dans ce dossier";refresh()}
+  catch(e){$("cv-err").textContent=e.message}};
+
+/* conversion automatique */
+function renderAuto(){const c=S.conf;const on=!!c.watch_on;$("w-on").setAttribute("aria-checked",on);$("v-auto").classList.toggle("on",on);
+  $("w-src").textContent=c.watch_src||"Choisir un dossier…";
+  if(document.activeElement!==$("w-dest")&&[...$("w-dest").options].some(o=>o.value===(c.watch_dest||"")))$("w-dest").value=c.watch_dest||"";
+  $("w-del").checked=!!c.watch_delete;
+  $("w-msg").textContent=on?("Activée"+(c.watch_msg?" · "+c.watch_msg:"")+(c.autostart?" · marche même quand l'appli est fermée":" · marche tant que Studio est ouvert (voir Réglages → Démarrage)")):"Désactivée"}
+$("w-on").onclick=async()=>{$("w-err").textContent="";try{await api("/api/watch",{watch_on:!S.conf.watch_on,watch_dest:$("w-dest").value==="__pick"?"":$("w-dest").value});refresh()}catch(e){$("w-err").textContent=e.message}};
+$("w-src").onclick=async()=>{const p=await pickFolder(S.conf.watch_src||"");if(!p)return;await api("/api/watch",{watch_src:p});refresh()};
+$("w-del").onchange=()=>api("/api/watch",{watch_delete:$("w-del").checked}).then(refresh);
+$("autostart").onchange=async()=>{try{const r=await api("/api/autostart",{on:$("autostart").checked});$("autostart").checked=r.on}catch(e){$("autostart").checked=!$("autostart").checked;alert(e.message)}refresh()};
+document.querySelectorAll("#par button").forEach(b=>b.onclick=()=>api("/api/watch",{parallel:+b.dataset.n}).then(refresh));
+
 /* choix d'un dossier */
 let pick=null;
 function pickFolder(start){return new Promise(res=>{pick={res,path:start||""};$("picker").hidden=false;pBrowse(pick.path)})}
@@ -293,6 +338,8 @@ function renderSet(){
   const f=S.conf.folders||[];$("folders").innerHTML=f.length?"":'<div class="hint" style="margin:0">Aucun pour l\'instant</div>';
   f.forEach((p,i)=>{const d=document.createElement("div");d.className="lib";d.innerHTML='<code></code><button class="btn sm ghost">Retirer</button>';d.querySelector("code").textContent=p;
     d.querySelector("button").onclick=async()=>{f.splice(i,1);await api("/api/config",{folders:f});refresh()};$("folders").append(d)});
+  $("autostart").checked=!!S.conf.autostart;$("autostart").disabled=!S.win;
+  document.querySelectorAll("#par button").forEach(b=>b.classList.toggle("on",+b.dataset.n===(S.conf.parallel||2)));
   const s=S.setup||{};$("infos").innerHTML='<span class="pill">Carte graphique : '+(s.nvenc==null?"…":s.nvenc?"NVIDIA utilisée (rapide)":"non utilisée (processeur)")+'</span><span class="pill">yt-dlp '+esc(s.ytdlp_version||"…")+'</span><span class="pill">Studio '+esc(S.version||"")+'</span>'}
 $("jf-save").onclick=async()=>{const b={jellyfin_url:$("jf-url").value.trim()};if($("jf-key").value.trim())b.jellyfin_key=$("jf-key").value.trim();
   $("jf-res").textContent="Connexion…";try{const r=await api("/api/config",b);$("jf-key").value="";$("jf-res").textContent=r.jf_error?r.jf_error:r.libs.length?"Connecté · "+r.libs.length+" dossier"+(r.libs.length>1?"s":""):"Connecté";refresh()}catch(e){$("jf-res").textContent=e.message}};
@@ -327,7 +374,7 @@ async function refresh(){
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
   $("go-dl").disabled=!s.ready;
-  destOptions($("dest"),false);destOptions($("cdest"),true);renderJobs();if(view==="set")renderSet()}
+  destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);renderAuto();renderJobs();if(view==="set")renderSet()}
 try{quality=localStorage.getItem("frs_q")||"1080"}catch(e){}
 document.querySelectorAll("#qual button").forEach(b=>b.addEventListener("click",()=>{try{localStorage.setItem("frs_q",quality)}catch(e){}}));
 renderQual();
