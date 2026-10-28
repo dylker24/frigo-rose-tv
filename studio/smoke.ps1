@@ -31,6 +31,10 @@ try { $r = Post "/api/convert_dir" @{ path = (Join-Path $out "lot"); dest = "" }
 $t0 = Get-Date; $maxp = 0
 while (((Get-Date) - $t0).TotalSeconds -lt 240) { $s = St; $c = @($s.jobs | Where-Object { $_.status -eq "en cours" }).Count; if ($c -gt $maxp) { $maxp = $c }; if ($s -and -not ($s.jobs | Where-Object { $_.status -in @("attente","en cours") })) { break }; Start-Sleep 1 }
 $log += "Dossier entier : max $maxp en même temps, " + (($s.jobs | Where-Object { $_.kind -eq "conv" } | ForEach-Object { "$($_.title)=$($_.status)" }) -join ", ")
+$ts = (Invoke-RestMethod "$api/api/state").conf.tunarr; $log += "Tunarr vu par Studio : ok=$($ts.ok)"
+try { $r = Invoke-RestMethod "$api/api/yt?q=mickey" -TimeoutSec 90; $log += "Recherche YouTube : $($r.results.Count) résultats, 1er = $($r.results[0].title)" } catch { $log += "Recherche YouTube KO : $($_.ErrorDetails.Message)" }
+try { $r = Post "/api/pin" @{ pin = "2424" }; $log += "Code : ok" } catch { $log += "Code KO $_" }
+try { $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.*" } | Select-Object -First 1).IPAddress; $c = Invoke-WebRequest "http://$($ip):8795/api/state" -UseBasicParsing -TimeoutSec 5; $log += "Accès réseau local ($ip) : $($c.StatusCode) (devrait être refusé)" } catch { $log += "Accès réseau local refusé ✓ ($($_.Exception.Message.Substring(0,[Math]::Min(80,$_.Exception.Message.Length))))" }
 try { Post "/api/quit" @{} | Out-Null } catch {}
 Start-Sleep 2; if (-not $p.HasExited) { $log += "ATTENTION : l'appli ne s'est pas fermée"; Stop-Process $p -Force }
 ($log -join "`n") | Out-File -Encoding utf8 smoke.md

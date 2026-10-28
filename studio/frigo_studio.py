@@ -6,14 +6,14 @@ L'appli tourne sur le PC et s'ouvre dans le navigateur (http://localhost:8795).
 Elle s'appuie sur yt-dlp (téléchargement), ffmpeg (conversion) et deno (nécessaire à yt-dlp pour YouTube),
 téléchargés automatiquement au premier lancement sur Windows.
 """
-import json, os, re, shutil, string, subprocess, sys, threading, time, urllib.request, urllib.error, uuid, webbrowser, zipfile, io
+import hashlib, hmac, secrets, json, os, re, shutil, string, subprocess, sys, threading, time, urllib.request, urllib.error, uuid, webbrowser, zipfile, io
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 APP = "Frigo Rosé Studio"
 VERSION = "1.0"
 PORT = int(os.environ.get("FRS_PORT", "8795"))
-HOST = os.environ.get("FRS_HOST", "127.0.0.1")
+HOST = os.environ.get("FRS_HOST", "0.0.0.0")  # ouvert au téléphone via Tailscale (voir allowed_client)
 WIN = os.name == "nt"
 NOWIN = 0x08000000 if WIN else 0  # CREATE_NO_WINDOW : pas de fenêtre noire qui s'ouvre
 
@@ -29,7 +29,9 @@ VIDEO_EXT = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".
 
 # ---------------------------------------------------------------- réglages
 DEFAULT_CONF = {"jellyfin_url": "http://localhost:8096", "jellyfin_key": "", "folders": [], "last_dest": "", "quality": "1080", "keep_thumb": True,
-                "watch_on": False, "watch_src": "", "watch_dest": "", "watch_delete": False, "parallel": 2}
+                "watch_on": False, "watch_src": "", "watch_dest": "", "watch_delete": False, "parallel": 2,
+                "tunarr_url": "http://localhost:8000", "pin_hash": "", "secret": ""}
+FB_URL = os.environ.get("FRS_FB_URL") or "https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.app/frigorosetv"
 _conf_lock = threading.Lock()
 
 
@@ -51,6 +53,12 @@ def save_conf(c):
 
 
 conf = load_conf()
+if not conf.get("secret"):
+    conf["secret"] = secrets.token_hex(16)
+    try:
+        save_conf(conf)
+    except OSError:
+        pass
 
 # ---------------------------------------------------------------- outils (yt-dlp, ffmpeg, deno)
 TOOLS = {
@@ -312,6 +320,8 @@ def worker(kind):
                     j.update(status="annulé", msg="Annulé")
                 else:
                     j["status"] = "fini"
+                    if j.get("req"):
+                        threading.Thread(target=req_steps, args=(j["req"], {"found": True, "converted": True}, {"source": "telecharge"}), daemon=True).start()
                     refresh_soon(j)
             except Exception as e:
                 if j["cancel"]:
@@ -340,9 +350,135 @@ def refresh_soon(j):
             if jf_refresh():
                 for x in js:
                     x["msg"] += " · Jellyfin actualisé"
+                    if x.get("req"):
+                        req_steps(x["req"], {"jellyfin": True})
+                # Tunarr garde sa propre liste : on lui demande de relire la médiathèque quand Jellyfin a fini
+                for d in (float(os.environ.get("FRS_TUNARR_DELAY", "45")), float(os.environ.get("FRS_TUNARR_DELAY2", "150"))):
+                    t = threading.Timer(d, tunarr_scan_for, args=(js,))
+                    t.daemon = True
+                    t.start()
         _ref["timer"] = threading.Timer(delay, go)
         _ref["timer"].daemon = True
         _ref["timer"].start()
+
+
+# ---------------------------------------------------------------- Tunarr
+def tunarr(path, method="GET", timeout=8):
+    req = urllib.request.Request(conf.get("tunarr_url", "http://localhost:8000").rstrip("/") + path, data=b"" if method == "POST" else None, method=method)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        t = r.read()
+        try:
+            return json.loads(t) if t.strip() else None
+        except ValueError:
+            return None
+
+
+def _key(s):
+    import unicodedata
+    s = unicodedata.normalize("NFD", (s or "").lower())
+    return re.sub(r"[^a-z0-9]", "", "".join(c for c in s if unicodedata.category(c) != "Mn"))
+
+
+_tn = {"t": 0, "ok": None, "version": ""}
+
+
+def tunarr_status():
+    if time.time() - _tn["t"] > 30:
+        _tn["t"] = time.time()
+        try:
+            v = tunarr("/api/version", timeout=3) or {}
+            _tn.update(ok=True, version=str(v.get("tunarr") or v.get("version") or ""))
+        except Exception:
+            _tn.update(ok=False, version="")
+    return {"ok": _tn["ok"], "version": _tn["version"]}
+
+
+def tunarr_scan_for(js):
+    """Relance l'analyse des médiathèques Tunarr qui correspondent aux dossiers où sont arrivées les vidéos."""
+    try:
+        libs = jf_libraries(force=True)["libs"]
+        names = set()
+        for j in js:
+            for f in j.get("out") or []:
+                nf = os.path.normcase(os.path.abspath(f))
+                for l in libs:
+                    lp = os.path.normcase(os.path.abspath(l["path"]))
+                    if nf.startswith(lp.rstrip("\\/") + os.sep):
+                        names.add(_key(l["name"]))
+        if not names:
+            return
+        done = 0
+        for ms in tunarr("/api/media-sources") or []:
+            for lib in ms.get("libraries") or []:
+                if _key(lib.get("name")) in names:
+                    tunarr("/api/media-sources/%s/libraries/%s/scan?forceScan=true" % (ms["id"], lib["id"]), "POST")
+                    done += 1
+        if done:
+            for j in js:
+                if "Tunarr" not in j["msg"]:
+                    j["msg"] += " · Tunarr actualisé"
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------- Demandes (même base que l'appli Demandes et la télé)
+STEP_KEYS = ["found", "converted", "jellyfin", "tunarr"]
+
+
+def fb(path, method="GET", body=None):
+    req = urllib.request.Request(FB_URL + path + ".json", data=json.dumps(body).encode() if body is not None else None, method=method,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read() or b"null")
+
+
+def req_steps(rid, add, extra=None):
+    """Coche des étapes d'une demande et recalcule son état (comme l'appli Demandes)."""
+    try:
+        r = fb("/requests/" + rid) or {}
+        steps = dict(r.get("steps") or {})
+        steps.update(add)
+        n = sum(1 for k in STEP_KEYS if steps.get(k))
+        st = "non" if r.get("status") == "non" else ("ajoute" if n == 4 else "cours" if n else "attente")
+        body = {"steps": steps, "status": st}
+        if extra:
+            body.update(extra)
+        fb("/requests/" + rid, "PATCH", body)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------- recherche YouTube
+def yt_search(q, n=12):
+    if os.environ.get("FRS_FAKE_YT"):  # tests
+        with open(os.environ["FRS_FAKE_YT"], encoding="utf-8") as f:
+            return json.load(f)
+    r = subprocess.run([tool("yt-dlp"), "--flat-playlist", "-J", "--no-warnings", "--encoding", "utf-8", "ytsearch%d:%s" % (n, q)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, creationflags=NOWIN, env=run_env())
+    if r.returncode != 0:
+        err = [l for l in r.stderr.splitlines() if l.startswith("ERROR")]
+        raise RuntimeError(nice_ytdlp_error(err[-1][6:] if err else r.stderr[-200:]))
+    data = json.loads(r.stdout or "{}")
+    out = []
+    for e in data.get("entries") or []:
+        vid = e.get("id")
+        if not vid or e.get("ie_key") not in (None, "Youtube"):
+            continue
+        out.append({"id": vid, "title": e.get("title") or "", "duration": e.get("duration") or 0, "channel": e.get("channel") or e.get("uploader") or "",
+                    "views": e.get("view_count") or 0, "url": "https://www.youtube.com/watch?v=" + vid, "thumb": "https://i.ytimg.com/vi/%s/mqdefault.jpg" % vid})
+    return out
+
+
+# ---------------------------------------------------------------- code du téléphone
+def pin_hash(pin):
+    return hashlib.sha256(("frs:" + pin).encode()).hexdigest()
+
+
+def session_token():
+    return hmac.new(conf["secret"].encode(), (conf.get("pin_hash") or "").encode(), hashlib.sha256).hexdigest()
+
+
+_fails = {"n": 0, "until": 0}
 
 
 def popen(cmd):
@@ -714,14 +850,65 @@ def list_dir(path):
     return {"path": path, "parent": parent, "dirs": dirs, "files": files}
 
 
+# ---------------------------------------------------------------- accès depuis le téléphone (Tailscale)
+import ipaddress, socket
+TS_NET = ipaddress.ip_network("100.64.0.0/10")
+TS6_NET = ipaddress.ip_network("fd7a:115c:a1e0::/48")
+
+
+def allowed_client(ip):
+    try:
+        a = ipaddress.ip_address(ip.split("%")[0])
+        if getattr(a, "ipv4_mapped", None):
+            a = a.ipv4_mapped
+        if os.environ.get("FRS_ALLOW_ALL"):
+            return True
+        return a.is_loopback or (a.version == 4 and a in TS_NET) or (a.version == 6 and a in TS6_NET)
+    except ValueError:
+        return False
+
+
+_ts = {"t": 0, "ip": ""}
+
+
+def tailscale_ip():
+    if os.environ.get("FRS_FAKE_TS"):
+        return os.environ["FRS_FAKE_TS"]
+    if time.time() - _ts["t"] > 30:
+        _ts.update(t=time.time(), ip=_tailscale_ip())
+    return _ts["ip"]
+
+
+def _tailscale_ip():
+    """Adresse Tailscale de ce PC (100.x.x.x), pour ouvrir Studio depuis le téléphone."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("100.100.100.100", 53))
+        ip = s.getsockname()[0]
+        s.close()
+        if ipaddress.ip_address(ip) in TS_NET:
+            return ip
+    except OSError:
+        pass
+    try:
+        for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if ipaddress.ip_address(ip) in TS_NET:
+                return ip
+    except OSError:
+        pass
+    return ""
+
+
 # ---------------------------------------------------------------- serveur web local
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def send(self, code, body, ctype="application/json; charset=utf-8"):
+    def send(self, code, body, ctype="application/json; charset=utf-8", headers=None):
         b = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store")
@@ -736,14 +923,77 @@ class H(BaseHTTPRequestHandler):
             return {}
 
     def guard(self):
-        # page locale uniquement : on refuse les requêtes envoyées par d'autres sites
+        # on refuse les requêtes envoyées par d'autres sites : l'origine doit être la page Studio elle-même
         o = self.headers.get("Origin")
-        return not o or urlparse(o).hostname in ("localhost", "127.0.0.1")
+        if not o:
+            return True
+        oh = urlparse(o).hostname
+        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
+        return oh in ("localhost", "127.0.0.1") or (oh and oh == host)
+
+    def allowed(self):
+        """Seulement ce PC et les appareils de ton Tailscale (ton téléphone). Le reste du réseau est refusé."""
+        return allowed_client(self.client_address[0])
+
+    def handle_one_request(self):
+        try:
+            if not self.allowed():
+                self.close_connection = True
+                try:
+                    self.connection.sendall(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                except OSError:
+                    pass
+                return
+        except Exception:
+            return
+        return super().handle_one_request()
+
+    def local(self):
+        try:
+            a = ipaddress.ip_address(self.client_address[0].split("%")[0])
+            return a.is_loopback or bool(getattr(a, "ipv4_mapped", None) and a.ipv4_mapped.is_loopback)
+        except ValueError:
+            return False
+
+    def authed(self):
+        """Sur le PC : toujours. Depuis le téléphone : il faut le code (cookie de session)."""
+        if self.local():
+            return True
+        if not conf.get("pin_hash"):
+            return False
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == "frs_s" and hmac.compare_digest(v, session_token()):
+                return True
+        return False
+
+    def need_auth(self):
+        return self.send(401, {"error": "code", "need": "pin" if conf.get("pin_hash") else "nopin"})
 
     def do_GET(self):
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
             return self.send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
+        if u.path == "/manifest.webmanifest":
+            return self.send(200, json.dumps({"name": "Frigo Rosé Studio", "short_name": "Studio", "start_url": "/", "display": "standalone",
+                                              "background_color": "#0A0A0B", "theme_color": "#0A0A0B", "icons": [{"src": "/icon.png", "sizes": "256x256", "type": "image/png"}]}).encode(), "application/manifest+json")
+        if u.path == "/icon.png":
+            ic = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "icon.png")
+            if os.path.exists(ic):
+                with open(ic, "rb") as f:
+                    return self.send(200, f.read(), "image/png")
+        if u.path.startswith("/api/") and not self.authed():
+            return self.need_auth()
+        if u.path == "/api/yt":
+            q = (parse_qs(u.query).get("q") or [""])[0].strip()
+            if not q:
+                return self.send(400, {"error": "Tape quelque chose à chercher"})
+            if not setup["ready"]:
+                return self.send(400, {"error": "Studio se prépare encore, réessaie dans un instant"})
+            try:
+                return self.send(200, {"results": yt_search(q)})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/state":
             with jobs_lock:
                 js = [public_job(j) for j in jobs]
@@ -752,7 +1002,10 @@ class H(BaseHTTPRequestHandler):
             c["has_key"] = bool(conf["jellyfin_key"])
             c["autostart"] = autostart_get()
             c["watch_msg"] = _watch["msg"]
-            return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "win": WIN})
+            c.pop("pin_hash", None); c.pop("secret", None)
+            c["has_pin"] = bool(conf.get("pin_hash"))
+            c["tunarr"] = tunarr_status()
+            return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
         if u.path == "/api/ls":
             q = parse_qs(u.query)
             return self.send(200, list_dir((q.get("path") or [""])[0]))
@@ -763,6 +1016,28 @@ class H(BaseHTTPRequestHandler):
             return self.send(403, {"error": "refusé"})
         u = urlparse(self.path)
         b = self.body()
+        if u.path == "/api/login":
+            if not conf.get("pin_hash"):
+                return self.need_auth()
+            if time.time() < _fails["until"]:
+                return self.send(429, {"error": "Trop d'essais, attends une minute"})
+            if hmac.compare_digest(pin_hash(str(b.get("pin") or "")), conf["pin_hash"]):
+                _fails["n"] = 0
+                return self.send(200, {"ok": True}, headers={"Set-Cookie": "frs_s=%s; Max-Age=31536000; Path=/; HttpOnly; SameSite=Strict" % session_token()})
+            _fails["n"] += 1
+            if _fails["n"] >= 5:
+                _fails.update(n=0, until=time.time() + 60)
+            return self.send(403, {"error": "Mauvais code"})
+        if not self.authed():
+            return self.need_auth()
+        if u.path == "/api/pin":
+            pin = str(b.get("pin") or "")
+            if not re.fullmatch(r"\d{4,8}", pin):
+                return self.send(400, {"error": "Le code doit faire 4 à 8 chiffres"})
+            conf["pin_hash"] = pin_hash(pin)
+            save_conf(conf)
+            # le téléphone qui change le code reste connecté
+            return self.send(200, {"ok": True}, headers={"Set-Cookie": "frs_s=%s; Max-Age=31536000; Path=/; HttpOnly; SameSite=Strict" % session_token()})
         if u.path == "/api/download":
             url = (b.get("url") or "").strip()
             dest = (b.get("dest") or "").strip()
@@ -771,7 +1046,8 @@ class H(BaseHTTPRequestHandler):
             if not dest:
                 return self.send(400, {"error": "Choisis où ranger la vidéo"})
             pl = bool(b.get("playlist")) if b.get("playlist") is not None else is_playlist(url)
-            j = new_job("dl", url=url, dest=dest, quality=b.get("quality") or "1080", sub=b.get("sub") or "", playlist=pl, thumb=bool(b.get("thumb", True)), title=url)
+            j = new_job("dl", url=url, dest=dest, quality=b.get("quality") or "1080", sub=b.get("sub") or "", playlist=pl, thumb=bool(b.get("thumb", True)),
+                        title=(b.get("title") or url), req=(b.get("req") or "") if re.fullmatch(r"[-\w]{1,64}", b.get("req") or "") else "", req_title=b.get("req_title") or "")
             conf["last_dest"] = dest
             conf["quality"] = b.get("quality") or conf["quality"]
             save_conf(conf)
@@ -810,12 +1086,13 @@ class H(BaseHTTPRequestHandler):
                 jobs[:] = [j for j in jobs if j["status"] in ("attente", "en cours")]
             return self.send(200, {"ok": True})
         if u.path == "/api/config":
-            for k in ("jellyfin_url", "jellyfin_key"):
+            for k in ("jellyfin_url", "jellyfin_key", "tunarr_url"):
                 if k in b and isinstance(b[k], str):
                     conf[k] = b[k].strip()
             if isinstance(b.get("folders"), list):
                 conf["folders"] = [f for f in b["folders"] if isinstance(f, str) and f.strip()]
             save_conf(conf)
+            _tn["t"] = 0
             libs = jf_libraries(force=True)
             return self.send(200, {"ok": True, "libs": libs["libs"], "jf_error": libs["error"]})
         if u.path == "/api/convert_dir":

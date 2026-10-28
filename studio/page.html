@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Frigo Rosé Studio</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Studio">
+<meta name="theme-color" content="#0A0A0B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Unbounded:wght@700&display=swap">
 <style>
@@ -25,6 +30,8 @@ button{cursor:pointer}
 .tabs{display:flex;gap:4px;background:var(--s1);padding:4px;border-radius:12px}
 .tabs button{border:0;background:none;padding:8px 16px;border-radius:9px;color:var(--mute);font-weight:600}
 .tabs button.on{background:var(--s3);color:var(--ink)}
+.phone{margin-left:auto}
+.phone:not([hidden])+.status{margin-left:0}
 .status{margin-left:auto;font-size:13px;color:var(--mute);display:flex;align-items:center;gap:8px;white-space:nowrap}
 .status b{width:8px;height:8px;border-radius:50%;background:var(--warn)}
 .status.ok b{background:var(--ok)}
@@ -114,6 +121,46 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .sw[aria-checked="true"] i{transform:translateX(23px)}
 .pickbtn{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .auto.on{border-color:rgba(224,36,94,.45)}
+/* recherche YouTube */
+.yt{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:16px}
+.yv{background:var(--s2);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.yv .im{position:relative;aspect-ratio:16/9;background:#000}
+.yv .im img{width:100%;height:100%;object-fit:cover;display:block}
+.yv .im span{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.8);font-size:12px;font-weight:700;padding:2px 6px;border-radius:5px}
+.yv .tx{padding:10px 12px 0;flex:1}
+.yv .tx b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;line-height:1.3}
+.yv .tx small{display:block;color:var(--mute);font-size:12px;margin-top:4px}
+.yv .btn{margin:10px 12px 12px}
+.yv.sent{opacity:.55}
+.forreq{display:flex;align-items:center;gap:10px;background:rgba(224,36,94,.12);border:1px solid rgba(224,36,94,.35);border-radius:11px;padding:10px 14px;margin-bottom:16px;font-size:14px}
+.forreq span{flex:1}
+/* demandes */
+.req{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:10px}
+.req .rh{display:flex;align-items:center;gap:12px;cursor:pointer}
+.req .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none}
+.req .rt{flex:1;min-width:0}
+.req .rt b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.req .rt small{color:var(--mute);font-size:13px}
+.chip{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;flex:none}
+.chip.attente{background:var(--s3);color:#ddd}.chip.cours{background:#3A2A0E;color:#F7C266}.chip.ajoute{background:#123526;color:#5BE3A3}.chip.non{background:var(--s1);color:var(--faint);text-decoration:line-through}
+.req .rb{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.steps button{border:1px solid var(--line);background:var(--s1);color:var(--mute);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;text-align:left}
+.steps button small{display:block;font-weight:500;font-size:11px;opacity:.7}
+.steps button.on{background:rgba(61,214,140,.14);border-color:rgba(61,214,140,.4);color:var(--ok)}
+.rrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rrow select{max-width:280px}
+.dfilter{display:flex;gap:6px;margin-bottom:4px}
+/* connexion depuis le téléphone */
+.login{position:fixed;inset:0;background:var(--bg);z-index:30;display:grid;place-items:center;padding:20px}
+.login .card{width:min(380px,100%);text-align:center}
+.pin{font-size:30px;letter-spacing:.5em;text-align:center;padding:14px}
+@media(max-width:700px){
+  body{font-size:15px}.top{position:static}.brand span{display:none}.tabs{width:100%;overflow-x:auto}.tabs button{flex:1;padding:9px 8px;font-size:14px}
+  .status{display:none}.card{padding:16px}h1{font-size:21px}.big{flex-direction:column}.big .btn{width:100%}.row>*{min-width:100%}
+  .yt{grid-template-columns:1fr 1fr;gap:10px}.yv .tx b{font-size:13px}.yv .btn{padding:9px;margin:8px}
+  .phone{display:none!important}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -123,8 +170,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   <nav class="tabs" id="tabs">
     <button data-v="dl" class="on">Télécharger</button>
     <button data-v="conv">Convertir</button>
+    <button data-v="dem">Demandes <span class="pill" id="dem-n" hidden style="padding:1px 7px;margin-left:4px;background:var(--accent);color:#fff"></span></button>
     <button data-v="set">Réglages</button>
   </nav>
+  <button class="btn sm phone" id="phone-btn" hidden>📱 Sur ton téléphone</button>
   <div class="status" id="status"><b></b><span>Démarrage…</span></div>
 </header>
 
@@ -135,8 +184,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <!-- Télécharger -->
     <div class="card" id="v-dl">
       <h1>Télécharger une vidéo</h1>
-      <p class="sub">Colle un lien YouTube (vidéo ou playlist). Elle arrive en MP4 dans le dossier choisi, prête pour Jellyfin.</p>
-      <div class="big"><input class="inp" id="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" spellcheck="false"><button class="btn" id="paste">Coller</button></div>
+      <p class="sub">Colle un lien YouTube, ou tape ce que tu cherches. La vidéo arrive en MP4 dans le dossier choisi, prête pour Jellyfin.</p>
+      <div class="forreq" id="forreq" hidden><span id="forreq-t"></span><button class="btn sm ghost" id="forreq-x">Annuler</button></div>
+      <div class="big"><input class="inp" id="url" placeholder="Lien YouTube ou recherche (ex : Mickey pêche)" autocomplete="off" spellcheck="false" enterkeyhint="search"><button class="btn" id="paste">Coller</button></div>
       <div class="hint" id="url-h"></div>
       <div class="row">
         <div><label class="l">Ranger dans</label><select class="inp" id="dest"></select></div>
@@ -148,6 +198,15 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <label class="chk"><input type="checkbox" id="thumb" checked> Ajouter l'image de la vidéo (Jellyfin l'affiche)</label>
       <div class="err" id="dl-err"></div>
       <div class="acts"><button class="btn pri" id="go-dl">Télécharger</button></div>
+      <div id="yt-box" hidden><label class="l" id="yt-h">Résultats</label><div class="yt" id="yt"></div></div>
+    </div>
+
+    <!-- Demandes -->
+    <div class="card" id="v-dem" hidden>
+      <h1>Demandes</h1>
+      <p class="sub">Ce que la famille a demandé avec le QR code de la télé. Coche les étapes, choisis la chaîne, ou cherche direct sur YouTube.</p>
+      <div class="dfilter seg" id="dfilter" style="max-width:420px"><button data-f="open" class="on">En cours</button><button data-f="done">À l'antenne</button><button data-f="all">Toutes</button></div>
+      <div id="dlist"><div class="qempty">Chargement…</div></div>
     </div>
 
     <!-- Convertir -->
@@ -194,6 +253,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <label class="l">Autres dossiers</label>
       <div id="folders"></div>
       <div class="acts" style="margin-top:10px"><button class="btn sm" id="add-folder">Ajouter un dossier</button></div>
+      <label class="l">Tunarr</label>
+      <div class="row"><div><input class="inp" id="tn-url" placeholder="http://localhost:8000"></div><div style="flex:0 0 auto;min-width:0"><button class="btn" id="tn-save">Enregistrer</button></div></div>
+      <div class="hint" id="tn-res">Après chaque téléchargement, Studio demande à Tunarr de relire la médiathèque : la vidéo est direct dans « Add Media ».</div>
+      <label class="l">Code pour le téléphone</label>
+      <div class="row"><div><input class="inp" id="pin-new" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="4 à 8 chiffres" autocomplete="off"></div><div style="flex:0 0 auto;min-width:0"><button class="btn" id="pin-save">Enregistrer le code</button></div></div>
+      <div class="hint" id="pin-h"></div>
       <label class="l">Démarrage</label>
       <label class="chk" style="margin-top:4px"><input type="checkbox" id="autostart"> Lancer Studio en arrière-plan quand le PC s'allume (pour la conversion automatique)</label>
       <label class="l">Conversions en même temps</label>
@@ -211,6 +276,23 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   </aside>
 </main>
 
+<div class="login" id="login" hidden><div class="card">
+  <div class="brand" style="justify-content:center;margin-bottom:14px"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></i>Frigo Rosé Studio</div>
+  <div id="login-ok"><p class="sub">Tape le code choisi dans Studio sur ton PC.</p>
+  <input class="inp pin" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code">
+  <div class="err" id="pin-err"></div><div class="acts" style="justify-content:center"><button class="btn pri" id="pin-go">Entrer</button></div></div>
+  <p class="sub" id="login-nopin" hidden>Choisis d'abord un code sur ton PC : Studio → Réglages → « Code pour le téléphone ».</p>
+</div></div>
+<div class="modal" id="phone-m" hidden>
+  <div class="card" style="width:min(460px,100%);align-items:center;text-align:center">
+    <h1 style="font-size:20px">Studio sur ton téléphone</h1>
+    <p class="sub" style="margin-bottom:16px">Allume Tailscale sur ton téléphone, puis scanne ce code avec l'appareil photo. Ajoute la page à l'écran d'accueil pour l'avoir comme une appli.</p>
+    <div id="phone-qr" style="background:#fff;padding:12px;border-radius:14px;width:220px;height:220px"></div>
+    <div class="hint" style="margin-top:12px;font-size:15px;color:var(--ink)" id="phone-url"></div>
+    <div class="hint">Ça marche partout où ton téléphone a internet, tant que le PC est allumé avec Studio ouvert.</div>
+    <div class="acts" style="justify-content:center"><button class="btn" id="phone-x">Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="picker" hidden>
   <div class="card">
     <h1 style="font-size:20px">Choisir un dossier</h1>
@@ -220,6 +302,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const IC={dir:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>',
@@ -233,7 +316,8 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-  $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";
+  $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
+  if(v==="dem")loadDem();
   if(v==="conv"&&!fbData)browse(fbPath||"");if(v==="set")renderSet();
   try{localStorage.setItem("frs_view",v)}catch(e){}}
 
@@ -267,11 +351,35 @@ function urlHint(){const u=$("url").value.trim();let h="";
 document.querySelectorAll("#qual button").forEach(b=>b.onclick=()=>{quality=b.dataset.q;renderQual()});
 function renderQual(){document.querySelectorAll("#qual button").forEach(b=>b.classList.toggle("on",b.dataset.q===quality));
   $("qual-h").textContent=quality==="max"?"Jusqu'à la 4K si dispo. Plus lourd, et souvent à reconvertir : plus long.":quality==="720"?"Fichiers plus petits, bien pour les séries et les vlogs.":"Le bon compromis pour la télé."}
+const isUrl=u=>/^https?:\/\//i.test(u)||/^(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com)\//i.test(u);
+function dlLabel(){$("go-dl").textContent=$("url").value.trim()&&!isUrl($("url").value.trim())?"Rechercher sur YouTube":"Télécharger"}
+$("url").addEventListener("input",dlLabel);
+let forReq=null;
+function setForReq(r){forReq=r;$("forreq").hidden=!r;if(r)$("forreq-t").textContent="Pour la demande de "+(r.who||"quelqu'un")+" : « "+(r.title||"")+" »"}
+$("forreq-x").onclick=()=>setForReq(null);
+async function ytSearch(q){
+  $("yt-box").hidden=false;$("yt-h").textContent="Recherche de « "+q+" »…";$("yt").innerHTML="";
+  try{const r=await api("/api/yt?q="+encodeURIComponent(q));$("yt-h").textContent=r.results.length?"Résultats pour « "+q+" » — choisis la bonne vidéo":"Aucun résultat pour « "+q+" »";
+    r.results.forEach(v=>{const d=document.createElement("div");d.className="yv";
+      d.innerHTML='<div class="im"><img loading="lazy" alt=""><span></span></div><div class="tx"><b></b><small></small></div><button class="btn pri sm">Télécharger</button>';
+      d.querySelector("img").src=v.thumb;d.querySelector(".im span").textContent=v.duration?fmtDur(v.duration):"";d.querySelector("b").textContent=v.title;
+      d.querySelector("small").textContent=v.channel+(v.views?" · "+fmtViews(v.views):"");
+      d.querySelector("button").onclick=async e=>{const b=e.target;b.disabled=true;b.textContent="Ajouté à la file ✓";d.classList.add("sent");
+        try{await sendDl(v.url,v.title)}catch(x){b.disabled=false;b.textContent="Télécharger";d.classList.remove("sent");$("dl-err").textContent=x.message}};
+      $("yt").append(d)})}
+  catch(e){$("yt-h").textContent=e.message}}
+const fmtDur=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
+const fmtViews=n=>n>=1e6?(n/1e6).toFixed(1).replace(".0","")+" M de vues":n>=1e3?Math.round(n/1e3)+" k vues":n+" vues";
+async function sendDl(url,title){const dest=$("dest").value;
+  if(!dest||dest==="__pick")throw new Error("Choisis où ranger la vidéo");
+  const b={url,dest,quality,sub:$("sub").value,thumb:$("thumb").checked,title:title||""};if(forReq){b.req=forReq.id;b.req_title=forReq.title||""}
+  await api("/api/download",b);if(forReq){setForReq(null)}refresh()}
 $("go-dl").onclick=async()=>{
   $("dl-err").textContent="";const url=$("url").value.trim(),dest=$("dest").value;
-  if(!url){$("dl-err").textContent="Colle d'abord un lien";return}
+  if(!url){$("dl-err").textContent="Colle un lien ou tape une recherche";return}
+  if(!isUrl(url)){ytSearch(url);return}
   if(!dest||dest==="__pick"){$("dl-err").textContent="Choisis où ranger la vidéo";return}
-  try{await api("/api/download",{url,dest,quality,sub:$("sub").value,thumb:$("thumb").checked});if($("url").value.trim()===url){$("url").value="";$("url-h").textContent=""}refresh()}
+  try{await sendDl(/^https?:/i.test(url)?url:"https://"+url);if($("url").value.trim()===url){$("url").value="";$("url-h").textContent="";dlLabel()}}
   catch(e){$("dl-err").textContent=e.message}};
 $("url").onkeydown=e=>{if(e.key==="Enter")$("go-dl").click()};
 
@@ -340,11 +448,74 @@ function renderSet(){
     d.querySelector("button").onclick=async()=>{f.splice(i,1);await api("/api/config",{folders:f});refresh()};$("folders").append(d)});
   $("autostart").checked=!!S.conf.autostart;$("autostart").disabled=!S.win;
   document.querySelectorAll("#par button").forEach(b=>b.classList.toggle("on",+b.dataset.n===(S.conf.parallel||2)));
+  if(document.activeElement!==$("tn-url"))$("tn-url").value=S.conf.tunarr_url||"";
+  const tn=S.conf.tunarr||{};if(!/Enregistr/.test($("tn-res").textContent)||tn.ok!=null)$("tn-res").textContent=tn.ok?"Tunarr trouvé ✓ "+(tn.version||"")+" — après chaque téléchargement, Studio lui demande de relire la médiathèque.":tn.ok===false?"Tunarr injoignable à cette adresse (il est lancé ?)":"…";
+  $("pin-h").textContent=S.conf.has_pin?"Code enregistré. Sur ton tel (Tailscale allumé), ouvre "+(S.phone||"l'adresse Tailscale du PC")+" et tape-le.":"Choisis un code pour ouvrir Studio depuis ton téléphone.";
+  $("quit").hidden=!!S.remote;
   const s=S.setup||{};$("infos").innerHTML='<span class="pill">Carte graphique : '+(s.nvenc==null?"…":s.nvenc?"NVIDIA utilisée (rapide)":"non utilisée (processeur)")+'</span><span class="pill">yt-dlp '+esc(s.ytdlp_version||"…")+'</span><span class="pill">Studio '+esc(S.version||"")+'</span>'}
 $("jf-save").onclick=async()=>{const b={jellyfin_url:$("jf-url").value.trim()};if($("jf-key").value.trim())b.jellyfin_key=$("jf-key").value.trim();
   $("jf-res").textContent="Connexion…";try{const r=await api("/api/config",b);$("jf-key").value="";$("jf-res").textContent=r.jf_error?r.jf_error:r.libs.length?"Connecté · "+r.libs.length+" dossier"+(r.libs.length>1?"s":""):"Connecté";refresh()}catch(e){$("jf-res").textContent=e.message}};
 $("add-folder").onclick=async()=>{const p=await pickFolder("");if(!p)return;const f=S.conf.folders||[];if(!f.includes(p))f.push(p);await api("/api/config",{folders:f});refresh()};
 $("quit").onclick=async()=>{if(S.jobs.some(j=>j.status==="en cours")&&!confirm("Une vidéo est en cours. Fermer quand même ?"))return;await api("/api/quit",{}).catch(()=>{});document.body.innerHTML='<div class="empty" style="padding:80px">Frigo Rosé Studio est fermé. Tu peux fermer cet onglet.</div>'};
+
+/* téléphone */
+$("phone-btn").onclick=()=>{$("phone-m").hidden=false;$("phone-url").textContent=S.phone;const q=$("phone-qr");q.innerHTML="";
+  if(window.QRCode)new QRCode(q,{text:S.phone,width:196,height:196,correctLevel:QRCode.CorrectLevel.M});else q.textContent=S.phone};
+$("phone-x").onclick=()=>{$("phone-m").hidden=true};
+
+/* demandes (même base que l'appli Demandes et la télé) */
+const FB="https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.app/frigorosetv";
+const STEPS=[["found","Trouvé","vidéo ou fichier"],["converted","Converti","MP4"],["jellyfin","Dans Jellyfin","analysé"],["tunarr","Sur la chaîne","Tunarr · Save"]];
+const ST={attente:"Demandé",cours:"En préparation",ajoute:"À l'antenne",non:"Pas dispo"};
+const AVC=["#E0245E","#5B4BE0","#0E8A5F","#C2410C","#0E7490","#9333EA","#B91C1C"];
+let DEM={reqs:null,ch:{},open:null,filter:"open",t:0,err:""};
+const hsh=s=>[...(s||"")].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+const stOf=r=>ST[r.status]?r.status:"attente";
+function nextSt(r,steps){const n=STEPS.filter(s=>steps[s[0]]).length;if(stOf(r)==="non")return "non";return n===4?"ajoute":n>0?"cours":"attente"}
+async function loadDem(){
+  try{const [rq,ch]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json())]);
+    DEM.reqs=Object.entries(rq||{}).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));DEM.ch=ch||{};DEM.err=""}
+  catch(e){DEM.err="Impossible de joindre les demandes (internet ?)"}
+  DEM.t=Date.now();renderDem()}
+async function patchReq(r,body){Object.assign(r,body);renderDem();try{await fetch(FB+"/requests/"+r.id+".json",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})}catch(e){}loadDem()}
+document.querySelectorAll("#dfilter button").forEach(b=>b.onclick=()=>{DEM.filter=b.dataset.f;document.querySelectorAll("#dfilter button").forEach(x=>x.classList.toggle("on",x===b));renderDem()});
+function renderDem(){
+  const open=(DEM.reqs||[]).filter(r=>["attente","cours"].includes(stOf(r)));
+  $("dem-n").hidden=!open.length;$("dem-n").textContent=open.length;
+  if(view!=="dem")return;
+  const box=$("dlist");if(document.activeElement&&box.contains(document.activeElement)&&document.activeElement.tagName==="SELECT")return;
+  box.innerHTML="";
+  if(DEM.err){box.innerHTML='<div class="qempty">'+esc(DEM.err)+'</div>';return}
+  if(!DEM.reqs){box.innerHTML='<div class="qempty">Chargement…</div>';return}
+  const list=DEM.reqs.filter(r=>DEM.filter==="all"||(DEM.filter==="open"?["attente","cours"].includes(stOf(r)):stOf(r)==="ajoute"));
+  if(!list.length){box.innerHTML='<div class="qempty">'+(DEM.filter==="open"?"Aucune demande en attente 🎉":"Rien ici")+'</div>';return}
+  const chs=Object.entries(DEM.ch).map(([k,v])=>({k,...v})).filter(c=>c.name).sort((a,b)=>(a.number||999)-(b.number||999));
+  list.forEach(r=>{const st=stOf(r),steps=r.steps||{},d=document.createElement("div");d.className="req";
+    const av=document.createElement("div");av.className="av";av.textContent=(r.who||"?").trim().charAt(0).toUpperCase()||"?";av.style.background=AVC[hsh((r.who||"").toLowerCase())%AVC.length];
+    const when=r.createdAt?new Date(r.createdAt).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}):"";
+    const chn=r.channel&&DEM.ch[r.channel]?DEM.ch[r.channel]:null;
+    d.innerHTML='<div class="rh"><span></span><div class="rt"><b></b><small></small></div><span class="chip '+st+'">'+ST[st]+'</span></div>';
+    d.querySelector(".rh>span").replaceWith(av);d.querySelector(".rt b").textContent=r.title||"Sans titre";
+    d.querySelector(".rt small").textContent=(r.type==="serie"?"Série":"Film")+" · "+(r.who||"Quelqu'un")+(when?" · "+when:"")+(chn?" · "+(chn.number?"n°"+chn.number+" ":"")+chn.name:"");
+    d.querySelector(".rh").onclick=()=>{DEM.open=DEM.open===r.id?null:r.id;renderDem()};
+    if(DEM.open===r.id){const b=document.createElement("div");b.className="rb";
+      const sp=document.createElement("div");sp.className="steps";
+      STEPS.forEach(([k,t,h])=>{const x=document.createElement("button");x.className=steps[k]?"on":"";x.innerHTML=(steps[k]?"✓ ":"")+esc(t)+"<small>"+esc(h)+"</small>";
+        x.onclick=()=>{const ns={...steps,[k]:!steps[k]};patchReq(r,{steps:ns,status:nextSt(r,ns)})};sp.append(x)});
+      const row=document.createElement("div");row.className="rrow";
+      const sel=document.createElement("select");sel.className="inp";sel.innerHTML='<option value="">Chaîne : à choisir</option>'+chs.map(c=>'<option value="'+esc(c.k)+'">'+(c.number?"n°"+c.number+" · ":"")+esc(c.name)+'</option>').join("");
+      sel.value=r.channel||"";sel.onchange=()=>patchReq(r,{channel:sel.value});
+      const yt=btn("🔎 Chercher sur YouTube",()=>{setForReq(r);show("dl");$("url").value=r.title||"";dlLabel();ytSearch(r.title||"");window.scrollTo(0,0)});yt.classList.add("pri");
+      const no=btn(st==="non"?"Remettre en attente":"Pas dispo",()=>st==="non"?patchReq(r,{status:nextSt({...r,status:"attente"},steps)}):patchReq(r,{status:"non"}));
+      row.append(yt,sel,no);b.append(sp,row);d.append(b)}
+    box.append(d)})}
+setInterval(()=>{if(Date.now()-DEM.t>(view==="dem"?5000:30000))loadDem()},2000);
+
+/* téléphone : code */
+$("pin-save").onclick=async()=>{const v=$("pin-new").value.trim();try{await api("/api/pin",{pin:v});$("pin-new").value="";$("pin-h").textContent="Code enregistré ✓";refresh()}catch(e){$("pin-h").textContent=e.message}};
+$("tn-save").onclick=async()=>{try{await api("/api/config",{tunarr_url:$("tn-url").value.trim()});$("tn-res").textContent="Enregistré, vérification…";setTimeout(refresh,800)}catch(e){$("tn-res").textContent=e.message}};
+$("pin-go").onclick=async()=>{$("pin-err").textContent="";try{await api("/api/login",{pin:$("pin").value.trim()});$("login").hidden=true;refresh().then(()=>show(view))}catch(e){$("pin-err").textContent=e.message;$("pin").select()}};
+$("pin").onkeydown=e=>{if(e.key==="Enter")$("pin-go").click()};
 
 /* file d'attente */
 $("clear").onclick=()=>api("/api/clear",{}).then(refresh);
@@ -358,7 +529,7 @@ function renderJobs(){
     have.delete(j.id);e.className="job "+j.status.replace(" ","-");e.dataset.s=j.status;
     e.querySelector(".t").textContent=(j.kind==="dl"?"⬇ ":"⟳ ")+(j.title||j.url||"");
     e.querySelector(".badge").textContent=j.status==="en cours"?Math.floor(j.pct)+" %":j.status;
-    e.querySelector(".m").textContent=j.msg||"";e.querySelector(".bar i").style.width=(j.status==="fini"?100:j.pct)+"%";
+    e.querySelector(".m").textContent=(j.req_title?"Pour la demande « "+j.req_title+" » · ":"")+(j.msg||"");e.querySelector(".bar i").style.width=(j.status==="fini"?100:j.pct)+"%";
     e.querySelector(".bar").hidden=!(j.status==="en cours"||j.status==="fini");
     const a=e.querySelector(".ja"),sig=j.status+(j.out||[]).length;if(a.dataset.s!==sig){a.dataset.s=sig;a.innerHTML="";
       if(j.status==="attente"||j.status==="en cours")a.append(btn("Annuler",()=>api("/api/cancel",{id:j.id}).then(refresh)));
@@ -370,16 +541,18 @@ function btn(t,f){const b=document.createElement("button");b.className="btn sm";
 
 /* état */
 async function refresh(){
-  try{S=await api("/api/state")}catch(e){$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
+  let r;try{r=await fetch("/api/state")}catch(e){$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
+  if(r.status===401){const j=await r.json().catch(()=>({}));$("login").hidden=false;$("login-ok").hidden=j.need==="nopin";$("login-nopin").hidden=j.need!=="nopin";if(j.need!=="nopin"&&document.activeElement!==$("pin"))$("pin").focus();return}
+  if(!r.ok)return;S=await r.json();$("login").hidden=true;
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
-  $("go-dl").disabled=!s.ready;
+  $("go-dl").disabled=!s.ready;$("phone-btn").hidden=!S.phone||S.remote;
   destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);renderAuto();renderJobs();if(view==="set")renderSet()}
 try{quality=localStorage.getItem("frs_q")||"1080"}catch(e){}
 document.querySelectorAll("#qual button").forEach(b=>b.addEventListener("click",()=>{try{localStorage.setItem("frs_q",quality)}catch(e){}}));
 renderQual();
 try{fbPath=localStorage.getItem("frs_path")||""}catch(e){}
-refresh().then(()=>{let v="dl";try{v=localStorage.getItem("frs_view")||"dl"}catch(e){}show(v);if(S.conf.quality&&!localStorage.getItem("frs_q"))quality=S.conf.quality;renderQual()});
+loadDem();refresh().then(()=>{let v="dl";try{v=localStorage.getItem("frs_view")||"dl"}catch(e){}show(v);if(S.conf.quality&&!localStorage.getItem("frs_q"))quality=S.conf.quality;renderQual()});
 setInterval(refresh,1000);
 </script>
 </body>
