@@ -208,6 +208,8 @@ def probe(path):
     return json.loads(r.stdout)
 
 
+EMOJI_RE = "[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0E\uFE0F\u200D\u20E3]+"
+
 TEXT_SUBS = {"subrip", "srt", "ass", "ssa", "mov_text", "webvtt", "text"}
 
 
@@ -582,6 +584,9 @@ def do_download(j):
         tpl = os.path.join(folder, "%(title)s.%(ext)s")
     cmd = [tool("yt-dlp"), "--newline", "--no-colors", "--encoding", "utf-8", "--ffmpeg-location", os.path.dirname(tool("ffmpeg")),
            "-S", sort, "--merge-output-format", "mp4", "--remux-video", "mp4", "--embed-metadata", "--embed-chapters", "--parse-metadata", "%(upload_date>%Y)s:%(meta_date)s",
+           # Tunarr n'indexe pas les titres avec des émojis (la vidéo n'apparaît pas dans « Add Media ») : on les enlève
+           "--replace-in-metadata", "title", EMOJI_RE, "", "--replace-in-metadata", "title", r"\s*[｜|]\s*", " - ",
+           "--replace-in-metadata", "title", r"\s{2,}", " ",
            "--no-mtime", "--windows-filenames", "-o", tpl,
            "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s",
            "--print", "before_dl:FRT %(title)s", "--print", "after_move:FRF %(filepath)s", "--no-simulate"]
