@@ -745,7 +745,7 @@ def do_download(j):
            "--replace-in-metadata", "title", r"\s{2,}", " ",
            "--no-mtime", "--windows-filenames", "-o", tpl,
            # --print rend yt-dlp silencieux : --progress remet l'avancement
-           "--progress", "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s/%(progress.speed)s/%(progress.eta)s",
+           "--no-quiet", "--progress", "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s/%(progress.speed)s/%(progress.eta)s",
            "--print", "before_dl:FRT %(title)s", "--print", "after_move:FRF %(filepath)s", "--no-simulate"]
     if j.get("thumb", True):
         cmd += ["--embed-thumbnail", "--convert-thumbnails", "jpg"]
@@ -787,8 +787,13 @@ def do_download(j):
                 pass
         elif line.startswith("ERROR:"):
             last_err = line[6:].strip()
-        elif "[download] Destination" in line or "Merging formats" in line:
-            pass
+        elif line.startswith(("[Merger]", "[VideoRemuxer]", "[Metadata]", "[EmbedThumbnail]", "[ThumbnailsConvertor]", "[FixupM3u8]", "[FixupM4a]")):
+            # après le téléchargement, yt-dlp réécrit le fichier (assemblage image + son, infos, image) : ça prend un moment sur les longues vidéos
+            step = {"[Merger]": ("Assemblage de l'image et du son", 96), "[VideoRemuxer]": ("Mise en MP4", 97), "[Metadata]": ("Ajout des infos", 97.5),
+                    "[ThumbnailsConvertor]": ("Préparation de l'image", 98), "[EmbedThumbnail]": ("Ajout de l'image de la vidéo", 98.5)}.get(line.split("]")[0] + "]")
+            if step:
+                j["pct"] = max(j["pct"], step[1])
+                j["msg"] = "%s : %s… (plus long pour les grandes vidéos)" % (step[0], j.get("cur") or "")
         if j["cancel"]:
             p.kill()
     p.wait()
