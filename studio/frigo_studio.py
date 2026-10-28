@@ -552,7 +552,7 @@ def autostart_set(on):
     if not WIN:
         return False
     import winreg
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE | winreg.KEY_QUERY_VALUE) as k:
         if on:
             exe = sys.executable if getattr(sys, "frozen", False) else '"%s" "%s"' % (sys.executable, os.path.abspath(__file__))
             winreg.SetValueEx(k, "FrigoRoseStudio", 0, winreg.REG_SZ, ('"%s"' % exe if getattr(sys, "frozen", False) else exe) + " --silent")
@@ -838,8 +838,8 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/api/autostart":
             try:
                 return self.send(200, {"on": autostart_set(bool(b.get("on")))})
-            except Exception:
-                return self.send(400, {"error": "Impossible de régler le démarrage automatique"})
+            except Exception as e:
+                return self.send(400, {"error": "Impossible de régler le démarrage automatique (%s)" % e})
         if u.path == "/api/mkdir":
             p = os.path.join(b.get("path") or "", (b.get("name") or "").strip())
             try:
