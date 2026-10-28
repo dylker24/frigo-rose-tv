@@ -1547,13 +1547,13 @@ def cleanup_old_exe():
     if not getattr(sys, "frozen", False):
         return
     old = os.path.join(os.path.dirname(sys.executable), "FrigoRoseStudio.ancien.exe")
-    for _ in range(20):
+    for _ in range(120):  # l'ancienne version met parfois un peu de temps à se fermer (antivirus…)
         try:
             if os.path.exists(old):
                 os.remove(old)
             return
         except OSError:
-            time.sleep(1)
+            time.sleep(3)
 
 
 SERVER = {"srv": None}
