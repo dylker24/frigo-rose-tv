@@ -50,11 +50,20 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseTV/2");
+        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseTV/3" + (isTv() ? "" : " FrigoRoseTablet"));
 
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public Bitmap getDefaultVideoPoster() { return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); }
+            // Tablette : choisir une photo de profil dans la galerie
+            @Override
+            public boolean onShowFileChooser(WebView v, android.webkit.ValueCallback<android.net.Uri[]> cb, FileChooserParams params) {
+                if (fileCb != null) fileCb.onReceiveValue(null);
+                fileCb = cb;
+                try { startActivityForResult(params.createIntent(), 42); choosing = true; }
+                catch (Exception e) { fileCb = null; return false; }
+                return true;
+            }
         });
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -154,6 +163,23 @@ public class MainActivity extends Activity {
 
     /** Quitter pour de vrai : on coupe la vidéo (Tunarr arrête la conversion) et on ferme l'appli. */
     private boolean quitting = false;
+    private android.webkit.ValueCallback<android.net.Uri[]> fileCb = null;
+    private boolean choosing = false;
+
+    private boolean isTv() {
+        android.app.UiModeManager m = (android.app.UiModeManager) getSystemService(UI_MODE_SERVICE);
+        return (m != null && m.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION)
+            || getPackageManager().hasSystemFeature("android.software.leanback");
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, android.content.Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == 42) {
+            choosing = false;
+            if (fileCb != null) { fileCb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data)); fileCb = null; }
+        }
+    }
     private void quit() {
         if (quitting) return;
         quitting = true;
@@ -165,10 +191,10 @@ public class MainActivity extends Activity {
 
     /** Bouton Accueil de la télécommande : on quitte pour de vrai. */
     @Override
-    protected void onUserLeaveHint() { super.onUserLeaveHint(); quit(); }
+    protected void onUserLeaveHint() { super.onUserLeaveHint(); if (!choosing) quit(); }
 
     @Override
-    protected void onStop() { super.onStop(); if (!isChangingConfigurations()) quit(); }
+    protected void onStop() { super.onStop(); if (!isChangingConfigurations() && !choosing) quit(); }
 
     @Override
     protected void onPause() { super.onPause(); if (web != null && !quitting) { web.evaluateJavascript("try{document.querySelector('video').pause()}catch(e){}", null); web.onPause(); } }

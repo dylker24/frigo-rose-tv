@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Frigo Rosé TV</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Frigo Rosé">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="https://dylker24.github.io/frigo-rose-tv/icon-180.png">
+<link rel="manifest" href="https://dylker24.github.io/frigo-rose-tv/manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Geist:wght@400;500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
@@ -31,6 +38,12 @@ button{font:inherit;color:inherit}
 .tnum{font-variant-numeric:tabular-nums}
 
 /* Vidéo */
+body.touch .hints{display:none!important}
+body.touch{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body.touch input{-webkit-user-select:text;user-select:text}
+body.touch .hview,body.touch #g-rows,body.touch #liveui,body.touch #h-hero{touch-action:none}
+body.touch .harr{opacity:1!important}
+body.touch .kbtn .cap,body.touch .keys .key>.cap:not(.kb){display:none}
 #video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
 /* Aperçu dans la page Chaînes : la vidéo vient se poser dans la case survolée */
 .hthumb canvas.pvc{position:absolute;inset:0;top:0;left:0;width:100%;height:100%;z-index:3;border-radius:inherit;animation:chpvIn .35s ease-out;pointer-events:none}
@@ -625,6 +638,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
       <li>Tailscale est connecté sur cet appareil.</li>
       <li>Tunarr autorise l'appli : le réglage <code>TUNARR_CORS_ORIGINS</code> est fait sur le PC, puis Tunarr relancé.</li>
       <li>L'adresse est la bonne : <code id="e-addr"></code></li>
+      <li id="e-https" hidden>Sur iPad (Safari), l'adresse doit commencer par <code>https://</code> : c'est l'adresse « Tailscale Serve » de ton PC, du style <code>https://pcdylker.xxxx.ts.net</code>.</li>
     </ol>
     <div class="btns" id="e-btns">
       <button class="btn pri" data-a="retry">Réessayer</button>
@@ -697,6 +711,8 @@ function fixLogo(u){
   if(/^\/(images|api)\//.test(u))return base+u;
   return u;
 }
+/* Pareil pour l'adresse des chaînes (utile quand Tunarr passe par https, pour l'iPad) */
+function fixStream(u){const m=/^https?:\/\/[^/]+(\/stream\/.*)$/i.exec(u||"");return m?cfg.server.replace(/\/+$/,"")+m[1]:u}
 function parseM3U(txt){
   const out=[];const lines=txt.split(/\r?\n/);let info=null;
   for(const raw of lines){
@@ -705,7 +721,7 @@ function parseM3U(txt){
       const a={};l.replace(/([\w-]+)="([^"]*)"/g,(_,k,v)=>{a[k]=v});
       info={key:a["tvg-id"]||a["channel-id"]||"",num:parseFloat(a["tvg-chno"])||0,name:a["tvg-name"]||l.slice(l.lastIndexOf(",")+1),logo:fixLogo(a["tvg-logo"]||"")};
     }else if(!l.startsWith("#")&&info){
-      if(!(info.name==="tunarr"&&/tunarr\.png/.test(info.logo)))out.push({...info,url:l,id:info.key||l});
+      if(!(info.name==="tunarr"&&/tunarr\.png/.test(info.logo)))out.push({...info,url:fixStream(l),id:info.key||l});
       info=null;
     }
   }
@@ -1343,7 +1359,7 @@ const CTLS=()=>[...document.querySelectorAll("#ctrl .cb")];
 let ctlMode=false,ctlIdx=2,uiT=null;
 function showUI(ctl){
   renderBanner();updatePlayUI();
-  const keep=ctl||ctlMode||(video.paused&&videoOk&&!demo);
+  const keep=ctl||ctlMode||window.TOUCH||(video.paused&&videoOk&&!demo);
   $("liveui").classList.toggle("showctl",!!keep);
   $("liveui").classList.remove("hide-ui");document.body.classList.remove("idle");
   clearTimeout(uiT);uiT=setTimeout(hideUI,ctlMode?9000:6000);
@@ -1411,11 +1427,11 @@ function doCtl(c){
 }
 document.querySelectorAll("#ctrl .cb,.keys [data-c]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();const i=CTLS().indexOf(b);if(i>=0){ctlIdx=i}doCtl(b.dataset.c)}));
 video.addEventListener("pause",updatePlayUI);video.addEventListener("play",updatePlayUI);
-video.addEventListener("click",()=>{if(screen==="live")togglePlay()});
+video.addEventListener("click",()=>{if(screen==="live"&&!window.TOUCH)togglePlay()});
 $("novideo").addEventListener("click",()=>{if(screen==="live")showUI()});
 video.addEventListener("dblclick",()=>{if(screen==="live")toggleFull()});
 let mmT=0;
-document.addEventListener("mousemove",()=>{const n=Date.now();if(n-mmT<250)return;mmT=n;document.body.classList.remove("idle");if(screen==="live"&&!mgOpen)showUI(true)});
+document.addEventListener("mousemove",()=>{if(window.TOUCH)return;const n=Date.now();if(n-mmT<250)return;mmT=n;document.body.classList.remove("idle");if(screen==="live"&&!mgOpen)showUI(true)});
 setInterval(()=>{if(screen==="live"&&!$("liveui").classList.contains("hide-ui"))updateDelay()},1000);
 $("mg-x").onclick=()=>{closeMg();showUI()};
 function ctlKey(k){
@@ -1901,7 +1917,7 @@ function waitScreen(msg){setScreen("splash");$("splash").classList.remove("play"
 function proceed(){
   if(dataState==="loading"||dataState==="idle"){waitingStart=true;waitScreen(demo?"Mode démo":"Connexion à ton serveur…");return}
   waitingStart=false;$("splash").classList.remove("waiting");
-  if(dataState==="error"){$("e-addr").textContent=cfg.server;eIdx=0;renderErr();setScreen("error");return}
+  if(dataState==="error"){$("e-addr").textContent=cfg.server;$("e-https").hidden=!(location.protocol==="https:"&&/^http:/i.test(cfg.server));eIdx=0;renderErr();setScreen("error");return}
   startLive();
 }
 function startLive(){
@@ -2031,6 +2047,44 @@ if(IN_TV_APP){const fb=document.querySelector('#ctrl .cb[data-c="full"]');if(fb)
   const av=+((/FrigoRoseTV\/(\d+)/.exec(navigator.userAgent)||[])[1]||1);
   if(av<2)setTimeout(()=>toast("Nouvelle version de l'appli télé : réinstalle-la depuis dylker24.github.io/frigo-rose-tv/tv.apk",9000),6000)}
 $("s-quit").onclick=()=>quitApp();
+
+/* ================= Tablette : tactile ================= */
+var TOUCH=/FrigoRoseTablet/.test(navigator.userAgent)||(!/FrigoRoseTV/.test(navigator.userAgent)&&(("ontouchstart" in window)||matchMedia("(any-pointer:coarse)").matches))||(/FrigoRoseTV/.test(navigator.userAgent)&&matchMedia("(pointer:coarse)").matches);
+if(TOUCH){
+  document.body.classList.add("touch");
+  const vp=document.querySelector('meta[name="viewport"]');if(vp)vp.content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover";
+  const sendKey=key=>document.dispatchEvent(new KeyboardEvent("keydown",{key,bubbles:true,cancelable:true}));
+  let t0=null;
+  document.addEventListener("touchstart",e=>{if(e.touches.length!==1){t0=null;return}const t=e.touches[0];t0={x:t.clientX,y:t.clientY,t:Date.now(),el:e.target}},{passive:true});
+  document.addEventListener("touchend",e=>{
+    if(!t0)return;const t=e.changedTouches[0],dx=t.clientX-t0.x,dy=t.clientY-t0.y,dt=Date.now()-t0.t,st=t0;t0=null;
+    const ax=Math.abs(dx),ay=Math.abs(dy),swipe=Math.max(ax,ay)>45&&dt<900,horiz=ax>ay;
+    if(!swipe){
+      // simple toucher sur la vidéo : on montre ou on cache les commandes
+      if(screen==="live"&&dt<500&&Math.max(ax,ay)<12&&!st.el.closest("button,a,input,#mg,#ctrl,.keys")){
+        if($("liveui").classList.contains("hide-ui"))showUI(true);else hideUI();
+      }
+      return;
+    }
+    if(screen==="live"&&!mgOpen){
+      if(!horiz)zap(dy<0?1:-1);          // glisser vers le haut : chaîne suivante
+      else seek(dx>0?30:-30);             // glisser sur le côté : avancer / reculer de 30 s
+      return;
+    }
+    if(screen==="home"){
+      const hv=st.el.closest(".hview");
+      if(hv&&horiz){const b=hv.querySelector(dx<0?".harr.next":".harr.prev");if(b&&!b.hidden)b.click();return}
+      if(!horiz){sendKey(dy<0?"ArrowDown":"ArrowUp");return}
+      if(horiz&&st.el.closest("#h-hero")){hRow=0;sendKey(dx<0?"ArrowRight":"ArrowLeft");return}
+      return;
+    }
+    if(screen==="guide"&&st.el.closest("#g-rows")){
+      const n=horiz?Math.min(4,Math.ceil(ax/220)):Math.min(8,Math.ceil(ay/70));
+      for(let i=0;i<n;i++)guideKey(horiz?(dx<0?"right":"left"):(dy<0?"down":"up"));
+      return;
+    }
+  },{passive:true});
+}
 function loadPrefs(){
   cfg.server=LS.get("frtv_server","http://100.107.91.60:8000");cfg.demandes=LS.get("frtv_demandes","");
   demo=LS.get("frtv_demo","0")==="1";
