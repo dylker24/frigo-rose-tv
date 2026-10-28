@@ -41,5 +41,27 @@ try { $r = Post "/api/subs" @{ action = "add"; url = "youtube.com/@disneyjuniorf
 try { $r = Invoke-RestMethod "$api/api/tn/channels" -TimeoutSec 10; $log += "Chaînes : $($r.channels.Count)" } catch { $log += "Chaînes (sans Tunarr, normal ici) : $($_.ErrorDetails.Message)" }
 try { Post "/api/quit" @{} | Out-Null } catch {}
 Start-Sleep 2; if (-not $p.HasExited) { $log += "ATTENTION : l'appli ne s'est pas fermée"; Stop-Process $p -Force }
+
+# --- mise à jour automatique : une « vieille » version (1) se met à jour vers celle-ci
+try {
+  $N = (Get-Content studio/version.txt -Raw).Trim()
+  $u = Join-Path $env:RUNNER_TEMP "majsrv"; New-Item -ItemType Directory -Force -Path $u | Out-Null
+  Copy-Item dist\FrigoRoseStudio.exe (Join-Path $u "FrigoRoseStudio.exe")
+  Set-Content -Path (Join-Path $u "studio-version.json") -Value ('{"version":"' + $N + '"}')
+  $hs = Start-Process python -ArgumentList "-m","http.server","8799","-d",$u -PassThru -WindowStyle Hidden
+  $app = Join-Path $env:RUNNER_TEMP "appli"; New-Item -ItemType Directory -Force -Path $app | Out-Null
+  Copy-Item dist\FrigoRoseStudio.exe (Join-Path $app "FrigoRoseStudio.exe")
+  $env:FRS_VERSION = "1"; $env:FRS_UPDATE_URL = "http://127.0.0.1:8799/"
+  $p2 = Start-Process -FilePath (Join-Path $app "FrigoRoseStudio.exe") -PassThru
+  Remove-Item Env:FRS_VERSION
+  $t0 = Get-Date; while (((Get-Date) - $t0).TotalSeconds -lt 60) { $s = St; if ($s -and $s.setup.ready) { break }; Start-Sleep 2 }
+  $c = Post "/api/update" @{ check = $true }; $log += "Mise à jour : version $($s.version), dispo=$($c.available) ($($c.latest))"
+  Post "/api/update" @{} | Out-Null
+  $t0 = Get-Date; $v = ""; while (((Get-Date) - $t0).TotalSeconds -lt 120) { Start-Sleep 3; $s = St; if ($s -and $s.version -eq $N) { $v = $s.version; break } }
+  Start-Sleep 25
+  $log += "Après mise à jour : version=$v (attendu $N), ancien fichier restant=" + (Test-Path (Join-Path $app "FrigoRoseStudio.ancien.exe")) + ", fichiers=" + ((Get-ChildItem $app | ForEach-Object { $_.Name }) -join ",")
+  try { Post "/api/quit" @{} | Out-Null } catch {}
+  Stop-Process $hs -Force -ErrorAction SilentlyContinue
+} catch { $log += "Mise à jour KO : $_" }
 ($log -join "`n") | Out-File -Encoding utf8 smoke.md
 Get-Content smoke.md

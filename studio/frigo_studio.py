@@ -11,7 +11,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 APP = "Frigo Rosé Studio"
-VERSION = "1.0"
+def _read_version():
+    """Numéro de version gravé à la fabrication (studio/version.txt)."""
+    if os.environ.get("FRS_VERSION"):
+        return os.environ["FRS_VERSION"]
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    try:
+        with open(os.path.join(base, "version.txt"), encoding="utf-8") as f:
+            return f.read().strip() or "dev"
+    except OSError:
+        return "dev"
+
+
+VERSION = _read_version()
+UPDATE_URL = os.environ.get("FRS_UPDATE_URL") or "https://dylker24.github.io/frigo-rose-tv/"
 PORT = int(os.environ.get("FRS_PORT", "8795"))
 HOST = os.environ.get("FRS_HOST", "0.0.0.0")  # ouvert au téléphone via Tailscale (voir allowed_client)
 WIN = os.name == "nt"
@@ -1455,6 +1468,96 @@ def tunarr_to_fb_channel(c):
         pass
     return None
 
+
+# ---------------------------------------------------------------- mise à jour de Studio (même depuis le téléphone)
+upd = {"t": 0, "latest": "", "state": "", "pct": 0, "error": ""}
+
+
+def _vnum(v):
+    try:
+        return int(str(v).strip())
+    except ValueError:
+        return -1
+
+
+def check_update(force=False):
+    if not force and time.time() - upd["t"] < 6 * 3600:
+        return upd
+    upd["t"] = time.time()
+    try:
+        req = urllib.request.Request(UPDATE_URL + "studio-version.json?t=%d" % time.time(), headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            upd["latest"] = str(json.loads(r.read()).get("version") or "")
+        upd["error"] = ""
+    except Exception:
+        upd["error"] = "Impossible de vérifier (internet ?)"
+    return upd
+
+
+def update_available():
+    return getattr(sys, "frozen", False) and _vnum(upd["latest"]) > _vnum(VERSION) >= 0 or (os.environ.get("FRS_FORCE_UPDATABLE") and _vnum(upd["latest"]) > _vnum(VERSION))
+
+
+def do_update():
+    """Télécharge la nouvelle version, prend la place de l'ancienne et redémarre Studio."""
+    try:
+        exe = sys.executable
+        folder = os.path.dirname(exe)
+        new = os.path.join(folder, "FrigoRoseStudio.nouveau.exe")
+        upd.update(state="download", pct=0, error="")
+        req = urllib.request.Request(UPDATE_URL + "FrigoRoseStudio.exe?t=%d" % time.time(), headers={"User-Agent": "FrigoRoseStudio/" + VERSION})
+        with urllib.request.urlopen(req, timeout=60) as r, open(new, "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            got = 0
+            while True:
+                b = r.read(1 << 16)
+                if not b:
+                    break
+                f.write(b)
+                got += len(b)
+                if total:
+                    upd["pct"] = 100 * got / total
+        with open(new, "rb") as f:
+            head = f.read(2)
+        if head != b"MZ" or os.path.getsize(new) < 3_000_000:
+            os.remove(new)
+            raise RuntimeError("fichier reçu abîmé")
+        upd["state"] = "restart"
+        old = os.path.join(folder, "FrigoRoseStudio.ancien.exe")
+        try:
+            os.remove(old)
+        except OSError:
+            pass
+        os.replace(exe, old)          # Windows autorise à renommer un programme en marche
+        os.replace(new, exe)
+        env = {k: v for k, v in os.environ.items() if k not in ("FRS_VERSION", "_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL")}
+        time.sleep(0.5)
+        try:
+            SERVER["srv"].server_close()   # libère le port pour la nouvelle version
+        except Exception:
+            pass
+        flags = (0x00000008 | 0x00000200) if WIN else 0
+        subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
+        os._exit(0)
+    except Exception as e:
+        upd.update(state="", error="Mise à jour ratée : %s" % e)
+
+
+def cleanup_old_exe():
+    if not getattr(sys, "frozen", False):
+        return
+    old = os.path.join(os.path.dirname(sys.executable), "FrigoRoseStudio.ancien.exe")
+    for _ in range(20):
+        try:
+            if os.path.exists(old):
+                os.remove(old)
+            return
+        except OSError:
+            time.sleep(1)
+
+
+SERVER = {"srv": None}
+
 # ---------------------------------------------------------------- serveur web local
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -1583,7 +1686,8 @@ class H(BaseHTTPRequestHandler):
             c["subs"] = [{k: v for k, v in x.items() if k != "seen"} for x in conf.get("subs") or []]
             c.pop("tunarr_cmd", None); c.pop("jellyfin_cmd", None)
             c["tunarr"] = tunarr_status()
-            return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
+            return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "update": {"latest": upd["latest"], "available": bool(update_available()), "state": upd["state"], "pct": upd["pct"], "error": upd["error"],
+                      "busy": any(j["status"] == "en cours" for j in jobs)}, "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
         if u.path == "/api/ls":
             q = parse_qs(u.query)
             return self.send(200, list_dir((q.get("path") or [""])[0]))
@@ -1850,6 +1954,18 @@ class H(BaseHTTPRequestHandler):
                     save_conf(conf)
                     return self.send(200, {"ok": True, "queued": n})
             return self.send(400, {"error": "?"})
+        if u.path == "/api/update":
+            if b.get("check"):
+                check_update(force=True)
+                return self.send(200, {"latest": upd["latest"], "available": bool(update_available()), "error": upd["error"]})
+            if not update_available():
+                return self.send(400, {"error": "Studio est déjà à jour"})
+            if upd["state"]:
+                return self.send(200, {"ok": True})
+            if any(j["status"] == "en cours" for j in jobs) and not b.get("force"):
+                return self.send(409, {"error": "Une vidéo est en cours : attends qu'elle finisse (ou annule-la)"})
+            threading.Thread(target=do_update, daemon=True).start()
+            return self.send(200, {"ok": True})
         if u.path == "/api/quit":
             self.send(200, {"ok": True})
             threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
@@ -1861,12 +1977,25 @@ PAGE = r"""__PAGE__"""
 
 
 def main():
-    try:
-        srv = ThreadingHTTPServer((HOST, PORT), H)
-    except OSError:
+    srv = None
+    for _ in range(30 if "--after-update" in sys.argv else 1):
+        try:
+            srv = ThreadingHTTPServer((HOST, PORT), H)
+            break
+        except OSError:
+            time.sleep(0.5)
+    if not srv:
         # déjà lancée : on ouvre juste la page
         webbrowser.open("http://localhost:%d/" % PORT)
         return
+    SERVER["srv"] = srv
+    threading.Thread(target=cleanup_old_exe, daemon=True).start()
+    def _upd_loop():
+        time.sleep(20)
+        while True:
+            check_update()
+            time.sleep(1800)
+    threading.Thread(target=_upd_loop, daemon=True).start()
     threading.Thread(target=ensure_tools, daemon=True).start()
     threading.Thread(target=worker, args=("dl",), daemon=True).start()
     for _ in range(4):

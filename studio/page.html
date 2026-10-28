@@ -201,6 +201,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .wrap>section,.wrap>aside{min-width:0}
 @media(max-width:700px){.li{padding:6px 4px;gap:4px}.li .ix{width:22px}.li .ib{width:28px}.li .du{font-size:11px}.acts .btn{padding:10px 12px}}
 html,body{overflow-x:hidden}
+.updbar{display:flex;align-items:center;justify-content:center;gap:14px;background:rgba(224,36,94,.14);border-bottom:1px solid rgba(224,36,94,.35);padding:10px 16px;font-size:14px;font-weight:600;flex-wrap:wrap;text-align:center}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -219,6 +220,7 @@ html,body{overflow-x:hidden}
   <div class="status" id="status"><b></b><span>Démarrage…</span></div>
 </header>
 
+<div class="updbar" id="updbar" hidden><span id="upd-t"></span><button class="btn sm pri" id="upd-go">Mettre à jour</button></div>
 <main class="wrap">
   <section>
     <div class="setup" id="setup" hidden><div id="setup-t">Préparation des outils…</div><div class="bar"><i id="setup-b" style="width:0"></i></div><div class="hint">Une seule fois, au premier lancement (environ 200 Mo, 1 à 2 minutes).</div></div>
@@ -373,6 +375,9 @@ html,body{overflow-x:hidden}
       <label class="l">Conversions en même temps</label>
       <div class="seg" id="par" style="max-width:340px"><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button></div>
       <div class="hint">2 est le bon réglage pour ta carte graphique. Les téléchargements YouTube se font à part, ils n'attendent pas les conversions.</div>
+      <label class="l">Version</label>
+      <div class="rrow"><span id="ver-t" class="hint" style="margin:0;font-size:14px;color:var(--ink)"></span><button class="btn sm" id="ver-check">Vérifier</button><button class="btn sm pri" id="ver-go" hidden>Mettre à jour</button></div>
+      <div class="hint" id="ver-h">Studio vérifie tout seul s'il y a une nouvelle version. La mise à jour marche aussi depuis ton téléphone : Studio redémarre tout seul en 20 secondes.</div>
       <label class="l">Infos</label>
       <div class="gpu" id="infos"></div>
       <div class="acts"><button class="btn ghost" id="quit">Fermer l'appli</button></div>
@@ -803,6 +808,19 @@ function autoTchan(sel){const d=$(destFor[sel.id]);if(!d||!CH.list)return;const 
 document.querySelectorAll("select.tchan").forEach(sel=>{sel.addEventListener("change",()=>{sel.dataset.touched=1});const d=$(destFor[sel.id]);if(d)d.addEventListener("change",()=>{delete sel.dataset.touched;autoTchan(sel)})});
 setInterval(()=>{if(!CH.list&&S&&S.setup)loadChannels(true)},15000);
 
+/* mise à jour de Studio */
+let updWait=null;
+async function startUpdate(){const busy=S.update&&S.update.busy;if(!confirm(busy?"Une vidéo est en cours : la mise à jour va la couper. Continuer ?":"Mettre à jour Studio ? Il redémarre tout seul en 20 secondes environ."))return;
+  try{await api("/api/update",{force:busy});updWait={from:S.version,t:Date.now()};renderUpd()}catch(e){alert(e.message)}}
+$("upd-go").onclick=startUpdate;$("ver-go").onclick=startUpdate;
+$("ver-check").onclick=async e=>{e.target.disabled=true;e.target.textContent="…";try{const r=await api("/api/update",{check:true});e.target.textContent=r.error?r.error:r.available?"Nouvelle version !":"À jour ✓"}catch(x){e.target.textContent="Erreur"}setTimeout(()=>{e.target.disabled=false;e.target.textContent="Vérifier";refresh()},2500)};
+function renderUpd(){const u=S.update||{};
+  if(updWait){const done=S.version&&S.version!==updWait.from;$("updbar").hidden=false;
+    $("upd-t").textContent=done?"Studio est à jour (version "+S.version+") ✓":u.state==="download"?"Téléchargement de la mise à jour… "+Math.round(u.pct||0)+" %":"Studio redémarre…";$("upd-go").hidden=true;
+    if(done&&!updWait.shown){updWait.shown=Date.now()}if(updWait.shown&&Date.now()-updWait.shown>6000){updWait=null}if(u.error){$("upd-t").textContent=u.error;updWait=null}return}
+  $("updbar").hidden=!u.available;$("upd-go").hidden=false;$("upd-t").textContent="Nouvelle version de Studio disponible ("+u.latest+")";
+  $("ver-t").textContent="Version "+(S.version||"?")+(u.available?" · la "+u.latest+" est dispo":" · à jour");$("ver-go").hidden=!u.available;if(u.error&&u.state==="")$("ver-h").textContent=u.error}
+
 /* téléphone : code */
 $("pin-save").onclick=async()=>{const v=$("pin-new").value.trim();try{await api("/api/pin",{pin:v});$("pin-new").value="";$("pin-h").textContent="Code enregistré ✓";refresh()}catch(e){$("pin-h").textContent=e.message}};
 $("tn-save").onclick=async()=>{try{await api("/api/config",{tunarr_url:$("tn-url").value.trim()});$("tn-res").textContent="Enregistré, vérification…";setTimeout(refresh,800)}catch(e){$("tn-res").textContent=e.message}};
@@ -834,9 +852,9 @@ function btn(t,f){const b=document.createElement("button");b.className="btn sm";
 
 /* état */
 async function refresh(){
-  let r;try{r=await fetch("/api/state")}catch(e){$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
+  let r;try{r=await fetch("/api/state")}catch(e){if(updWait){$("upd-t").textContent="Studio redémarre…";return}$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
   if(r.status===401){const j=await r.json().catch(()=>({}));$("login").hidden=false;$("login-ok").hidden=j.need==="nopin";$("login-nopin").hidden=j.need!=="nopin";if(j.need!=="nopin"&&document.activeElement!==$("pin"))$("pin").focus();return}
-  if(!r.ok)return;S=await r.json();$("login").hidden=true;
+  if(!r.ok)return;S=await r.json();$("login").hidden=true;renderUpd();
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
   $("go-dl").disabled=!s.ready;$("phone-btn").hidden=!S.phone||S.remote;
