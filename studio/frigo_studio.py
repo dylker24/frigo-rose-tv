@@ -581,7 +581,7 @@ def do_download(j):
     else:
         tpl = os.path.join(folder, "%(title)s.%(ext)s")
     cmd = [tool("yt-dlp"), "--newline", "--no-colors", "--encoding", "utf-8", "--ffmpeg-location", os.path.dirname(tool("ffmpeg")),
-           "-S", sort, "--merge-output-format", "mp4", "--remux-video", "mp4", "--embed-metadata", "--embed-chapters",
+           "-S", sort, "--merge-output-format", "mp4", "--remux-video", "mp4", "--embed-metadata", "--embed-chapters", "--parse-metadata", "%(upload_date>%Y)s:%(meta_date)s",
            "--no-mtime", "--windows-filenames", "-o", tpl,
            "--progress-template", "download:FRP %(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(info.playlist_index)s/%(info.n_entries)s",
            "--print", "before_dl:FRT %(title)s", "--print", "after_move:FRF %(filepath)s", "--no-simulate"]
