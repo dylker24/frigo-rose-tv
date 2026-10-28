@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frigo Rosé Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Unbounded:wght@700&display=swap">
+<style>
+:root{
+  --bg:#0A0A0B;--s1:#141416;--s2:#1C1C1F;--s3:#26262A;--line:#2A2A2E;
+  --ink:#F5F5F6;--mute:#A1A1A8;--faint:#76767E;
+  --accent:#E0245E;--accent-t:#FF6B95;--ok:#3DD68C;--warn:#F7C266;--bad:#FF6B6B;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.top{display:flex;align-items:center;gap:28px;padding:18px 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,10,11,.92);backdrop-filter:blur(8px);z-index:5}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;white-space:nowrap}
+.brand i{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.brand i svg{width:17px;height:17px}
+.brand span{color:var(--mute);font-weight:500}
+.tabs{display:flex;gap:4px;background:var(--s1);padding:4px;border-radius:12px}
+.tabs button{border:0;background:none;padding:8px 16px;border-radius:9px;color:var(--mute);font-weight:600}
+.tabs button.on{background:var(--s3);color:var(--ink)}
+.status{margin-left:auto;font-size:13px;color:var(--mute);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.status b{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.status.ok b{background:var(--ok)}
+.status.bad b{background:var(--bad)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;padding:24px 28px;max-width:1400px;margin:0 auto}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr;padding:18px 16px}.top{flex-wrap:wrap;gap:12px;padding:14px 16px}.status{margin-left:0}}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+h1{font:700 26px/1.15 Unbounded,Geist,sans-serif;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 20px}
+label.l{display:block;font-size:13px;font-weight:600;color:var(--mute);margin:18px 0 7px}
+.inp{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none}
+.inp:focus{border-color:var(--accent-t)}
+.big{display:flex;gap:8px}
+.big .inp{font-size:17px;padding:15px 16px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1;min-width:180px}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A1A1A8' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:38px}
+.seg{display:flex;background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:3px}
+.seg button{flex:1;border:0;background:none;padding:9px 6px;border-radius:8px;color:var(--mute);font-weight:600}
+.seg button.on{background:var(--s3);color:var(--ink)}
+.btn{border:0;border-radius:11px;padding:12px 18px;font-weight:600;background:var(--s3);white-space:nowrap}
+.btn:hover{background:#303035}
+.btn.pri{background:var(--accent);color:#fff}
+.btn.pri:hover{background:#ef2d69}
+.btn.pri:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:7px 12px;border-radius:9px;font-size:13px}
+.btn.ghost{background:none;color:var(--mute)}
+.btn.ghost:hover{color:var(--ink);background:var(--s2)}
+.acts{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
+.hint{font-size:13px;color:var(--faint);margin-top:7px}
+.err{color:var(--bad);font-size:14px;margin-top:10px;min-height:1px}
+.chk{display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--mute);cursor:pointer;user-select:none}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--s3);color:var(--mute)}
+/* explorateur */
+.fb{border:1px solid var(--line);border-radius:12px;background:var(--s2);overflow:hidden}
+.fb-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.crumbs{flex:1;display:flex;flex-wrap:wrap;gap:2px;align-items:center;min-width:0}
+.crumbs button{border:0;background:none;color:var(--mute);padding:3px 6px;border-radius:6px}
+.crumbs button:hover{background:var(--s3);color:var(--ink)}
+.crumbs button:last-child{color:var(--ink);font-weight:600}
+.fb-list{max-height:380px;overflow:auto}
+.it{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #222226;cursor:pointer}
+.it:last-child{border-bottom:0}
+.it:hover{background:#212125}
+.it svg{width:18px;height:18px;flex:none;color:var(--mute)}
+.it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .sz{font-size:12px;color:var(--faint)}
+.it input{width:17px;height:17px;accent-color:var(--accent);flex:none}
+.it.sel{background:rgba(224,36,94,.12)}
+.empty{padding:28px;text-align:center;color:var(--faint);font-size:14px}
+/* file d'attente */
+.q h2{font-size:15px;margin:0;display:flex;align-items:center;gap:10px}
+.qhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.job{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px}
+.job .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job .m{font-size:13px;color:var(--mute);margin-top:4px;word-break:break-word}
+.job .bar{height:5px;border-radius:5px;background:var(--s3);margin-top:10px;overflow:hidden}
+.job .bar i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .4s}
+.job.fini .bar i{background:var(--ok)}
+.job.erreur .m{color:var(--bad)}
+.job .ja{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.job .k{display:flex;align-items:center;gap:8px}
+.job .k .t{flex:1;min-width:0}
+.badge{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--s3);color:var(--mute);flex:none}
+.fini .badge{background:rgba(61,214,140,.14);color:var(--ok)}
+.erreur .badge{background:rgba(255,107,107,.14);color:var(--bad)}
+.en.cours .badge,.job[data-s="en cours"] .badge{background:rgba(224,36,94,.16);color:var(--accent-t)}
+.qempty{color:var(--faint);font-size:14px;padding:30px 10px;text-align:center}
+/* préparation */
+.setup{margin-bottom:18px;padding:16px 18px;border-radius:12px;background:var(--s2);border:1px solid var(--line)}
+.setup .bar{height:6px;border-radius:6px;background:var(--s3);margin-top:10px;overflow:hidden}
+.setup .bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+/* fenêtre de choix de dossier */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:20;padding:16px}
+.modal .card{width:min(720px,100%);max-height:90vh;display:flex;flex-direction:column}
+.modal .fb-list{max-height:50vh}
+.lib{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lib:last-child{border-bottom:0}
+.lib code{color:var(--mute);font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gpu{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></i>Frigo Rosé <span>Studio</span></div>
+  <nav class="tabs" id="tabs">
+    <button data-v="dl" class="on">Télécharger</button>
+    <button data-v="conv">Convertir</button>
+    <button data-v="set">Réglages</button>
+  </nav>
+  <div class="status" id="status"><b></b><span>Démarrage…</span></div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="setup" id="setup" hidden><div id="setup-t">Préparation des outils…</div><div class="bar"><i id="setup-b" style="width:0"></i></div><div class="hint">Une seule fois, au premier lancement (environ 150 Mo).</div></div>
+
+    <!-- Télécharger -->
+    <div class="card" id="v-dl">
+      <h1>Télécharger une vidéo</h1>
+      <p class="sub">Colle un lien YouTube (vidéo ou playlist). Elle arrive en MP4 dans le dossier choisi, prête pour Jellyfin.</p>
+      <div class="big"><input class="inp" id="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" spellcheck="false"><button class="btn" id="paste">Coller</button></div>
+      <div class="hint" id="url-h"></div>
+      <div class="row">
+        <div><label class="l">Ranger dans</label><select class="inp" id="dest"></select></div>
+        <div><label class="l">Sous-dossier (facultatif)</label><input class="inp" id="sub" placeholder="Ex : Les Tuche" autocomplete="off"></div>
+      </div>
+      <label class="l">Qualité</label>
+      <div class="seg" id="qual"><button data-q="720">720p · léger</button><button data-q="1080" class="on">1080p · conseillé</button><button data-q="max">Maximum</button></div>
+      <div class="hint" id="qual-h"></div>
+      <label class="chk"><input type="checkbox" id="thumb" checked> Ajouter l'image de la vidéo (Jellyfin l'affiche)</label>
+      <div class="err" id="dl-err"></div>
+      <div class="acts"><button class="btn pri" id="go-dl">Télécharger</button></div>
+    </div>
+
+    <!-- Convertir -->
+    <div class="card" id="v-conv" hidden>
+      <h1>Convertir en MP4</h1>
+      <p class="sub">Choisis des vidéos (AVI, MKV, MOV…). Ce qui est déjà bon est gardé tel quel, le reste est converti en H.264 + AAC.</p>
+      <div class="fb">
+        <div class="fb-bar"><div class="crumbs" id="crumbs"></div><button class="btn sm ghost" id="selall">Tout cocher</button></div>
+        <div class="fb-list" id="fb"></div>
+      </div>
+      <div class="row">
+        <div><label class="l">Mettre les MP4</label><select class="inp" id="cdest"></select></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="del"> Supprimer l'original une fois converti</label>
+      <div class="err" id="cv-err"></div>
+      <div class="acts"><button class="btn pri" id="go-cv" disabled>Convertir</button><span class="hint" id="cv-n" style="margin:0"></span></div>
+    </div>
+
+    <!-- Réglages -->
+    <div class="card" id="v-set" hidden>
+      <h1>Réglages</h1>
+      <p class="sub">Relie l'appli à Jellyfin : tes bibliothèques apparaissent comme dossiers, et Jellyfin s'actualise tout seul après chaque vidéo.</p>
+      <div class="row">
+        <div><label class="l">Adresse de Jellyfin</label><input class="inp" id="jf-url" placeholder="http://localhost:8096"></div>
+        <div><label class="l">Clé API Jellyfin</label><input class="inp" id="jf-key" type="password" placeholder="Colle ta clé ici" autocomplete="off"></div>
+      </div>
+      <div class="hint">Pour la clé : Jellyfin → Tableau de bord → Clés API → « + », nom « Frigo Rosé Studio ».</div>
+      <div class="acts"><button class="btn pri" id="jf-save">Enregistrer</button><span id="jf-res" class="hint" style="margin:0"></span></div>
+      <label class="l">Bibliothèques trouvées</label>
+      <div id="libs"></div>
+      <label class="l">Autres dossiers</label>
+      <div id="folders"></div>
+      <div class="acts" style="margin-top:10px"><button class="btn sm" id="add-folder">Ajouter un dossier</button></div>
+      <label class="l">Infos</label>
+      <div class="gpu" id="infos"></div>
+      <div class="acts"><button class="btn ghost" id="quit">Fermer l'appli</button></div>
+    </div>
+  </section>
+
+  <aside class="card q">
+    <div class="qhead"><h2>File d'attente <span class="pill" id="qn">0</span></h2><button class="btn sm ghost" id="clear">Effacer les terminés</button></div>
+    <div id="jobs"><div class="qempty">Rien en cours. Les vidéos que tu lances s'affichent ici.</div></div>
+  </aside>
+</main>
+
+<div class="modal" id="picker" hidden>
+  <div class="card">
+    <h1 style="font-size:20px">Choisir un dossier</h1>
+    <p class="sub" style="margin-bottom:14px">Va dans le dossier voulu puis clique « Choisir ce dossier ».</p>
+    <div class="fb"><div class="fb-bar"><div class="crumbs" id="p-crumbs"></div><button class="btn sm ghost" id="p-new">Nouveau dossier</button></div><div class="fb-list" id="p-list"></div></div>
+    <div class="acts"><button class="btn pri" id="p-ok">Choisir ce dossier</button><button class="btn ghost" id="p-cancel">Annuler</button></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const IC={dir:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>',
+  vid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>'};
+let S={setup:{},jobs:[],conf:{},libs:[]},view="dl",quality="1080",fbPath=null,fbSel=new Set(),fbData=null;
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api=(p,b)=>fetch(p,b===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"Erreur");return j});
+const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.round(n/1e3)+" ko";
+
+/* onglets */
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
+function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-set").hidden=v!=="set";
+  if(v==="conv"&&!fbData)browse(fbPath||"");if(v==="set")renderSet();
+  try{localStorage.setItem("frs_view",v)}catch(e){}}
+
+/* dossiers de destination */
+function destOptions(sel,withSame){
+  const cur=sel.value,libs=S.libs||[],extra=(S.conf.folders||[]);let h="";
+  if(withSame)h+='<option value="">À côté de l\'original</option>';
+  if(libs.length){h+='<optgroup label="Jellyfin">'+libs.map(l=>'<option value="'+esc(l.path)+'">'+esc(l.name)+' — '+esc(l.path)+'</option>').join("")+'</optgroup>'}
+  const known=new Set(libs.map(l=>l.path));
+  const ex=extra.filter(f=>!known.has(f));
+  if(S.conf.last_dest&&!known.has(S.conf.last_dest)&&!ex.includes(S.conf.last_dest))ex.push(S.conf.last_dest);
+  if(ex.length)h+='<optgroup label="Mes dossiers">'+ex.map(f=>'<option value="'+esc(f)+'">'+esc(f)+'</option>').join("")+'</optgroup>';
+  h+='<option value="__pick">Choisir un autre dossier…</option>';
+  if(sel.dataset.h!==h){sel.innerHTML=h;sel.dataset.h=h;
+    const want=cur&&cur!=="__pick"?cur:(withSame?"":S.conf.last_dest||(libs[0]&&libs[0].path)||"");
+    if([...sel.options].some(o=>o.value===want))sel.value=want;else if(!withSame&&sel.options[0])sel.value=sel.options[0].value==="__pick"?"__pick":sel.options[0].value}
+}
+function bindDest(sel){let prev=sel.value;sel.onfocus=()=>{prev=sel.value};sel.onchange=async()=>{if(sel.value!=="__pick"){prev=sel.value;return}
+  const p=await pickFolder(prev&&prev!=="__pick"?prev:"");if(!p){sel.value=prev;return}
+  const f=S.conf.folders||[];if(!f.includes(p)&&!(S.libs||[]).some(l=>l.path===p)){f.push(p);await api("/api/config",{folders:f});S.conf.folders=f}
+  destOptions(sel,sel.id==="cdest");sel.value=p;prev=p}}
+bindDest($("dest"));bindDest($("cdest"));
+
+/* téléchargement */
+$("paste").onclick=async()=>{try{$("url").value=(await navigator.clipboard.readText()).trim();urlHint()}catch(e){$("url").focus()}};
+$("url").oninput=urlHint;
+function urlHint(){const u=$("url").value.trim();let h="";
+  try{const x=new URL(u);const pl=x.searchParams.get("list");if(x.pathname.includes("playlist")||(pl&&!x.searchParams.get("v")))h="Playlist : toutes les vidéos seront téléchargées, rangées dans un dossier à son nom.";else if(pl)h="Ce lien vient d'une playlist : seule cette vidéo sera téléchargée.";}catch(e){}
+  $("url-h").textContent=h}
+document.querySelectorAll("#qual button").forEach(b=>b.onclick=()=>{quality=b.dataset.q;renderQual()});
+function renderQual(){document.querySelectorAll("#qual button").forEach(b=>b.classList.toggle("on",b.dataset.q===quality));
+  $("qual-h").textContent=quality==="max"?"Jusqu'à la 4K si dispo. Plus lourd, et souvent à reconvertir : plus long.":quality==="720"?"Fichiers plus petits, bien pour les séries et les vlogs.":"Le bon compromis pour la télé."}
+$("go-dl").onclick=async()=>{
+  $("dl-err").textContent="";const url=$("url").value.trim(),dest=$("dest").value;
+  if(!url){$("dl-err").textContent="Colle d'abord un lien";return}
+  if(!dest||dest==="__pick"){$("dl-err").textContent="Choisis où ranger la vidéo";return}
+  try{await api("/api/download",{url,dest,quality,sub:$("sub").value,thumb:$("thumb").checked});$("url").value="";$("url-h").textContent="";refresh()}
+  catch(e){$("dl-err").textContent=e.message}};
+$("url").onkeydown=e=>{if(e.key==="Enter")$("go-dl").click()};
+
+/* explorateur de fichiers */
+async function browse(p){
+  let d;try{d=await api("/api/ls?path="+encodeURIComponent(p||""))}catch(e){return}
+  fbPath=d.path;fbData=d;try{localStorage.setItem("frs_path",d.path)}catch(e){}
+  renderCrumbs($("crumbs"),d,browse);
+  const L=$("fb");L.innerHTML="";
+  if(d.parent!=null){const r=row(IC.up,"Dossier parent","");r.onclick=()=>browse(d.parent);L.append(r)}
+  d.dirs.forEach(x=>{const r=row(IC.dir,x.name,"");r.onclick=()=>browse(x.path);L.append(r)});
+  d.files.forEach(x=>{const r=row(IC.vid,x.name,size(x.size),true);const cb=r.querySelector("input");cb.checked=fbSel.has(x.path);r.classList.toggle("sel",cb.checked);
+    r.onclick=e=>{if(e.target!==cb)cb.checked=!cb.checked;cb.checked?fbSel.add(x.path):fbSel.delete(x.path);r.classList.toggle("sel",cb.checked);selInfo()};L.append(r)});
+  if(d.error)L.insertAdjacentHTML("beforeend",'<div class="empty">'+esc(d.error)+'</div>');
+  else if(!d.dirs.length&&!d.files.length)L.insertAdjacentHTML("beforeend",'<div class="empty">Pas de vidéo dans ce dossier</div>');
+  $("selall").hidden=!d.files.length;selInfo()}
+function row(ic,name,meta,check){const r=document.createElement("div");r.className="it";r.innerHTML=(check?'<input type="checkbox">':"")+ic+'<span class="nm"></span>'+(meta?'<span class="sz">'+esc(meta)+'</span>':"");r.querySelector(".nm").textContent=name;return r}
+function renderCrumbs(box,d,go){box.innerHTML="";const b0=document.createElement("button");b0.textContent=S.win===false?"/":"Ce PC";b0.onclick=()=>go("");box.append(b0);
+  if(!d.path)return;const sep=d.path.includes("\\")?"\\":"/";const parts=d.path.split(sep).filter(Boolean);let acc=d.path.startsWith("/")?"":"";
+  parts.forEach((p,i)=>{acc=i===0?(sep==="\\"?p+"\\":"/"+p):acc+(acc.endsWith(sep)?"":sep)+p;const t=acc;const b=document.createElement("button");b.textContent=p;b.onclick=()=>go(t);box.append(document.createTextNode("›"),b)})}
+$("selall").onclick=()=>{const all=fbData.files.every(f=>fbSel.has(f.path));fbData.files.forEach(f=>all?fbSel.delete(f.path):fbSel.add(f.path));browse(fbPath)};
+function selInfo(){const n=fbSel.size;$("go-cv").disabled=!n;$("go-cv").textContent=n?"Convertir "+n+" vidéo"+(n>1?"s":""):"Convertir";$("cv-n").textContent=n?"":"Coche les vidéos à convertir";
+  if(fbData&&fbData.files.length)$("selall").textContent=fbData.files.every(f=>fbSel.has(f.path))?"Tout décocher":"Tout cocher"}
+$("go-cv").onclick=async()=>{$("cv-err").textContent="";const dest=$("cdest").value==="__pick"?"":$("cdest").value;
+  try{await api("/api/convert",{files:[...fbSel],dest,delete:$("del").checked});fbSel.clear();browse(fbPath);refresh()}catch(e){$("cv-err").textContent=e.message}};
+
+/* choix d'un dossier */
+let pick=null;
+function pickFolder(start){return new Promise(res=>{pick={res,path:start||""};$("picker").hidden=false;pBrowse(pick.path)})}
+async function pBrowse(p){let d;try{d=await api("/api/ls?path="+encodeURIComponent(p||""))}catch(e){return}pick.path=d.path;
+  renderCrumbs($("p-crumbs"),d,pBrowse);const L=$("p-list");L.innerHTML="";
+  if(d.parent!=null){const r=row(IC.up,"Dossier parent","");r.onclick=()=>pBrowse(d.parent);L.append(r)}
+  d.dirs.forEach(x=>{const r=row(IC.dir,x.name,"");r.onclick=()=>pBrowse(x.path);L.append(r)});
+  if(!d.dirs.length)L.insertAdjacentHTML("beforeend",'<div class="empty">Pas de sous-dossier</div>');
+  $("p-ok").disabled=!d.path;$("p-new").hidden=!d.path}
+$("p-ok").onclick=()=>{$("picker").hidden=true;pick.res(pick.path);pick=null};
+$("p-cancel").onclick=()=>{$("picker").hidden=true;pick.res(null);pick=null};
+$("p-new").onclick=async()=>{const n=prompt("Nom du nouveau dossier");if(!n)return;try{const r=await api("/api/mkdir",{path:pick.path,name:n});pBrowse(r.path)}catch(e){alert(e.message)}};
+
+/* réglages */
+function renderSet(){
+  if(document.activeElement!==$("jf-url"))$("jf-url").value=S.conf.jellyfin_url||"";
+  $("jf-key").placeholder=S.conf.has_key?"Clé enregistrée (colle-en une autre pour la changer)":"Colle ta clé ici";
+  const libs=S.libs||[];
+  $("libs").innerHTML=libs.length?libs.map(l=>'<div class="lib"><span class="pill">'+esc(l.name)+'</span><code>'+esc(l.path)+'</code></div>').join(""):'<div class="hint" style="margin:0">'+(S.jf_error?esc(S.jf_error):S.conf.has_key?"Aucune bibliothèque":"Ajoute ta clé Jellyfin pour voir tes bibliothèques")+'</div>';
+  const f=S.conf.folders||[];$("folders").innerHTML=f.length?"":'<div class="hint" style="margin:0">Aucun pour l\'instant</div>';
+  f.forEach((p,i)=>{const d=document.createElement("div");d.className="lib";d.innerHTML='<code></code><button class="btn sm ghost">Retirer</button>';d.querySelector("code").textContent=p;
+    d.querySelector("button").onclick=async()=>{f.splice(i,1);await api("/api/config",{folders:f});refresh()};$("folders").append(d)});
+  const s=S.setup||{};$("infos").innerHTML='<span class="pill">Carte graphique : '+(s.nvenc==null?"…":s.nvenc?"NVIDIA utilisée (rapide)":"non utilisée (processeur)")+'</span><span class="pill">yt-dlp '+esc(s.ytdlp_version||"…")+'</span><span class="pill">Studio '+esc(S.version||"")+'</span>'}
+$("jf-save").onclick=async()=>{const b={jellyfin_url:$("jf-url").value.trim()};if($("jf-key").value.trim())b.jellyfin_key=$("jf-key").value.trim();
+  $("jf-res").textContent="Connexion…";try{const r=await api("/api/config",b);$("jf-key").value="";$("jf-res").textContent=r.jf_error?r.jf_error:r.libs.length?"Connecté · "+r.libs.length+" dossier"+(r.libs.length>1?"s":""):"Connecté";refresh()}catch(e){$("jf-res").textContent=e.message}};
+$("add-folder").onclick=async()=>{const p=await pickFolder("");if(!p)return;const f=S.conf.folders||[];if(!f.includes(p))f.push(p);await api("/api/config",{folders:f});refresh()};
+$("quit").onclick=async()=>{if(S.jobs.some(j=>j.status==="en cours")&&!confirm("Une vidéo est en cours. Fermer quand même ?"))return;await api("/api/quit",{}).catch(()=>{});document.body.innerHTML='<div class="empty" style="padding:80px">Frigo Rosé Studio est fermé. Tu peux fermer cet onglet.</div>'};
+
+/* file d'attente */
+$("clear").onclick=()=>api("/api/clear",{}).then(refresh);
+function renderJobs(){
+  const box=$("jobs"),js=[...S.jobs].reverse();$("qn").textContent=js.filter(j=>j.status==="attente"||j.status==="en cours").length;
+  $("clear").hidden=!js.some(j=>!["attente","en cours"].includes(j.status));
+  if(!js.length){box.innerHTML='<div class="qempty">Rien en cours. Les vidéos que tu lances s\'affichent ici.</div>';return}
+  const have=new Map([...box.querySelectorAll(".job")].map(e=>[e.dataset.id,e]));
+  box.querySelectorAll(".qempty").forEach(e=>e.remove());
+  js.forEach((j,i)=>{let e=have.get(j.id);if(!e){e=document.createElement("div");e.className="job";e.dataset.id=j.id;e.innerHTML='<div class="k"><span class="t"></span><span class="badge"></span></div><div class="m"></div><div class="bar"><i></i></div><div class="ja"></div>'}
+    have.delete(j.id);e.className="job "+j.status.replace(" ","-");e.dataset.s=j.status;
+    e.querySelector(".t").textContent=(j.kind==="dl"?"⬇ ":"⟳ ")+(j.title||j.url||"");
+    e.querySelector(".badge").textContent=j.status==="en cours"?Math.floor(j.pct)+" %":j.status;
+    e.querySelector(".m").textContent=j.msg||"";e.querySelector(".bar i").style.width=(j.status==="fini"?100:j.pct)+"%";
+    e.querySelector(".bar").hidden=!(j.status==="en cours"||j.status==="fini");
+    const a=e.querySelector(".ja"),sig=j.status+(j.out||[]).length;if(a.dataset.s!==sig){a.dataset.s=sig;a.innerHTML="";
+      if(j.status==="attente"||j.status==="en cours")a.append(btn("Annuler",()=>api("/api/cancel",{id:j.id}).then(refresh)));
+      if(j.status==="erreur"||j.status==="annulé")a.append(btn("Réessayer",()=>api("/api/retry",{id:j.id}).then(refresh)));
+      if(j.status==="fini"&&(j.out||[]).length)a.append(btn("Ouvrir le dossier",()=>api("/api/open",{path:j.out[0]})))}
+    if(box.children[i]!==e)box.insertBefore(e,box.children[i]||null)});
+  have.forEach(e=>e.remove())}
+function btn(t,f){const b=document.createElement("button");b.className="btn sm";b.textContent=t;b.onclick=f;return b}
+
+/* état */
+async function refresh(){
+  try{S=await api("/api/state")}catch(e){$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
+  const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
+  const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
+  $("go-dl").disabled=!s.ready;
+  destOptions($("dest"),false);destOptions($("cdest"),true);renderJobs();if(view==="set")renderSet()}
+try{quality=localStorage.getItem("frs_q")||"1080"}catch(e){}
+document.querySelectorAll("#qual button").forEach(b=>b.addEventListener("click",()=>{try{localStorage.setItem("frs_q",quality)}catch(e){}}));
+renderQual();
+try{fbPath=localStorage.getItem("frs_path")||""}catch(e){}
+refresh().then(()=>{let v="dl";try{v=localStorage.getItem("frs_view")||"dl"}catch(e){}show(v);if(S.conf.quality&&!localStorage.getItem("frs_q"))quality=S.conf.quality;renderQual()});
+setInterval(refresh,1000);
+</script>
+</body>
+</html>

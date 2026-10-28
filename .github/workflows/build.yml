@@ -12,7 +12,38 @@ concurrency:
   group: build
   cancel-in-progress: true
 jobs:
+  studio:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fabrication de Frigo Rosé Studio
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          pyinstaller --onefile --noconsole --name FrigoRoseStudio --icon studio/icon.ico --add-data "studio/page.html;." studio/frigo_studio.py
+          Get-Item dist/FrigoRoseStudio.exe
+      - name: Test sur Windows
+        shell: pwsh
+        continue-on-error: true
+        run: ./studio/smoke.ps1
+      - name: Rapport du test
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          if (-not (Test-Path smoke.md)) { "Pas de rapport" | Out-File smoke.md }
+          gh issue create --repo ${{ github.repository }} --title "Test Studio ${{ github.run_number }}" --body-file smoke.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio
+          path: dist/FrigoRoseStudio.exe
   build:
+    needs: studio
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -35,12 +66,18 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
           cp frigo-rose-tv.apk web/tv.apk
           ls -la frigo-rose-tv.apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio
+          path: web
       - name: Publication de l'APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: tv-${{ github.run_number }}
           name: Frigo Rosé TV ${{ github.run_number }}
-          files: frigo-rose-tv.apk
+          files: |
+            frigo-rose-tv.apk
+            web/FrigoRoseStudio.exe
           make_latest: true
       - uses: actions/configure-pages@v5
         continue-on-error: true
