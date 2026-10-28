@@ -22,7 +22,7 @@ jobs:
       - name: Fabrication de Frigo Rosé Studio
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip pyinstaller
+          python -m pip install --upgrade pip pyinstaller psutil
           pyinstaller --onefile --noconsole --name FrigoRoseStudio --icon studio/icon.ico --add-data "studio/page.html;." --add-data "studio/icon.png;." studio/frigo_studio.py
           Get-Item dist/FrigoRoseStudio.exe
       - name: Test sur Windows

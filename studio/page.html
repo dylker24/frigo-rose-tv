@@ -161,6 +161,28 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .yt{grid-template-columns:1fr 1fr;gap:10px}.yv .tx b{font-size:13px}.yv .btn{padding:9px;margin:8px}
   .phone{display:none!important}
 }
+.pcg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.svc{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.svc .k{display:flex;align-items:center;gap:8px;font-weight:700}
+.svc .k i{width:10px;height:10px;border-radius:50%;background:var(--bad)}
+.svc.ok .k i{background:var(--ok)}
+.svc small{color:var(--mute);font-size:13px}
+.svc .big2{font:700 24px/1.1 Unbounded,Geist,sans-serif}
+.svc .btn{align-self:flex-start;margin-top:4px}
+.w{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--s2);border:1px solid var(--line);border-radius:12px;margin-top:8px}
+.w b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w small{color:var(--mute);font-size:13px;text-align:right}
+.w .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(61,214,140,.15);flex:none}
+.dk{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px}
+.dk .bar{height:7px;border-radius:7px;background:var(--s3);overflow:hidden;margin:8px 0 4px}.dk .bar i{display:block;height:100%;background:var(--accent)}
+.dk.low .bar i{background:var(--bad)}
+.dk small{color:var(--mute);font-size:12px}
+.up{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.up .bar{height:5px;border-radius:5px;background:var(--s3);overflow:hidden;margin-top:8px}.up .bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.up small{color:var(--mute);font-size:13px}
+.sb{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--s2);border:1px solid var(--line);border-radius:12px;margin-top:10px}
+.sb .t{flex:1;min-width:0}.sb .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sb .t small{color:var(--mute);font-size:12px;word-break:break-all}
+.sb .t small.e{color:var(--bad)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -171,6 +193,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <button data-v="dl" class="on">Télécharger</button>
     <button data-v="conv">Convertir</button>
     <button data-v="dem">Demandes <span class="pill" id="dem-n" hidden style="padding:1px 7px;margin-left:4px;background:var(--accent);color:#fff"></span></button>
+    <button data-v="pc">PC</button>
     <button data-v="set">Réglages</button>
   </nav>
   <button class="btn sm phone" id="phone-btn" hidden>📱 Sur ton téléphone</button>
@@ -199,6 +222,51 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <div class="err" id="dl-err"></div>
       <div class="acts"><button class="btn pri" id="go-dl">Télécharger</button></div>
       <div id="yt-box" hidden><label class="l" id="yt-h">Résultats</label><div class="yt" id="yt"></div></div>
+    </div>
+
+    <!-- Envoyer depuis cet appareil -->
+    <div class="card" id="v-up" style="margin-top:20px">
+      <h1 style="font-size:20px" id="up-h">Envoyer des vidéos de cet appareil</h1>
+      <p class="sub" style="margin-bottom:6px">Une vidéo filmée avec ton téléphone ? Elle part sur le PC, est convertie si besoin et arrive dans la médiathèque choisie.</p>
+      <div class="row">
+        <div><label class="l">Médiathèque</label><select class="inp" id="up-dest"></select></div>
+        <div><label class="l">Sous-dossier (facultatif)</label><input class="inp" id="up-sub" placeholder="Ex : Anniversaire 2026" autocomplete="off"></div>
+      </div>
+      <input type="file" id="up-file" accept="video/*" multiple hidden>
+      <div class="acts"><button class="btn pri" id="up-go">Choisir des vidéos…</button></div>
+      <div id="up-list"></div>
+    </div>
+
+    <!-- Abonnements YouTube -->
+    <div class="card" id="v-subs" style="margin-top:20px">
+      <h1 style="font-size:20px">Abonnements YouTube</h1>
+      <p class="sub" style="margin-bottom:6px">Les nouvelles vidéos d'une chaîne YouTube arrivent toutes seules dans la médiathèque, vérifiées toutes les <b id="subs-every">3</b> heures.</p>
+      <div class="row">
+        <div><label class="l">Lien de la chaîne ou de la playlist</label><input class="inp" id="sb-url" placeholder="youtube.com/@StudioDanielle" autocomplete="off" spellcheck="false"></div>
+        <div><label class="l">Médiathèque</label><select class="inp" id="sb-dest"></select></div>
+      </div>
+      <label class="l">Au départ, prendre</label>
+      <div class="seg" id="sb-take" style="max-width:460px"><button data-n="0">Rien, juste les prochaines</button><button data-n="3" class="on">Les 3 dernières</button><button data-n="10">Les 10 dernières</button></div>
+      <div class="err" id="sb-err"></div>
+      <div class="acts"><button class="btn pri" id="sb-add">S'abonner</button></div>
+      <div id="sb-list"></div>
+    </div>
+
+    <!-- PC -->
+    <div class="card" id="v-pc" hidden>
+      <h1>Ton PC</h1>
+      <p class="sub">Tout ce qui tourne chez toi, même quand tu n'es pas là.</p>
+      <div class="pcg" id="pc-svc"></div>
+      <label class="l">Qui regarde en ce moment</label>
+      <div id="pc-watch"></div>
+      <label class="l">Espace disque</label>
+      <div id="pc-disk"></div>
+      <label class="l">Charge</label>
+      <div class="pcg" id="pc-load"></div>
+      <div class="err" id="pc-err"></div>
+      <div class="hint" id="pc-msg"></div>
+      <div class="acts"><button class="btn" id="pc-reboot">Redémarrer le PC</button><button class="btn ghost" id="pc-reboot-x" hidden>Annuler le redémarrage</button></div>
+      <div class="hint">À n'utiliser que si tout est bloqué. Le PC redémarre au bout d'une minute ; avec « Lancer Studio au démarrage », Studio revient tout seul.</div>
     </div>
 
     <!-- Demandes -->
@@ -316,6 +384,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  $("v-up").hidden=v!=="dl";$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
   $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
   if(v==="dem")loadDem();
   if(v==="conv"&&!fbData)browse(fbPath||"");if(v==="set")renderSet();
@@ -338,8 +407,8 @@ function destOptions(sel,withSame){
 function bindDest(sel){let prev=sel.value;sel.onfocus=()=>{prev=sel.value};sel.onchange=async()=>{if(sel.value!=="__pick"){prev=sel.value;return}
   const p=await pickFolder(prev&&prev!=="__pick"?prev:"");if(!p){sel.value=prev;return}
   const f=S.conf.folders||[];if(!f.includes(p)&&!(S.libs||[]).some(l=>l.path===p)){f.push(p);await api("/api/config",{folders:f});S.conf.folders=f}
-  destOptions(sel,sel.id==="cdest");sel.value=p;prev=p}}
-bindDest($("dest"));bindDest($("cdest"));bindDest($("w-dest"));
+  destOptions(sel,["cdest","w-dest"].includes(sel.id));sel.value=p;prev=p}}
+bindDest($("dest"));bindDest($("cdest"));bindDest($("w-dest"));bindDest($("up-dest"));bindDest($("sb-dest"));
 $("w-dest").addEventListener("change",()=>{if($("w-dest").value!=="__pick")api("/api/watch",{watch_dest:$("w-dest").value}).then(refresh)});
 
 /* téléchargement */
@@ -511,6 +580,83 @@ function renderDem(){
     box.append(d)})}
 setInterval(()=>{if(Date.now()-DEM.t>(view==="dem"?5000:30000))loadDem()},2000);
 
+
+/* envoi de vidéos depuis l'appareil */
+$("up-go").onclick=()=>$("up-file").click();
+$("up-file").onchange=()=>{const fs=[...$("up-file").files];$("up-file").value="";const dest=$("up-dest").value;
+  if(!dest||dest==="__pick"){alert("Choisis d'abord la médiathèque");return}
+  fs.forEach(f=>upQueue.push({f,dest,sub:$("up-sub").value.trim()}));upNext()};
+const upQueue=[];let upBusy=false;
+function upNext(){if(upBusy||!upQueue.length)return;upBusy=true;const it=upQueue.shift();
+  const box=document.createElement("div");box.className="up";box.innerHTML='<b></b><br><small>Envoi…</small><div class="bar"><i style="width:0"></i></div>';
+  box.querySelector("b").textContent=it.f.name;$("up-list").prepend(box);
+  const x=new XMLHttpRequest();x.open("PUT","/api/upload?dest="+encodeURIComponent(it.dest)+"&sub="+encodeURIComponent(it.sub)+"&name="+encodeURIComponent(it.f.name));
+  const t0=Date.now();
+  x.upload.onprogress=e=>{if(!e.lengthComputable)return;const p=e.loaded/e.total;box.querySelector("i").style.width=(p*100)+"%";
+    const sp=e.loaded/Math.max(1,(Date.now()-t0)/1000);box.querySelector("small").textContent="Envoi… "+Math.round(p*100)+" % · "+size(e.loaded)+" / "+size(e.total)+(p<1&&sp>0?" · encore "+fmtDur((e.total-e.loaded)/sp):"")};
+  x.onload=()=>{let r={};try{r=JSON.parse(x.responseText)}catch(e){}box.querySelector("small").textContent=x.status===200?"Arrivé sur le PC ✓ (la suite dans la file d'attente)":(r.error||"Erreur");if(x.status===200)box.querySelector("i").style.width="100%";upBusy=false;refresh();upNext()};
+  x.onerror=()=>{box.querySelector("small").textContent="Connexion coupée, réessaie";upBusy=false;upNext()};
+  x.send(it.f)}
+
+/* abonnements YouTube */
+let sbTake=3;
+document.querySelectorAll("#sb-take button").forEach(b=>b.onclick=()=>{sbTake=+b.dataset.n;document.querySelectorAll("#sb-take button").forEach(x=>x.classList.toggle("on",x===b))});
+$("sb-add").onclick=async()=>{$("sb-err").textContent="";const url=$("sb-url").value.trim(),dest=$("sb-dest").value;
+  if(!url){$("sb-err").textContent="Colle le lien de la chaîne YouTube";return}if(!dest||dest==="__pick"){$("sb-err").textContent="Choisis la médiathèque";return}
+  $("sb-add").disabled=true;$("sb-add").textContent="Je regarde la chaîne…";
+  try{const r=await api("/api/subs",{action:"add",url,dest,take:sbTake,quality});$("sb-url").value="";$("sb-err").textContent="";
+    $("sb-err").style.color="var(--ok)";$("sb-err").textContent="Abonné à « "+(r.name||url)+" »"+(r.queued?" · "+r.queued+" vidéo"+(r.queued>1?"s":"")+" en route":"");setTimeout(()=>{$("sb-err").style.color="";$("sb-err").textContent=""},6000);refresh()}
+  catch(e){$("sb-err").textContent=e.message}
+  $("sb-add").disabled=false;$("sb-add").textContent="S'abonner"};
+function ago(t){if(!t)return "jamais";const m=Math.round((Date.now()/1000-t)/60);return m<1?"à l'instant":m<60?"il y a "+m+" min":m<1440?"il y a "+Math.round(m/60)+" h":"il y a "+Math.round(m/1440)+" j"}
+function renderSubs(){const L=$("sb-list"),subs=S.conf.subs||[];$("subs-every").textContent=S.conf.subs_every||3;
+  const sig=JSON.stringify(subs.map(x=>[x.id,x.name,x.last,x.error,x.last_new]));if(L.dataset.s===sig)return;L.dataset.s=sig;L.innerHTML="";
+  const lib=p=>{const l=(S.libs||[]).find(x=>x.path===p);return l?l.name:p};
+  subs.forEach(x=>{const d=document.createElement("div");d.className="sb";d.innerHTML='<div class="t"><b></b><small></small></div>';
+    d.querySelector("b").textContent=(x.name||x.url)+" → "+lib(x.dest);
+    const sm=d.querySelector("small");sm.textContent=x.error?x.error:"Vérifié "+ago(x.last)+(x.last_new?" · "+x.last_new+" nouvelle"+(x.last_new>1?"s":""):"");if(x.error)sm.classList.add("e");
+    const c=btn("Vérifier",async e=>{e.target.disabled=true;e.target.textContent="…";try{const r=await api("/api/subs",{action:"check",id:x.id});e.target.textContent=r.queued?r.queued+" nouvelle"+(r.queued>1?"s":""):"Rien de neuf"}catch(er){e.target.textContent="Erreur"}setTimeout(refresh,500)});
+    const rm=btn("Retirer",async()=>{if(!confirm("Arrêter l'abonnement à « "+(x.name||x.url)+" » ? Les vidéos déjà téléchargées restent."))return;await api("/api/subs",{action:"remove",id:x.id});refresh()});rm.classList.add("ghost");
+    d.append(c,rm);L.append(d)});}
+
+/* onglet PC */
+let PC=null,pcT=0;
+async function loadPc(){try{PC=await api("/api/pc");$("pc-err").textContent=""}catch(e){$("pc-err").textContent=e.message}pcT=Date.now();renderPc()}
+setInterval(()=>{if(view==="pc"&&Date.now()-pcT>5000)loadPc()},1000);
+const pct=(a,b)=>b?Math.round(100*a/b):0;
+function renderPc(){if(!PC)return;
+  const svc=(name,o,key,extra)=>{const d=document.createElement("div");d.className="svc"+(o.ok?" ok":"");
+    d.innerHTML='<div class="k"><i></i><span></span></div><small></small>';d.querySelector(".k span").textContent=name;
+    d.querySelector("small").textContent=o.ok?"En marche"+(o.version?" · v"+o.version:"")+(extra?" · "+extra:""):"Ne répond pas";
+    if(key){const can=o.ok||(PC.can_start||{})[key];const b=btn(o.ok?"Relancer":"Démarrer",async e=>{if(o.ok&&!confirm("Relancer "+name+" ? Les chaînes en cours vont couper quelques secondes."))return;
+        e.target.disabled=true;e.target.textContent="…";$("pc-err").textContent="";$("pc-msg").textContent="";
+        try{const r=await api("/api/restart",{what:key});$("pc-msg").textContent=r.msg}catch(er){$("pc-err").textContent=er.message}setTimeout(loadPc,6000)});
+      if(!can)b.disabled=true,b.title="Lance-le une fois à la main sur le PC";d.append(b)}
+    return d};
+  const sv=$("pc-svc");sv.innerHTML="";
+  sv.append(svc("Tunarr",PC.tunarr,"tunarr",PC.tunarr.channels?PC.tunarr.channels+" chaînes":""),svc("Jellyfin",PC.jellyfin,"jellyfin",""),
+    svc("Studio",{ok:true,version:S.version},null,"allumé depuis "+fmtLong(PC.studio_uptime)));
+  const w=$("pc-watch");w.innerHTML="";const ws=(PC.tunarr.watch||[]);
+  if(!ws.length)w.innerHTML='<div class="hint" style="margin:0">'+(PC.tunarr.ok?"Personne ne regarde Frigo Rosé TV en ce moment":"Tunarr ne répond pas")+'</div>';
+  ws.forEach(x=>{const d=document.createElement("div");d.className="w";d.innerHTML='<span class="dot"></span><b></b><small></small>';
+    d.querySelector("b").textContent=(x.number?"n°"+x.number+" · ":"")+x.channel;d.querySelector("small").textContent=x.device+(x.who?" · "+x.who:x.ip?" · "+x.ip:"");w.append(d)});
+  (PC.jellyfin.watch||[]).forEach(x=>{const d=document.createElement("div");d.className="w";d.innerHTML='<span class="dot" style="background:#7AA7FF;box-shadow:0 0 0 4px rgba(122,167,255,.15)"></span><b></b><small></small>';
+    d.querySelector("b").textContent="Jellyfin · "+x.item;d.querySelector("small").textContent=[x.user,x.device||x.client].filter(Boolean).join(" · ");w.append(d)});
+  const dk=$("pc-disk");dk.innerHTML="";(PC.disks||[]).forEach(x=>{const used=x.total-x.free,low=x.free<30e9||x.free/x.total<.08;const d=document.createElement("div");d.className="dk"+(low?" low":"");
+    d.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px"><b></b><span></span></div><div class="bar"><i style="width:'+pct(used,x.total)+'%"></i></div><small></small>';
+    d.querySelector("b").textContent="Disque "+x.root;d.querySelector("span").textContent=size(x.free)+" libres sur "+size(x.total);
+    d.querySelector("small").textContent=(low?"⚠ Bientôt plein · ":"")+(x.libs.length?x.libs.join(", "):"");dk.append(d)});
+  const ld=$("pc-load");ld.innerHTML="";const tile=(t,v,sub)=>{const d=document.createElement("div");d.className="svc ok";d.innerHTML='<small></small><span class="big2"></span><small></small>';
+    d.children[0].textContent=t;d.children[1].textContent=v;d.children[2].textContent=sub||"";ld.append(d)};
+  if(PC.cpu!=null)tile("Processeur",Math.round(PC.cpu)+" %",PC.uptime?"PC allumé depuis "+fmtLong(PC.uptime):"");
+  if(PC.ram)tile("Mémoire",PC.ram.pct+" %",size(PC.ram.used)+" / "+size(PC.ram.total));
+  if(PC.gpu)tile("Carte graphique",(PC.gpu.use!=null?PC.gpu.use+" %":"—"),[PC.gpu.name,PC.gpu.temp!=null?PC.gpu.temp+" °C":"",PC.gpu.enc!=null?PC.gpu.enc+" conversion"+(PC.gpu.enc>1?"s":"")+" en cours":""].filter(Boolean).join(" · "));
+  $("pc-reboot").hidden=!S.win;}
+const fmtLong=s=>{s=Math.round(s||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?d+" j "+h+" h":h?h+" h "+m+" min":m+" min"};
+$("pc-reboot").onclick=async()=>{if(!confirm("Redémarrer le PC ? Tout ce qui tourne (Tunarr, Jellyfin, téléchargements) va s'arrêter."))return;
+  try{const r=await api("/api/restart",{what:"pc"});$("pc-msg").textContent=r.msg;$("pc-reboot-x").hidden=false}catch(e){$("pc-err").textContent=e.message}};
+$("pc-reboot-x").onclick=async()=>{try{const r=await api("/api/restart",{what:"pc_cancel"});$("pc-msg").textContent=r.msg;$("pc-reboot-x").hidden=true}catch(e){}};
+
 /* téléphone : code */
 $("pin-save").onclick=async()=>{const v=$("pin-new").value.trim();try{await api("/api/pin",{pin:v});$("pin-new").value="";$("pin-h").textContent="Code enregistré ✓";refresh()}catch(e){$("pin-h").textContent=e.message}};
 $("tn-save").onclick=async()=>{try{await api("/api/config",{tunarr_url:$("tn-url").value.trim()});$("tn-res").textContent="Enregistré, vérification…";setTimeout(refresh,800)}catch(e){$("tn-res").textContent=e.message}};
@@ -527,9 +673,9 @@ function renderJobs(){
   box.querySelectorAll(".qempty").forEach(e=>e.remove());
   js.forEach((j,i)=>{let e=have.get(j.id);if(!e){e=document.createElement("div");e.className="job";e.dataset.id=j.id;e.innerHTML='<div class="k"><span class="t"></span><span class="badge"></span></div><div class="m"></div><div class="bar"><i></i></div><div class="ja"></div>'}
     have.delete(j.id);e.className="job "+j.status.replace(" ","-");e.dataset.s=j.status;
-    e.querySelector(".t").textContent=(j.kind==="dl"?"⬇ ":"⟳ ")+(j.title||j.url||"");
+    e.querySelector(".t").textContent=(j.kind==="dl"?"⬇ ":j.kind==="up"?"📱 ":"⟳ ")+(j.title||j.url||"");
     e.querySelector(".badge").textContent=j.status==="en cours"?Math.floor(j.pct)+" %":j.status;
-    e.querySelector(".m").textContent=(j.req_title?"Pour la demande « "+j.req_title+" » · ":"")+(j.msg||"");e.querySelector(".bar i").style.width=(j.status==="fini"?100:j.pct)+"%";
+    e.querySelector(".m").textContent=(j.from_sub?"Abonnement « "+j.from_sub+" » · ":"")+(j.uploaded?"Envoyé du téléphone · ":"")+(j.req_title?"Pour la demande « "+j.req_title+" » · ":"")+(j.msg||"");e.querySelector(".bar i").style.width=(j.status==="fini"?100:j.pct)+"%";
     e.querySelector(".bar").hidden=!(j.status==="en cours"||j.status==="fini");
     const a=e.querySelector(".ja"),sig=j.status+(j.out||[]).length;if(a.dataset.s!==sig){a.dataset.s=sig;a.innerHTML="";
       if(j.status==="attente"||j.status==="en cours")a.append(btn("Annuler",()=>api("/api/cancel",{id:j.id}).then(refresh)));
@@ -547,7 +693,8 @@ async function refresh(){
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
   $("go-dl").disabled=!s.ready;$("phone-btn").hidden=!S.phone||S.remote;
-  destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);renderAuto();renderJobs();if(view==="set")renderSet()}
+  destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);destOptions($("up-dest"),false);destOptions($("sb-dest"),false);renderSubs();
+  $("up-h").textContent=S.remote?"Envoyer des vidéos de ton téléphone":"Envoyer des vidéos de cet appareil";renderAuto();renderJobs();if(view==="set")renderSet()}
 try{quality=localStorage.getItem("frs_q")||"1080"}catch(e){}
 document.querySelectorAll("#qual button").forEach(b=>b.addEventListener("click",()=>{try{localStorage.setItem("frs_q",quality)}catch(e){}}));
 renderQual();

@@ -30,7 +30,8 @@ VIDEO_EXT = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".
 # ---------------------------------------------------------------- réglages
 DEFAULT_CONF = {"jellyfin_url": "http://localhost:8096", "jellyfin_key": "", "folders": [], "last_dest": "", "quality": "1080", "keep_thumb": True,
                 "watch_on": False, "watch_src": "", "watch_dest": "", "watch_delete": False, "parallel": 2,
-                "tunarr_url": "http://localhost:8000", "pin_hash": "", "secret": ""}
+                "tunarr_url": "http://localhost:8000", "pin_hash": "", "secret": "", "subs": [], "subs_every": 3,
+                "tunarr_cmd": None, "jellyfin_cmd": None}
 FB_URL = os.environ.get("FRS_FB_URL") or "https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.app/frigorosetv"
 _conf_lock = threading.Lock()
 
@@ -289,7 +290,8 @@ wake = threading.Event()
 
 def new_job(kind, **kw):
     j = {"id": uuid.uuid4().hex[:10], "kind": kind, "status": "attente", "pct": 0, "msg": "En attente", "title": "", "out": [], "error": "",
-         "t": time.time(), "proc": None, "cancel": False, **kw}
+         "t": time.time(), "proc": None, "cancel": False}
+    j.update(kw)
     with jobs_lock:
         jobs.append(j)
     wake.set()
@@ -899,6 +901,307 @@ def _tailscale_ip():
     return ""
 
 
+
+# ---------------------------------------------------------------- état du PC (onglet « PC »)
+try:
+    import psutil
+except Exception:  # pragma: no cover
+    psutil = None
+_boot = time.time()
+
+
+def _ua_device(ua):
+    u = ua or ""
+    if "AFT" in u:
+        return "Fire Stick"
+    if "FrigoRoseTablet" in u:
+        return "Tablette"
+    if "FrigoRoseTV" in u:
+        return "Télé (appli)"
+    if re.search(r"iPhone|Android.*Mobile", u):
+        return "Téléphone"
+    if "iPad" in u or "Android" in u:
+        return "Tablette"
+    if "VLC" in u:
+        return "VLC"
+    return "Navigateur" if "Mozilla" in u else (u.split("/")[0][:30] or "Appareil")
+
+
+_tsn = {"t": 0, "map": {}}
+
+
+def tailscale_names():
+    """Nom des appareils Tailscale (100.x → « telephone-de-lena »), pour savoir qui regarde."""
+    if time.time() - _tsn["t"] < 120:
+        return _tsn["map"]
+    _tsn["t"] = time.time()
+    exe = shutil.which("tailscale") or (r"C:\Program Files\Tailscale\tailscale.exe" if WIN else "")
+    m = {}
+    try:
+        if exe and os.path.exists(exe):
+            r = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=8, creationflags=NOWIN)
+            d = json.loads(r.stdout or "{}")
+            for peer in list((d.get("Peer") or {}).values()) + ([d["Self"]] if d.get("Self") else []):
+                for ip in peer.get("TailscaleIPs") or []:
+                    m[ip] = peer.get("HostName") or peer.get("DNSName", "").split(".")[0]
+    except Exception:
+        pass
+    _tsn["map"] = m
+    return m
+
+
+def find_proc(kind):
+    """Le processus Tunarr ou Jellyfin qui tourne sur le PC (pour pouvoir le relancer)."""
+    if not psutil:
+        return None
+    pats = {"tunarr": re.compile(r"tunarr", re.I), "jellyfin": re.compile(r"^jellyfin(\.windows\.tray)?(\.exe)?$", re.I)}[kind]
+    best = None
+    for pr in psutil.process_iter(["pid", "name", "exe", "cmdline", "cwd"]):
+        try:
+            nm = pr.info["name"] or ""
+            cl = " ".join(pr.info["cmdline"] or [])
+            if pats.search(nm) or (kind == "tunarr" and "tunarr" in cl.lower() and re.search(r"node|bun", nm, re.I)):
+                if kind == "jellyfin" and "tray" in nm.lower():
+                    best = best or pr  # le vrai serveur est préféré à l'icône de la barre des tâches
+                    continue
+                return pr
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return best
+
+
+def remember_cmd(kind):
+    pr = find_proc(kind)
+    if not pr:
+        return
+    try:
+        cmd = {"cmdline": pr.info["cmdline"], "cwd": pr.info["cwd"]}
+        if cmd["cmdline"] and conf.get(kind + "_cmd") != cmd:
+            conf[kind + "_cmd"] = cmd
+            save_conf(conf)
+    except Exception:
+        pass
+
+
+def start_cmd(kind):
+    cmd = conf.get(kind + "_cmd")
+    if not cmd or not cmd.get("cmdline"):
+        raise RuntimeError("Je ne sais pas encore comment lancer %s : lance-le une fois à la main sur le PC, Studio s'en souviendra." % kind.capitalize())
+    flags = (0x00000008 | 0x00000200 | NOWIN) if WIN else 0  # détaché, dans son propre groupe, sans fenêtre
+    subprocess.Popen(cmd["cmdline"], cwd=cmd.get("cwd") or None, creationflags=flags, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     close_fds=True, start_new_session=not WIN)
+
+
+def restart(kind):
+    """Relance Tunarr ou Jellyfin (s'il est planté ou bloqué)."""
+    if kind == "jellyfin" and conf.get("jellyfin_key"):
+        try:
+            jf("/System/Restart", "POST")
+            return "Jellyfin redémarre (environ 30 s)"
+        except Exception:
+            pass
+    pr = find_proc(kind)
+    if pr:
+        remember_cmd(kind)
+        try:
+            for c in pr.children(recursive=True):
+                try:
+                    c.kill()
+                except Exception:
+                    pass
+            pr.kill()
+            pr.wait(15)
+        except psutil.AccessDenied:
+            raise RuntimeError("%s tourne comme service Windows : Studio n'a pas le droit de le relancer. Redémarre plutôt le PC." % kind.capitalize())
+        except Exception:
+            pass
+        time.sleep(1.5)
+    start_cmd(kind)
+    return "%s relancé, il sera prêt dans quelques secondes" % kind.capitalize()
+
+
+def nvidia():
+    exe = shutil.which("nvidia-smi") or (r"C:\Windows\System32\nvidia-smi.exe" if WIN else "")
+    if not exe or not os.path.exists(exe):
+        return None
+    try:
+        r = subprocess.run([exe, "--query-gpu=name,utilization.gpu,temperature.gpu,memory.used,memory.total,encoder.stats.sessionCount",
+                            "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=6, creationflags=NOWIN)
+        a = [x.strip() for x in r.stdout.strip().splitlines()[0].split(",")]
+        num = lambda v: float(v) if re.match(r"^[\d.]+$", v) else None
+        return {"name": a[0], "use": num(a[1]), "temp": num(a[2]), "mem": num(a[3]), "memt": num(a[4]), "enc": num(a[5]) if len(a) > 5 else None}
+    except Exception:
+        return None
+
+
+_pc = {"t": 0, "data": None}
+
+
+def pc_state():
+    if _pc["data"] and time.time() - _pc["t"] < 3:
+        return _pc["data"]
+    d = {"time": time.time()}
+    # Tunarr : en marche ? qui regarde ?
+    tn = {"ok": False}
+    try:
+        v = tunarr("/api/version", timeout=3) or {}
+        tn.update(ok=True, version=str(v.get("tunarr") or ""))
+        chans = {c["id"]: c for c in (tunarr("/api/channels", timeout=5) or [])}
+        tn["channels"] = len(chans)
+        names = tailscale_names()
+        watch = []
+        for cid, sess in (tunarr("/api/sessions", timeout=5) or {}).items():
+            c = chans.get(cid) or {}
+            for se in sess or []:
+                for co in se.get("connections") or []:
+                    ip = co.get("ip") or ""
+                    watch.append({"channel": c.get("name", "Chaîne"), "number": c.get("number"), "ip": ip, "who": names.get(ip) or ("Ce PC" if ip in ("127.0.0.1", "::1") else ""),
+                                  "device": _ua_device(co.get("userAgent")), "last": co.get("lastHeartbeat")})
+        tn["watch"] = sorted(watch, key=lambda w: (w["number"] or 0))
+        threading.Thread(target=remember_cmd, args=("tunarr",), daemon=True).start()
+    except Exception:
+        pass
+    d["tunarr"] = tn
+    # Jellyfin
+    jfs = {"ok": False}
+    try:
+        with urllib.request.urlopen(conf["jellyfin_url"].rstrip("/") + "/System/Info/Public", timeout=3) as r:
+            info = json.loads(r.read())
+        jfs.update(ok=True, version=info.get("Version", ""), name=info.get("ServerName", ""))
+        if conf.get("jellyfin_key"):
+            try:
+                ss = jf("/Sessions?ActiveWithinSeconds=600") or []
+                jfs["watch"] = [{"user": x.get("UserName", ""), "client": x.get("Client", ""), "device": x.get("DeviceName", ""),
+                                 "item": (x.get("NowPlayingItem") or {}).get("Name", "")} for x in ss if x.get("NowPlayingItem")]
+            except Exception:
+                pass
+        threading.Thread(target=remember_cmd, args=("jellyfin",), daemon=True).start()
+    except Exception:
+        pass
+    d["jellyfin"] = jfs
+    d["can_start"] = {k: bool((conf.get(k + "_cmd") or {}).get("cmdline")) for k in ("tunarr", "jellyfin")}
+    # disques des médiathèques
+    roots = {}
+    for l in jf_cache.get("libs") or []:
+        r0 = os.path.splitdrive(l["path"])[0] + os.sep if WIN else "/"
+        roots.setdefault(r0, []).append(l["name"])
+    for f in conf.get("folders") or []:
+        r0 = os.path.splitdrive(f)[0] + os.sep if WIN else "/"
+        roots.setdefault(r0, [])
+    if not roots:
+        roots = {(os.path.splitdrive(DATA)[0] + os.sep) if WIN else "/": []}
+    disks = []
+    for r0, names in roots.items():
+        try:
+            u = shutil.disk_usage(r0)
+            disks.append({"root": r0, "free": u.free, "total": u.total, "libs": sorted(set(names))})
+        except OSError:
+            pass
+    d["disks"] = disks
+    if psutil:
+        try:
+            vm = psutil.virtual_memory()
+            d["cpu"] = psutil.cpu_percent(interval=0.3)
+            d["ram"] = {"used": vm.used, "total": vm.total, "pct": vm.percent}
+            d["uptime"] = time.time() - psutil.boot_time()
+        except Exception:
+            pass
+    d["gpu"] = nvidia()
+    d["studio_uptime"] = time.time() - _boot
+    _pc.update(t=time.time(), data=d)
+    return d
+
+
+# ---------------------------------------------------------------- abonnements YouTube
+def sub_list_ids(url, n=15):
+    """Dernières vidéos d'une chaîne ou d'une playlist YouTube (sans les télécharger)."""
+    if os.environ.get("FRS_FAKE_SUBS"):
+        with open(os.environ["FRS_FAKE_SUBS"], encoding="utf-8") as f:
+            d = json.load(f).get(url) or {}
+        return d.get("name", ""), d.get("entries", [])
+    u = url.rstrip("/")
+    if re.search(r"youtube\.com/(@|channel/|c/|user/)", u) and not re.search(r"/(videos|streams|shorts|playlists|featured)$", u):
+        u += "/videos"
+    r = subprocess.run([tool("yt-dlp"), "--flat-playlist", "-J", "--no-warnings", "--encoding", "utf-8", "--playlist-end", str(n), u],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, creationflags=NOWIN, env=run_env())
+    if r.returncode != 0:
+        err = [l for l in r.stderr.splitlines() if l.startswith("ERROR")]
+        raise RuntimeError(nice_ytdlp_error(err[-1][6:] if err else ""))
+    d = json.loads(r.stdout or "{}")
+    name = re.sub(r"\s*-\s*(Videos|Vidéos)$", "", d.get("channel") or d.get("uploader") or d.get("title") or "")
+    ents = []
+    for e in d.get("entries") or []:
+        if not e.get("id") or e.get("live_status") in ("is_upcoming", "is_live"):
+            continue
+        ents.append({"id": e["id"], "title": e.get("title") or "", "url": e.get("url") if (e.get("url") or "").startswith("http") else "https://www.youtube.com/watch?v=" + e["id"]})
+    return name, ents
+
+
+_subs_lock = threading.Lock()
+
+
+def check_sub(sb, first_take=None):
+    name, ents = sub_list_ids(sb["url"])
+    if name and not sb.get("name"):
+        sb["name"] = name
+    seen = set(sb.get("seen") or [])
+    uniq, ids = [], set()
+    for e in ents:
+        if e["id"] not in ids:
+            ids.add(e["id"])
+            uniq.append(e)
+    ents = uniq
+    if first_take is not None:
+        # à l'ajout : on prend les N dernières, le reste est considéré comme déjà vu
+        fresh = ents[:first_take]
+        for e in ents[first_take:]:
+            seen.add(e["id"])
+    else:
+        fresh = [e for e in ents if e["id"] not in seen]
+    for e in reversed(fresh):
+        new_job("dl", url=e["url"], dest=sb["dest"], quality=sb.get("quality") or "1080", sub=sb.get("sub") or "", playlist=False, thumb=True,
+                title=e["title"] or e["url"], req="", req_title="", from_sub=sb.get("name") or "")
+        seen.add(e["id"])
+    sb["seen"] = list(seen)[-400:]
+    sb["last"] = time.time()
+    sb["last_new"] = len(fresh)
+    sb["error"] = ""
+    return len(fresh)
+
+
+def subs_loop():
+    while True:
+        time.sleep(float(os.environ.get("FRS_SUBS_TICK", "60")))
+        if not setup["ready"]:
+            continue
+        every = max(0.5, float(conf.get("subs_every") or 3)) * 3600
+        for sb in list(conf.get("subs") or []):
+            if time.time() - (sb.get("last") or 0) < every:
+                continue
+            with _subs_lock:
+                try:
+                    check_sub(sb)
+                except Exception as e:
+                    sb["error"] = str(e)
+                    sb["last"] = time.time()
+                save_conf(conf)
+
+
+# ---------------------------------------------------------------- envoi de fichiers depuis le téléphone
+def safe_name(n):
+    n = os.path.basename((n or "").replace("\\", "/"))
+    n = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", n).strip(" .")
+    return n or "video.mp4"
+
+
+def after_upload(path, dest):
+    """Fichier reçu : s'il est déjà en MP4 H.264, c'est fini ; sinon on le convertit à la même place."""
+    if os.path.splitext(path)[1].lower() in VIDEO_EXT and needs_conversion(path):
+        return new_job("conv", src=path, dest=dest, delete=True, title=os.path.basename(path), uploaded=True)
+    j = new_job("up", title=os.path.basename(path), out=[path], pct=100, msg="Reçu · déjà en MP4", status="fini")
+    refresh_soon(j)
+    return j
+
 # ---------------------------------------------------------------- serveur web local
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -984,6 +1287,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, f.read(), "image/png")
         if u.path.startswith("/api/") and not self.authed():
             return self.need_auth()
+        if u.path == "/api/pc":
+            return self.send(200, pc_state())
         if u.path == "/api/yt":
             q = (parse_qs(u.query).get("q") or [""])[0].strip()
             if not q:
@@ -1004,12 +1309,54 @@ class H(BaseHTTPRequestHandler):
             c["watch_msg"] = _watch["msg"]
             c.pop("pin_hash", None); c.pop("secret", None)
             c["has_pin"] = bool(conf.get("pin_hash"))
+            c["subs"] = [{k: v for k, v in x.items() if k != "seen"} for x in conf.get("subs") or []]
+            c.pop("tunarr_cmd", None); c.pop("jellyfin_cmd", None)
             c["tunarr"] = tunarr_status()
             return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
         if u.path == "/api/ls":
             q = parse_qs(u.query)
             return self.send(200, list_dir((q.get("path") or [""])[0]))
         self.send(404, {"error": "introuvable"})
+
+    def do_PUT(self):
+        if not self.guard():
+            return self.send(403, {"error": "refusé"})
+        if not self.authed():
+            return self.need_auth()
+        u = urlparse(self.path)
+        if u.path != "/api/upload":
+            return self.send(404, {"error": "introuvable"})
+        q = parse_qs(u.query)
+        dest = (q.get("dest") or [""])[0]
+        if not dest or not os.path.isdir(dest):
+            return self.send(400, {"error": "Choisis une médiathèque qui existe"})
+        sub = safe_name((q.get("sub") or [""])[0]) if (q.get("sub") or [""])[0].strip() else ""
+        folder = os.path.join(dest, sub) if sub else dest
+        os.makedirs(folder, exist_ok=True)
+        name = safe_name((q.get("name") or ["video.mp4"])[0])
+        n = int(self.headers.get("Content-Length") or 0)
+        final = unique_path(os.path.join(folder, name))
+        tmp = final + ".envoi"
+        try:
+            with open(tmp, "wb") as f:
+                left = n
+                while left > 0:
+                    chunk = self.rfile.read(min(1 << 20, left))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    left -= len(chunk)
+            if left > 0:
+                raise IOError("envoi interrompu")
+            os.replace(tmp, final)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            return self.send(400, {"error": "L'envoi a été coupé, réessaie"})
+        j = after_upload(final, folder)
+        return self.send(200, {"ok": True, "path": final, "job": j["id"]})
 
     def do_POST(self):
         if not self.guard():
@@ -1134,6 +1481,67 @@ class H(BaseHTTPRequestHandler):
             if WIN and os.path.exists(p):
                 subprocess.Popen(["explorer", "/select,", p] if os.path.isfile(p) else ["explorer", p])
             return self.send(200, {"ok": True})
+        if u.path == "/api/restart":
+            k = b.get("what")
+            if k == "pc":
+                if not WIN:
+                    return self.send(400, {"error": "Seulement sur Windows"})
+                subprocess.Popen(["shutdown", "/r", "/t", "60", "/c", "Frigo Rosé Studio : redémarrage demandé depuis le téléphone"], creationflags=NOWIN)
+                return self.send(200, {"msg": "Le PC redémarre dans 1 minute. Studio reviendra tout seul si le démarrage automatique est activé."})
+            if k == "pc_cancel":
+                if WIN:
+                    subprocess.Popen(["shutdown", "/a"], creationflags=NOWIN)
+                return self.send(200, {"msg": "Redémarrage annulé"})
+            if k not in ("tunarr", "jellyfin"):
+                return self.send(400, {"error": "?"})
+            try:
+                msg = restart(k)
+                _pc["t"] = 0
+                _tn["t"] = 0
+                return self.send(200, {"msg": msg})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
+        if u.path == "/api/subs":
+            act = b.get("action")
+            with _subs_lock:
+                subs = conf.setdefault("subs", [])
+                if act == "add":
+                    url = (b.get("url") or "").strip()
+                    if not re.match(r"^https?://", url):
+                        url = "https://" + url if re.match(r"^(www\.|m\.)?youtube\.com/", url) else url
+                    if not re.match(r"^https?://", url):
+                        return self.send(400, {"error": "Colle le lien de la chaîne YouTube (ex : youtube.com/@StudioDanielle)"})
+                    url = re.sub(r"^https?://(m\.)?youtube\.com/", "https://www.youtube.com/", url).rstrip("/")
+                    url = re.sub(r"^(https://www\.youtube\.com/@[^/?#]+)/(videos|featured|streams)$", r"\1", url)
+                    if not b.get("dest"):
+                        return self.send(400, {"error": "Choisis la médiathèque"})
+                    if any(x["url"] == url for x in subs):
+                        return self.send(400, {"error": "Déjà dans tes abonnements"})
+                    sb = {"id": uuid.uuid4().hex[:8], "url": url, "dest": b["dest"], "sub": b.get("sub") or "", "quality": b.get("quality") or "1080", "name": "", "seen": [], "last": 0}
+                    try:
+                        n = check_sub(sb, first_take=max(0, min(20, int(b.get("take") or 0))))
+                    except Exception as e:
+                        return self.send(400, {"error": str(e)})
+                    subs.append(sb)
+                    save_conf(conf)
+                    return self.send(200, {"ok": True, "name": sb["name"], "queued": n})
+                sb = next((x for x in subs if x["id"] == b.get("id")), None)
+                if not sb:
+                    return self.send(404, {"error": "Abonnement introuvable"})
+                if act == "remove":
+                    subs.remove(sb)
+                    save_conf(conf)
+                    return self.send(200, {"ok": True})
+                if act == "check":
+                    try:
+                        n = check_sub(sb)
+                    except Exception as e:
+                        sb["error"] = str(e)
+                        save_conf(conf)
+                        return self.send(400, {"error": str(e)})
+                    save_conf(conf)
+                    return self.send(200, {"ok": True, "queued": n})
+            return self.send(400, {"error": "?"})
         if u.path == "/api/quit":
             self.send(200, {"ok": True})
             threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
@@ -1156,6 +1564,7 @@ def main():
     for _ in range(4):
         threading.Thread(target=worker, args=("conv",), daemon=True).start()
     threading.Thread(target=watcher, daemon=True).start()
+    threading.Thread(target=subs_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
     srv.serve_forever()
