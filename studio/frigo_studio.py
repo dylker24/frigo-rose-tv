@@ -1104,6 +1104,16 @@ def pc_state():
                     ip = co.get("ip") or ""
                     watch.append({"channel": c.get("name", "Chaîne"), "number": c.get("number"), "ip": ip, "who": names.get(ip) or ("Ce PC" if ip in ("127.0.0.1", "::1") else ""),
                                   "device": _ua_device(co.get("userAgent")), "last": co.get("lastHeartbeat")})
+        # qui regarde (profils envoyés par les télés) : on associe par chaîne
+        try:
+            pres = [v for v in (fb("/presence") or {}).values() if isinstance(v, dict) and time.time() * 1000 - (v.get("at") or 0) < 120000]
+        except Exception:
+            pres = []
+        for w in watch:
+            m = next((p for p in pres if _key(p.get("channel")) == _key(w["channel"]) and not p.get("_used")), None)
+            if m:
+                m["_used"] = True
+                w.update(profile=m.get("name"), pic=m.get("pic") or "", av=m.get("av") or 0, own=m.get("own"), device=m.get("device") or w["device"])
         tn["watch"] = sorted(watch, key=lambda w: (w["number"] or 0))
         threading.Thread(target=remember_cmd, args=("tunarr",), daemon=True).start()
     except Exception:

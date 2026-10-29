@@ -202,6 +202,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 @media(max-width:700px){.li{padding:6px 4px;gap:4px}.li .ix{width:22px}.li .ib{width:28px}.li .du{font-size:11px}.acts .btn{padding:10px 12px}}
 html,body{overflow-x:hidden}
 .updbar{display:flex;align-items:center;justify-content:center;gap:14px;background:rgba(224,36,94,.14);border-bottom:1px solid rgba(224,36,94,.35);padding:10px 16px;font-size:14px;font-weight:600;flex-wrap:wrap;text-align:center}
+.pav2{width:34px;height:34px;border-radius:10px;overflow:hidden;flex:none;display:grid;place-items:center;font-weight:700;color:#fff}
+.pav2 img{width:100%;height:100%;object-fit:cover;display:block}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -607,12 +609,16 @@ const FB="https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.a
 const STEPS=[["found","Trouvé","vidéo ou fichier"],["converted","Converti","MP4"],["jellyfin","Dans Jellyfin","analysé"],["tunarr","Sur la chaîne","Tunarr · Save"]];
 const ST={attente:"Demandé",cours:"En préparation",ajoute:"À l'antenne",non:"Pas dispo"};
 const AVC=["#E0245E","#5B4BE0","#0E8A5F","#C2410C","#0E7490","#9333EA","#B91C1C"];
-let DEM={reqs:null,ch:{},open:null,filter:"open",t:0,err:""};
+let DEM={reqs:null,ch:{},open:null,filter:"open",t:0,err:"",prof:{}};
 const hsh=s=>[...(s||"")].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+const AVBASE="https://dylker24.github.io/frigo-rose-tv/avatars/",PAVC=["#E0245E","#5B4BE0","#0E8A5F","#C2410C","#0E7490","#9333EA","#B45309","#334155"];
+/* photo d'un profil de la télé (même prénom) */
+function profAv(p,size){const d=document.createElement("span");d.className="pav2";if(size)d.style.width=d.style.height=size+"px";
+  if(p.pic&&!p.own){const im=document.createElement("img");im.src=AVBASE+p.pic;im.alt="";d.append(im)}else{d.textContent=(p.name||p.profile||"?").trim().charAt(0).toUpperCase();d.style.background=PAVC[((p.av||0)%8+8)%8]}return d}
 const stOf=r=>ST[r.status]?r.status:"attente";
 function nextSt(r,steps){const n=STEPS.filter(s=>steps[s[0]]).length;if(stOf(r)==="non")return "non";return n===4?"ajoute":n>0?"cours":"attente"}
 async function loadDem(){
-  try{const [rq,ch]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json())]);
+  try{const [rq,ch,pf]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json()),fetch(FB+"/profiles.json").then(r=>r.json()).catch(()=>null)]);DEM.prof=pf||{};
     DEM.reqs=Object.entries(rq||{}).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));DEM.ch=ch||{};DEM.err=""}
   catch(e){DEM.err="Impossible de joindre les demandes (internet ?)"}
   DEM.t=Date.now();renderDem()}
@@ -634,7 +640,7 @@ function renderDem(){
     const when=r.createdAt?new Date(r.createdAt).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}):"";
     const chn=r.channel&&DEM.ch[r.channel]?DEM.ch[r.channel]:null;
     d.innerHTML='<div class="rh"><span></span><div class="rt"><b></b><small></small></div><span class="chip '+st+'">'+ST[st]+'</span></div>';
-    d.querySelector(".rh>span").replaceWith(av);d.querySelector(".rt b").textContent=r.title||"Sans titre";
+    {const pf=DEM.prof[kk(r.who)];d.querySelector(".rh>span").replaceWith(pf?(x=>(x.style.width=x.style.height="38px",x))(profAv(pf)):av)}d.querySelector(".rt b").textContent=r.title||"Sans titre";
     d.querySelector(".rt small").textContent=(r.type==="serie"?"Série":"Film")+" · "+(r.who||"Quelqu'un")+(when?" · "+when:"")+(chn?" · "+(chn.number?"n°"+chn.number+" ":"")+chn.name:"");
     d.querySelector(".rh").onclick=()=>{DEM.open=DEM.open===r.id?null:r.id;renderDem()};
     if(DEM.open===r.id){const b=document.createElement("div");b.className="rb";
@@ -709,7 +715,8 @@ function renderPc(){if(!PC)return;
   const w=$("pc-watch");w.innerHTML="";const ws=(PC.tunarr.watch||[]);
   if(!ws.length)w.innerHTML='<div class="hint" style="margin:0">'+(PC.tunarr.ok?"Personne ne regarde Frigo Rosé TV en ce moment":"Tunarr ne répond pas")+'</div>';
   ws.forEach(x=>{const d=document.createElement("div");d.className="w";d.innerHTML='<span class="dot"></span><b></b><small></small>';
-    d.querySelector("b").textContent=(x.number?"n°"+x.number+" · ":"")+x.channel;d.querySelector("small").textContent=x.device+(x.who?" · "+x.who:x.ip?" · "+x.ip:"");w.append(d)});
+    if(x.profile){d.querySelector(".dot").replaceWith(profAv(x))}
+    d.querySelector("b").textContent=(x.profile?x.profile+" regarde ":"")+(x.number?"n°"+x.number+" · ":"")+x.channel;d.querySelector("small").textContent=x.device+(!x.profile&&x.who?" · "+x.who:!x.profile&&x.ip?" · "+x.ip:"");w.append(d)});
   (PC.jellyfin.watch||[]).forEach(x=>{const d=document.createElement("div");d.className="w";d.innerHTML='<span class="dot" style="background:#7AA7FF;box-shadow:0 0 0 4px rgba(122,167,255,.15)"></span><b></b><small></small>';
     d.querySelector("b").textContent="Jellyfin · "+x.item;d.querySelector("small").textContent=[x.user,x.device||x.client].filter(Boolean).join(" · ");w.append(d)});
   const dk=$("pc-disk");dk.innerHTML="";(PC.disks||[]).forEach(x=>{const used=x.total-x.free,low=x.free<30e9||x.free/x.total<.08;const d=document.createElement("div");d.className="dk"+(low?" low":"");

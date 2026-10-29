@@ -60,6 +60,13 @@ body.touch .kbtn .cap,body.touch .keys .key>.cap:not(.kb){display:none}
 .q-tx small{display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--mute)}
 .q-logo{height:1.1rem;max-width:2.4rem;object-fit:contain}
 .q-empty{color:var(--mute);padding:1.2rem .2rem;font-size:1rem}
+.hello{position:fixed;inset:0;z-index:65;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6rem}
+.hello .pav{width:13rem;height:13rem;border-radius:2.4rem;box-shadow:0 0 0 .35rem #fff;animation:helloIn .7s cubic-bezier(.2,.9,.25,1.15) both}
+.hello b{font:800 2.6rem/1.1 var(--display);letter-spacing:-.02em;animation:helloTx .5s .25s ease-out both}
+.hello.out{animation:helloOut .35s ease-in both}
+@keyframes helloIn{from{transform:scale(.55);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes helloTx{from{transform:translateY(1rem);opacity:0}to{transform:none;opacity:1}}
+@keyframes helloOut{to{opacity:0}}
 #festfx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:45}
 .thm-dot{display:inline-block;width:1rem;height:1rem;border-radius:50%;margin-right:.55rem;vertical-align:-.15rem;box-shadow:0 0 0 .12rem rgba(255,255,255,.25)}
 #video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
@@ -168,6 +175,7 @@ body.panel-open .lerr,body.panel-open .loading{display:none!important}
 .dlist{display:flex;flex-direction:column;gap:.5rem}
 .dreq{height:4.6rem;display:flex;align-items:center;gap:1rem;padding:0 1.1rem;border-radius:1rem;background:var(--s1)}
 .dreq.f{background:var(--s2);box-shadow:0 0 0 .18rem #fff}
+.av.pic{overflow:hidden;background:none!important}.av.pic img,.av.pic svg{width:100%;height:100%;object-fit:cover;display:block}
 .av{width:2.75rem;height:2.75rem;flex:none;border-radius:50%;display:grid;place-items:center;font:600 1.05rem var(--display);color:#fff}
 .dreq .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:.15rem}
 .dreq .tx b{font-size:1.2rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -633,6 +641,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
   </div>
 </div>
 
+<div class="hello" id="hello" hidden><div class="pav" id="hello-av"></div><b id="hello-t"></b></div>
 <div class="full" id="profiles" hidden>
   <div class="pwrap">
     <h1 class="ptitle" id="p-title">Qui regarde ?</h1>
@@ -1615,7 +1624,7 @@ function startFirebase(){
       updateNewsBadge();if(screen==="home")renderHome();
     },()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
-    syncChannels();
+    syncChannels();publishProfiles();
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}
 }
 /* Les chaînes de Tunarr sont envoyées à la régie de l'appli Demandes (ajout et numéros, jamais de suppression) */
@@ -1634,6 +1643,29 @@ function syncChannels(){
   }).catch(()=>{synced=""});
 }
 function demLink(){return (cfg.demandes||autoDem||"").trim()}
+/* ================= Profils et « qui regarde » partagés avec Studio ================= */
+function profileByName(n){const k=norm(n);if(!k)return null;return profiles.find(p=>norm(p.name)===k)||null}
+const DEVICE_ID=(()=>{let d=LS.get("frtv_device","");if(!d){d="d"+Math.random().toString(36).slice(2,10);LS.set("frtv_device",d)}return d})();
+function deviceLabel(){const u=navigator.userAgent;return /AFT/.test(u)?"Fire Stick":/FrigoRoseTablet/.test(u)?"Tablette":/FrigoRoseTV/.test(u)?"Télé":/iPad|Tablet/.test(u)?"Tablette":/Mobile|iPhone/.test(u)?"Téléphone":"Ordinateur"}
+function profPublic(p){return {name:p.name,av:p.av||0,pic:p.pic||"",own:!!p.img}}
+function publishProfiles(){
+  if(!fdb||demo)return;
+  try{const up={};profiles.forEach(p=>{const k=norm(p.name);if(k)up[k]=profPublic(p)});fdb.ref("frigorosetv/profiles").update(up)}catch(e){}
+}
+let presT=0,presRef=null;
+function presence(){
+  if(!fdb||demo)return;
+  try{
+    if(!presRef){presRef=fdb.ref("frigorosetv/presence/"+DEVICE_ID);if(presRef.onDisconnect)presRef.onDisconnect().remove()}
+    const ch=channels[cur];
+    if(!profile||!ch||screen!=="live"||!videoOk){if(presT){presRef.remove();presT=0}return}
+    presRef.set({...profPublic(profile),channel:ch.name,number:ch.num||null,device:deviceLabel(),at:Date.now()});presT=Date.now();
+  }catch(e){}
+}
+setInterval(presence,30000);
+video.addEventListener("playing",()=>setTimeout(presence,500));
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&presRef&&presT){try{presRef.remove()}catch(e){}presT=0}});
+
 /* ================= Nouveautés (annoncées par Studio) ================= */
 let NEWS=null;
 function newsItems(now){
@@ -1686,6 +1718,7 @@ function renderDemandes(){
     const s=ST[r.status]?r.status:"attente";
     const row=el("div","dreq"+(i===dRow&&zone==="content"?" f":""));
     const av=el("div","av",(r.who||"?").trim().charAt(0).toUpperCase()||"?");av.style.background=AV[hash((r.who||"").toLowerCase())%AV.length];
+    {const pf=profileByName(r.who);if(pf){av.textContent="";av.classList.add("pic");av.innerHTML=avatarHTML(pf)}}
     const tx=el("div","tx");tx.append(el("b",null,r.title||"Sans titre"));
     let meta=(r.type==="serie"?"Série":"Film")+" · "+(r.who||"Quelqu'un");
     const rc=regieCh[r.channel];if(s==="ajoute"&&rc)meta+=" · sur "+rc.name+(rc.number?", n°"+rc.number:"");
@@ -1794,7 +1827,7 @@ const PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="#A6A6A6" stroke-width="
 const PEN='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 let profiles=[];try{profiles=JSON.parse(LS.get("frtv_profiles","[]"))||[]}catch(e){profiles=[]}
 let profile=null,pIdx=0,managing=false,ed=null,eZone=0,eBtn=0,delSure=false;
-function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles))){toast("Plus de place pour les photos, utilise une image plus légère");return false}return true}
+function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles))){toast("Plus de place pour les photos, utilise une image plus légère");return false}setTimeout(()=>{try{publishProfiles()}catch(e){}},0);return true}
 /* Collections de photos de profil (comme Netflix). Pour en ajouter : un dossier dans avatars/ et une ligne ici. */
 const AVBASE="https://dylker24.github.io/frigo-rose-tv/avatars/";
 const AVPACKS=[
@@ -1921,10 +1954,16 @@ function profKey(k){
   else if(k==="back"&&IN_TV_APP){quitApp();return}
   renderProfiles();
 }
+function hello(cb){
+  const h=$("hello"),hr=new Date().getHours();
+  $("hello-av").innerHTML=avatarHTML(profile);$("hello-t").textContent=(hr>=18||hr<4?"Bonsoir ":"Salut ")+profile.name+" !";
+  h.classList.remove("out");h.hidden=false;
+  setTimeout(()=>{h.classList.add("out");cb();setTimeout(()=>{h.hidden=true;h.classList.remove("out")},380)},1350);
+}
 function chooseProfile(i){
-  profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();
+  profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();publishProfiles();
   $("profiles").classList.add("leave");
-  setTimeout(()=>{$("profiles").classList.remove("leave");proceed()},480);
+  setTimeout(()=>{$("profiles").classList.remove("leave");hello(proceed)},420);
 }
 
 function openEdit(p,first){
@@ -2000,7 +2039,7 @@ $("ed-save").onclick=()=>{
   if(ed.first){chooseProfileFromEdit(i);return}
   showProfiles();pIdx=i;renderProfiles();
 };
-function chooseProfileFromEdit(i){profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();proceed()}
+function chooseProfileFromEdit(i){profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();publishProfiles();hello(proceed)}
 $("ed-cancel").onclick=()=>showProfiles();
 $("ed-del").onclick=()=>{
   if(!delSure){delSure=true;renderEdit();return}
@@ -2253,7 +2292,7 @@ setInterval(()=>{if(!demo&&channels.length)refreshFromServer()},10*60000);
 /* Appli Android (télé) : on relance la chaîne au retour dans l'appli, pas de bouton plein écran (déjà plein écran) */
 const IN_TV_APP=/FrigoRoseTV/.test(navigator.userAgent);
 window.frtvResume=()=>{try{if(!demo&&channels[cur]&&["live","home"].includes(screen))play(channels[cur])}catch(e){}};
-function quitApp(){try{stopVideo()}catch(e){}try{if(window.FRTV&&FRTV.exit){FRTV.exit();return}}catch(e){}toast("Appuie sur le bouton Accueil de la télécommande pour quitter")}
+function quitApp(){try{if(presRef&&presT)presRef.remove()}catch(e){}try{stopVideo()}catch(e){}try{if(window.FRTV&&FRTV.exit){FRTV.exit();return}}catch(e){}toast("Appuie sur le bouton Accueil de la télécommande pour quitter")}
 if(IN_TV_APP){const fb=document.querySelector('#ctrl .cb[data-c="full"]');if(fb)fb.remove();$("s-quit").hidden=false;
   /* Appli télé ancienne version : on le dit (une seule réinstallation suffit) */
   const av=+((/FrigoRoseTV\/(\d+)/.exec(navigator.userAgent)||[])[1]||1);
