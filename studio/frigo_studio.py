@@ -1735,12 +1735,25 @@ def update_available():
     return getattr(sys, "frozen", False) and _vnum(upd["latest"]) > _vnum(VERSION) >= 0 or (os.environ.get("FRS_FORCE_UPDATABLE") and _vnum(upd["latest"]) > _vnum(VERSION))
 
 
+def _retry(fn, tries=20, wait=0.5):
+    """Windows (antivirus, indexation) bloque parfois un fichier quelques secondes : on réessaie."""
+    for i in range(tries):
+        try:
+            return fn()
+        except OSError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait)
+
+
 def do_update():
     """Télécharge la nouvelle version, prend la place de l'ancienne et redémarre Studio."""
+    exe = sys.executable
+    folder = os.path.dirname(exe)
+    stamp = int(time.time())
+    new = os.path.join(folder, "FrigoRoseStudio.nouveau-%d.exe" % stamp)
+    moved = None
     try:
-        exe = sys.executable
-        folder = os.path.dirname(exe)
-        new = os.path.join(folder, "FrigoRoseStudio.nouveau.exe")
         upd.update(state="download", pct=0, error="")
         req = urllib.request.Request(UPDATE_URL + "FrigoRoseStudio.exe?t=%d" % time.time(), headers={"User-Agent": "FrigoRoseStudio/" + VERSION})
         with urllib.request.urlopen(req, timeout=60) as r, open(new, "wb") as f:
@@ -1757,16 +1770,18 @@ def do_update():
         with open(new, "rb") as f:
             head = f.read(2)
         if head != b"MZ" or os.path.getsize(new) < 3_000_000:
-            os.remove(new)
-            raise RuntimeError("fichier reçu abîmé")
+            raise RuntimeError("fichier reçu abîmé, réessaie")
         upd["state"] = "restart"
-        old = os.path.join(folder, "FrigoRoseStudio.ancien.exe")
+        time.sleep(1.5)  # laisse l'antivirus finir de regarder le fichier
+        # l'ancienne version prend un nom unique (au cas où une vieille copie serait encore bloquée)
+        moved = os.path.join(folder, "FrigoRoseStudio.ancien-%d.exe" % stamp)
+        _retry(lambda: os.replace(exe, moved))
         try:
-            os.remove(old)
+            _retry(lambda: os.replace(new, exe))
         except OSError:
-            pass
-        os.replace(exe, old)          # Windows autorise à renommer un programme en marche
-        os.replace(new, exe)
+            _retry(lambda: os.replace(moved, exe))  # on remet l'ancienne : Studio reste utilisable
+            moved = None
+            raise
         env = {k: v for k, v in os.environ.items() if k not in ("FRS_VERSION", "_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL")}
         time.sleep(0.5)
         try:
@@ -1777,20 +1792,37 @@ def do_update():
         subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
         os._exit(0)
     except Exception as e:
-        upd.update(state="", error="Mise à jour ratée : %s" % e)
+        try:
+            if os.path.exists(new):
+                os.remove(new)
+        except OSError:
+            pass
+        msg = str(e)
+        if isinstance(e, PermissionError):
+            msg = "Windows bloque le fichier (antivirus ?). Réessaie dans une minute ; si ça recommence, redémarre le PC."
+        upd.update(state="", error="Mise à jour ratée : %s" % msg)
 
 
 def cleanup_old_exe():
+    """Supprime les restes des mises à jour (anciennes versions, téléchargements ratés)."""
     if not getattr(sys, "frozen", False):
         return
-    old = os.path.join(os.path.dirname(sys.executable), "FrigoRoseStudio.ancien.exe")
+    folder = os.path.dirname(sys.executable)
+    me = os.path.normcase(os.path.abspath(sys.executable))
     for _ in range(120):  # l'ancienne version met parfois un peu de temps à se fermer (antivirus…)
-        try:
-            if os.path.exists(old):
-                os.remove(old)
+        left = []
+        for n in os.listdir(folder):
+            if re.match(r"^FrigoRoseStudio\.(ancien|nouveau)(-\d+)?\.exe$", n, re.I):
+                f = os.path.join(folder, n)
+                if os.path.normcase(os.path.abspath(f)) == me:
+                    continue
+                try:
+                    os.remove(f)
+                except OSError:
+                    left.append(n)
+        if not left:
             return
-        except OSError:
-            time.sleep(3)
+        time.sleep(3)
 
 
 SERVER = {"srv": None}
