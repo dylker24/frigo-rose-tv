@@ -1344,7 +1344,18 @@ def tn_save(cid, lineup):
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": False}, timeout=60)
 
 
-def tn_add(cid, progs):
+def announce(cid, progs, cur=None):
+    """Nouveautés : la télé affiche ce qui vient d'arriver sur une chaîne (seulement quand on ajoute avec Studio)."""
+    try:
+        c = next((x for x in tn_channels() if x["id"] == cid), None) or {}
+        titles = [p.get("title") or "" for p in progs][:30]
+        fb("/news", "POST", {"at": int(time.time() * 1000), "channel": c.get("name") or (cur or {}).get("name") or "", "number": c.get("number"),
+                             "titles": titles, "count": len(progs), "ids": [p.get("id") for p in progs][:30]})
+    except Exception:
+        pass
+
+
+def tn_add(cid, progs, announce_it=True):
     """Ajoute des contenus à la fin de la programmation (sans toucher au reste)."""
     cur = tn_programming(cid)
     tn_backup(cid, cur["raw"])
@@ -1352,6 +1363,8 @@ def tn_add(cid, progs):
     if not items:
         raise RuntimeError("Rien à ajouter")
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": True}, timeout=60)
+    if announce_it:
+        threading.Thread(target=announce, args=(cid, [p for p in progs if p.get("id") and p.get("duration")], cur), daemon=True).start()
     return len(items)
 
 
@@ -1878,10 +1891,20 @@ class H(BaseHTTPRequestHandler):
                 if b.get("order") == "shuffle":
                     import random
                     random.shuffle(uniq)
-                n = tn_add(cid, uniq)
+                n = tn_add(cid, uniq, b.get("announce", True) is not False)
                 return self.send(200, {"msg": "%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")})
             except Exception as e:
                 return self.send(400, {"error": str(e)})
+        if u.path == "/api/news":
+            try:
+                if b.get("action") == "remove" and re.fullmatch(r"[-\w]{1,64}", b.get("id") or ""):
+                    fb("/news/" + b["id"], "DELETE")
+                    return self.send(200, {"ok": True})
+                d = fb("/news") or {}
+                out = sorted(({"id": k, **v} for k, v in d.items() if isinstance(v, dict)), key=lambda x: -(x.get("at") or 0))[:30]
+                return self.send(200, {"news": out})
+            except Exception as e:
+                return self.send(400, {"error": "Base des demandes injoignable"})
         if u.path == "/api/tn/edit":
             try:
                 return self.send(200, {"msg": tn_edit(b.get("channel") or "", b.get("action"), b)})

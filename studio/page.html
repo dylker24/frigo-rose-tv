@@ -300,6 +300,9 @@ html,body{overflow-x:hidden}
         <p class="sub">La programmation de chaque chaîne Tunarr : ajoute, retire, mélange, sans ouvrir Tunarr.</p>
         <div class="err" id="ch-err"></div>
         <div class="chl" id="ch-list"><div class="qempty">Chargement…</div></div>
+        <label class="l" style="margin-top:22px">Nouveautés annoncées sur la télé</label>
+        <div class="hint" style="margin-top:0">Chaque ajout sur une chaîne avec Studio apparaît dans la rangée « Nouveautés » de la télé pendant 2 semaines.</div>
+        <div id="news-list"></div>
       </div>
       <div id="ch-one-v" hidden>
         <button class="btn sm ghost" id="ch-back">‹ Toutes les chaînes</button>
@@ -405,6 +408,7 @@ html,body{overflow-x:hidden}
     <div class="acts" style="margin-top:12px"><button class="btn sm" id="add-all">Cocher ce qui n'est pas encore sur la chaîne</button><button class="btn sm ghost" id="add-none">Tout décocher</button><span class="hint" id="add-n" style="margin:0"></span></div>
     <div class="fb" style="margin-top:12px"><div class="fb-list" id="add-list" style="max-height:46vh"></div></div>
     <div class="seg" id="add-order" style="margin-top:12px;max-width:420px"><button data-o="end" class="on">À la suite</button><button data-o="shuffle">Dans le désordre</button></div>
+    <label class="chk"><input type="checkbox" id="add-news" checked> Annoncer sur la télé (rangée « Nouveautés »)</label>
     <div class="err" id="add-err"></div>
     <div class="acts"><button class="btn pri" id="add-go" disabled>Ajouter</button><button class="btn ghost" id="add-x">Fermer</button></div>
   </div>
@@ -747,7 +751,13 @@ async function loadChannels(force){
   if(CH.list&&!force){renderChannels()}
   try{CH.list=(await api("/api/tn/channels")).channels;$("ch-err").textContent=""}catch(e){$("ch-err").textContent=e.message}
   renderChannels();fillTchan()}
-function renderChannels(){if(CH.cur)return;$("ch-list-v").hidden=false;$("ch-one-v").hidden=true;const L=$("ch-list");L.innerHTML="";
+async function loadNews(){try{const r=await api("/api/news",{});const L=$("news-list");L.innerHTML="";
+  if(!r.news.length){L.innerHTML='<div class="hint" style="margin:0">Rien pour l\'instant</div>';return}
+  r.news.slice(0,12).forEach(n=>{const d=document.createElement("div");d.className="sb";d.innerHTML='<div class="t"><b></b><small></small></div>';
+    d.querySelector("b").textContent=(n.count>1?n.count+" nouveautés":cleanTitle((n.titles||[])[0]||""))+" · "+(n.number?"n°"+n.number+" ":"")+(n.channel||"");
+    d.querySelector("small").textContent=ago((n.at||0)/1000)+(n.count>1?" · "+(n.titles||[]).slice(0,3).map(cleanTitle).join(", ")+(n.count>3?"…":""):"");
+    const rm=btn("Retirer",async()=>{await api("/api/news",{action:"remove",id:n.id});loadNews()});rm.classList.add("ghost");d.append(rm);L.append(d)})}catch(e){}}
+function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=false;$("ch-one-v").hidden=true;const L=$("ch-list");L.innerHTML="";
   (CH.list||[]).forEach(c=>{const b=document.createElement("button");b.className="chc";b.innerHTML='<span class="n"></span><span class="t"><b></b><small></small></span>';
     b.querySelector(".n").textContent=c.number;
     b.querySelector("b").textContent="n°"+c.number+" · "+c.name;b.querySelector("small").textContent=(c.count!=null?c.count+" programmes · ":"")+hm(c.duration)+" en boucle";
@@ -792,7 +802,7 @@ $("add-all").onclick=()=>{const on=new Set(CH.prog.lineup.map(x=>x.id)),f=kk($("
 $("add-none").onclick=()=>{ADD.sel.clear();renderLib()};
 document.querySelectorAll("#add-order button").forEach(b=>b.onclick=()=>{ADD.order=b.dataset.o;document.querySelectorAll("#add-order button").forEach(x=>x.classList.toggle("on",x===b))});
 $("add-go").onclick=async()=>{$("add-err").textContent="";$("add-go").disabled=true;
-  try{const r=await api("/api/tn/add",{channel:CH.cur,ids:[...ADD.sel],libs:[$("add-lib").value],order:ADD.order});$("add-m").hidden=true;$("ch-msg").textContent=r.msg;await loadProg()}
+  try{const r=await api("/api/tn/add",{channel:CH.cur,ids:[...ADD.sel],libs:[$("add-lib").value],order:ADD.order,announce:$("add-news").checked});$("add-m").hidden=true;$("ch-msg").textContent=r.msg;await loadProg()}
   catch(e){$("add-err").textContent=e.message;$("add-go").disabled=false}};
 $("add-x").onclick=()=>{$("add-m").hidden=true};
 /* choix d'une chaîne (file d'attente) */

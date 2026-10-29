@@ -473,6 +473,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .chtile:hover .favbtn,.chtile.f .favbtn{opacity:1}
 .favbtn.on{color:#FFC93C;opacity:1}
 .fstar{color:#FFC93C;font-size:.9em;margin-left:.3rem}
+.hthumb .newtag{position:absolute;bottom:.55rem;left:.45rem;padding:.18rem .45rem;border-radius:.35rem;background:var(--accent);color:#fff;font:800 .62rem var(--ui);letter-spacing:.08em}
 .hthumb .fav{position:absolute;top:.45rem;right:.45rem;color:#FFC93C;width:1.4rem;height:1.4rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .hthumb .fav svg{width:100%;height:100%}
 .chgrid .empty{grid-column:1/-1}
@@ -1090,10 +1091,13 @@ function homeRows(){
   channels.forEach((ch,i)=>{let p=progAt(ch,now);for(let k=0;k<2;k++){p=progAfter(ch,p);if(!p.synthetic&&p.start-now<4*60*MIN)next.push({i,ch,p,kind:"next"})}});
   next.sort((a,b)=>a.p.start-b.p.start);
   const rows=[];const fav=nowRow.filter(x=>isFav(x.ch));
+  const nw=newsItems(now),unseen=nw.some(x=>x.isNew);
+  if(nw.length&&unseen)rows.push({id:"news",title:"Nouveautés",list:nw,live:false,news:true});
   const rec=recents().map(id=>nowRow.find(x=>x.ch.id===id)).filter(Boolean);
   if(rec.length)rows.push({id:"rec",title:"Reprendre",list:rec,live:true});
   if(fav.length)rows.push({id:"fav",title:"Tes chaînes favorites",list:fav,live:true});
   rows.push({id:"now",title:"En ce moment sur Frigo Rosé TV",list:nowRow,live:true});
+  if(nw.length&&!unseen)rows.push({id:"news",title:"Nouveautés",list:nw,live:false,news:true});
   if(next.length)rows.push({id:"next",title:"À suivre",list:next.slice(0,14),live:false});
   return {rows,nowRow};
 }
@@ -1122,8 +1126,10 @@ function renderHomeBg(it){
   art.classList.remove("off");
 }
 let rowsSig="",bgT=null;
+let newsSeenT=null;
 function renderHome(light){
   if(!channels.length)return;
+  {const rr=homeRows().rows[hRow-1];clearTimeout(newsSeenT);if(rr&&rr.id==="news"&&profile&&rr.list.some(x=>x.isNew))newsSeenT=setTimeout(()=>{if(screen==="home"){profile.newsSeen=Date.now();saveProfiles();updateNewsBadge()}},1500)}
   const now=Date.now();const {rows,nowRow}=homeRows();
   if(hRow>rows.length)hRow=rows.length;
   rows.forEach(r=>{hCol[r.id]=Math.max(0,Math.min(hCol[r.id]||0,r.list.length-1))});
@@ -1163,6 +1169,8 @@ function renderHome(light){
       th.append(el("span","n",String(x.ch.num||x.i+1)));
       if(isFav(x.ch)){const st=el("span","fav");st.innerHTML=STARSVG;th.append(st)}
       if(row.live){const pg=el("div","pg");const i2=el("i");i2.style.width=Math.max(0,Math.min(100,(now-x.p.start)/(x.p.stop-x.p.start)*100))+"%";pg.append(i2);th.append(pg)}
+      if(row.news&&x.isNew)th.append(el("span","newtag","NOUVEAU"));
+      if(row.news)c.append(th,el("b",null,x.nt),el("small",null,x.sub));else
       c.append(th,el("b",null,x.p.title),el("small",null,row.live?x.ch.name+" · encore "+dur(x.p.stop-now):hhmm(x.p.start)+" · "+x.ch.name));
       c.onclick=()=>goChannel(x.i);
       tr.append(c);
@@ -1599,6 +1607,13 @@ function startFirebase(){
       updateDemBadge();if(screen==="demandes")renderDemandes();
     },()=>{reqs=null;if(screen==="demandes")renderDemandes()});
     fdb.ref("frigorosetv/channels").on("value",s=>{regieCh=s.val()||{};if(screen==="demandes")renderDemandes()});
+    fdb.ref("frigorosetv/news").orderByChild("at").startAt(Date.now()-14*864e5).on("value",s=>{
+      const v=s.val()||{},prev=NEWS;NEWS=Object.keys(v).map(k=>({id:k,...v[k]})).filter(n=>n&&n.at).sort((a,b)=>b.at-a.at);
+      // une nouveauté arrive pendant qu'on regarde : petit message
+      if(prev){const known=new Set(prev.map(n=>n.id));const nw=NEWS.filter(n=>!known.has(n.id)&&n.at>bootT);
+        if(nw.length&&!["splash","profiles","pedit","error"].includes(screen))toast("🆕 Nouveau sur "+(nw[0].channel||"Frigo Rosé TV")+" : "+(nw[0].count>1?nw[0].count+" programmes":cleanTitle((nw[0].titles||[])[0]||"")),6000)}
+      updateNewsBadge();if(screen==="home")renderHome();
+    },()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
     syncChannels();
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}
@@ -1619,6 +1634,30 @@ function syncChannels(){
   }).catch(()=>{synced=""});
 }
 function demLink(){return (cfg.demandes||autoDem||"").trim()}
+/* ================= Nouveautés (annoncées par Studio) ================= */
+let NEWS=null;
+function newsItems(now){
+  if(!NEWS||!channels.length)return [];
+  const seen=(profile&&profile.newsSeen)||0,out=[];
+  for(const n of NEWS){
+    const i=channels.findIndex(c=>norm(c.name)===norm(n.channel));if(i<0)continue;const ch=channels[i];
+    const keys=(n.titles||[]).map(t=>norm(t)).filter(Boolean);
+    // le prochain passage d'un des programmes ajoutés
+    let p=null;for(const q of progs[ch.id]||[]){if(q.stop<=now)continue;const k=norm(q.title);if(keys.some(x=>x===k||(x.length>5&&(k.includes(x)||x.includes(k))))){p=q;break}}
+    const found=!!p;if(!p)p=progAt(ch,now);
+    const nt=n.count>1?n.count+" nouveautés":cleanTitle((n.titles||[])[0]||p.title);
+    const when=found?(p.start<=now?"en ce moment":"à "+hhmm(p.start)+(new Date(p.start).getDate()!==new Date(now).getDate()?" demain":"")):"bientôt";
+    out.push({i,ch,p,kind:p.start<=now?"now":"next",news:n,isNew:n.at>seen,nt,sub:"Sur "+ch.name+" · "+when});
+    if(out.length>=12)break;
+  }
+  return out;
+}
+function updateNewsBadge(){
+  const t=document.querySelector('.tab[data-v="home"]');if(!t)return;
+  const n=newsItems(Date.now()).filter(x=>x.isNew).length;
+  let b=t.querySelector(".bdg");if(!n){if(b)b.remove();return}
+  if(!b){b=el("span","bdg");t.append(b)}b.textContent=n>9?"9+":String(n);
+}
 function updateDemBadge(){
   const t=document.querySelector('.tab[data-v="demandes"]');if(!t)return;
   const n=(reqs||[]).filter(r=>!r.status||r.status==="attente").length;
@@ -1840,7 +1879,7 @@ function fxTick(ts){
   }
   x.globalAlpha=1;
 }
-function updateChip(){applyTheme();const c=$("pchip");c.textContent="";if(!profile){c.hidden=true;return}c.hidden=false;const a=el("span","pav");a.innerHTML=avatarHTML(profile);c.append(a,el("span",null,profile.name))}
+function updateChip(){applyTheme();setTimeout(updateNewsBadge,0);const c=$("pchip");c.textContent="";if(!profile){c.hidden=true;return}c.hidden=false;const a=el("span","pav");a.innerHTML=avatarHTML(profile);c.append(a,el("span",null,profile.name))}
 $("pchip").onclick=()=>showProfiles();
 
 function showProfiles(){
