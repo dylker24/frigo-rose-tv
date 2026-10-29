@@ -1798,7 +1798,8 @@ function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles)))
 /* Collections de photos de profil (comme Netflix). Pour en ajouter : un dossier dans avatars/ et une ligne ici. */
 const AVBASE="https://dylker24.github.io/frigo-rose-tv/avatars/";
 const AVPACKS=[
-  {name:"Friends",dir:"friends",n:6}
+  {name:"Friends",dir:"friends",n:6},
+  {name:"Modern Family",dir:"modernfamily",n:6}
 ];
 function packItems(pk){const a=[];for(let i=1;i<=pk.n;i++)a.push(pk.dir+"/"+i+".jpg");return a}
 function avatarHTML(p){if(p&&p.pic)return '<img src="'+AVBASE+p.pic+'" alt="">';if(p&&p.img){return '<img src="'+p.img+'" alt="">'}return avatarSVG(p?p.av:0)}
