@@ -2060,7 +2060,7 @@ def media_removelib(name):
         pass
 
 
-def media_scan(name):
+def media_scan(name, fill=False):
     _need_key()
     lib = next((l for l in jf_libraries(force=True)["libs"] if l["name"] == name), None)
     if not lib:
@@ -2074,7 +2074,44 @@ def media_scan(name):
     def later():
         time.sleep(float(os.environ.get("FRS_TUNARR_DELAY", "45")))
         tunarr_sync_libs(name)
+        if not fill:
+            return
+        # puis on met sur la chaîne ce que Tunarr vient de découvrir
+        c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
+        if not c:
+            return
+        for _ in range(6):
+            time.sleep(float(os.environ.get("FRS_TUNARR_DELAY", "20")))
+            try:
+                if channel_fill(c["id"]):
+                    return
+            except Exception:
+                pass
     threading.Thread(target=later, daemon=True).start()
+
+
+def media_pending():
+    """Ce qui est dans Jellyfin mais pas encore passé sur Tunarr : vidéos pas sur leur chaîne, médiathèques sans chaîne ou pas encore lues par Tunarr."""
+    libs = media_libs()
+    tl = tn_libraries_all()
+    out = []
+    for l in libs:
+        t = next((x for x in tl if same_name(x["name"], l["name"])), None)
+        it = {"name": l["name"], "count": l["count"], "channel": l.get("channel"), "missing": [], "tunarr": bool(t and t["enabled"])}
+        if t and t["enabled"]:
+            progs = tn_library_programs(t["id"], fresh=True)
+            it["tn_count"] = len(progs)
+            if l.get("channel"):
+                on = {x.get("id") for x in tn_programming(l["channel"]["id"])["lineup"] if x.get("id")}
+                miss = sorted((x for x in progs if x["id"] not in on and x.get("duration")), key=_ep_order)
+                it["missing"] = [{"title": x["title"], "duration": x["duration"]} for x in miss]
+        else:
+            it["tn_count"] = 0
+        it["unscanned"] = max(0, l["count"] - it["tn_count"])
+        if it["missing"] or not l.get("channel") or it["unscanned"] or not it["tunarr"]:
+            if l["count"]:
+                out.append(it)
+    return out
 
 
 def auto_add_to_channels(js, last=False):
@@ -2370,6 +2407,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, media_ls(a("path")))
                 if u.path == "/api/media/search":
                     return self.send(200, {"results": media_search(a("q"))})
+                if u.path == "/api/media/pending":
+                    return self.send(200, {"libs": media_pending()})
                 if u.path == "/api/media/trash":
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
@@ -2598,7 +2637,7 @@ class H(BaseHTTPRequestHandler):
                     media_removelib(b.get("name") or "")
                     return self.send(200, {"ok": True})
                 if act == "scan":
-                    media_scan(b.get("name") or "")
+                    media_scan(b.get("name") or "", bool(b.get("fill")))
                     return self.send(200, {"ok": True})
                 if act == "mkchannel":
                     name = b.get("name") or ""

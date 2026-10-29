@@ -85,6 +85,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .mlib .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
 .tag{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--s3);color:var(--mute)}
 .tag.ok{background:rgba(61,214,140,.13);color:var(--ok)}.tag.warn{background:rgba(247,194,102,.14);color:var(--warn)}.tag.bad{background:rgba(255,107,107,.13);color:var(--bad)}
+.cnt{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;margin-left:6px}
+.pend{border:1px solid var(--line);border-radius:12px;background:var(--s2);padding:14px;margin-top:10px}
+.pend b{font-size:15px}.pend .ln{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:13.5px;color:var(--mute);flex-wrap:wrap}
+.pend .ln .btn{margin-left:auto}.pend .tl{font-size:12.5px;color:var(--faint);margin-top:4px;line-height:1.5}
 .mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(224,36,94,.08);font-size:13px}
 .mbar span{margin-right:auto;font-weight:600}
 .it .ren{margin-left:6px}
@@ -359,7 +363,7 @@ html,body{overflow-x:hidden}
     <div class="card" id="v-med" hidden>
       <div id="med-list-v">
         <div class="mhead"><div><h1>Médiathèque</h1><p class="sub" style="margin-bottom:0">Tes dossiers Jellyfin sans ouvrir Jellyfin : crée, range, renomme, mets à la corbeille. Tunarr suit tout seul.</p></div>
-          <div class="acts" style="margin:0"><button class="btn pri" id="med-new">＋ Nouvelle médiathèque</button><button class="btn" id="med-trash-b">Corbeille</button></div></div>
+          <div class="acts" style="margin:0"><button class="btn pri" id="med-new">＋ Nouvelle médiathèque</button><button class="btn" id="med-pend-b">Pas encore sur les chaînes <span class="cnt" id="med-pend-n" hidden></span></button><button class="btn" id="med-trash-b">Corbeille</button></div></div>
         <input class="inp" id="med-q" placeholder="Chercher une vidéo dans toutes les médiathèques…" autocomplete="off">
         <div class="err" id="med-err"></div>
         <div class="hint" id="med-sum" style="margin:2px 0 12px"></div>
@@ -500,6 +504,15 @@ html,body{overflow-x:hidden}
     <div class="fb" style="margin-top:10px"><div class="fb-bar"><div class="crumbs" id="mv-crumbs"></div><button class="btn sm ghost" id="mv-mkdir">Nouveau dossier</button></div><div class="fb-list" id="mv-list"></div></div>
     <div class="err" id="mv-err"></div>
     <div class="acts"><button class="btn pri" id="mv-go">Déplacer ici</button><button class="btn ghost" id="mv-x">Annuler</button></div>
+  </div>
+</div>
+<div class="modal" id="med-pd-m" hidden>
+  <div class="card">
+    <h1 style="font-size:20px">Pas encore sur les chaînes</h1>
+    <p class="sub" style="margin-bottom:6px">Ce qui est dans Jellyfin mais pas encore passé sur Tunarr. Un clic et c'est à l'antenne.</p>
+    <div style="overflow:auto;flex:1" id="pd-list"></div>
+    <div class="err" id="pd-err"></div>
+    <div class="acts"><button class="btn pri" id="pd-all" hidden>Tout régler</button><button class="btn" id="pd-x">Fermer</button></div>
   </div>
 </div>
 <div class="modal" id="med-tr-m" hidden>
@@ -851,7 +864,7 @@ $("pc-reboot-x").onclick=async()=>{try{const r=await api("/api/restart",{what:"p
 let MED={libs:null,cur:null,path:null,data:null,sel:new Set()};
 const kindName=t=>({movies:"Films",homevideos:"Séries / vidéos",tvshows:"Séries",mixed:"Mélangé",music:"Musique"}[t]||t||"Vidéos");
 async function loadMed(){if(MED.cur)return medOpen(MED.cur,MED.path);$("med-list-v").hidden=false;$("med-one-v").hidden=true;
-  try{MED.libs=(await api("/api/media/libs")).libs;$("med-err").textContent=""}catch(e){$("med-err").textContent=e.message;$("med-libs").innerHTML="";return}renderMedLibs()}
+  try{MED.libs=(await api("/api/media/libs")).libs;$("med-err").textContent=""}catch(e){$("med-err").textContent=e.message;$("med-libs").innerHTML="";return}renderMedLibs();loadPending(false)}
 function renderMedLibs(){const L=$("med-libs");L.innerHTML="";const libs=MED.libs||[];
   const tot=libs.reduce((a,l)=>a+l.count,0),sz=libs.reduce((a,l)=>a+l.size,0);$("med-sum").textContent=libs.length+" médiathèques · "+tot+" vidéos · "+size(sz);
   libs.forEach(l=>{const b=document.createElement("div");b.className="mlib";b.tabIndex=0;b.innerHTML='<b></b><small></small><div class="tags"></div>';
@@ -933,6 +946,34 @@ $("mn-x").onclick=()=>$("med-new-m").hidden=true;
 $("mn-go").onclick=async()=>{const name=$("mn-name").value.trim();if(!name){$("mn-err").textContent="Donne un nom";return}$("mn-go").disabled=true;$("mn-err").textContent="";
   try{const r=await api("/api/media/newlib",{name,kind:mnKind,channel:$("mn-ch").checked,number:$("mn-num").value.trim()});$("med-new-m").hidden=true;
     alertMsg("« "+r.name+" » créée"+(r.channel?" avec la chaîne n°"+r.channel.number:"")+" · ajoute des vidéos dedans");CH.list=null;await loadMed();medOpen(r.name)}catch(e){$("mn-err").textContent=e.message}$("mn-go").disabled=false};
+
+/* pas encore sur les chaînes */
+let PD=null;
+async function loadPending(render){try{PD=(await api("/api/media/pending")).libs}catch(e){PD=null;if(render)$("pd-err").textContent=e.message;return}
+  const n=PD.reduce((a,l)=>a+(l.channel?l.missing.length:l.count)+(l.channel?l.unscanned:0),0);$("med-pend-n").hidden=!n;$("med-pend-n").textContent=n;if(render)renderPending()}
+function pdActions(l){const a=[];if(!l.tunarr||l.unscanned)a.push(["scan",l]);if(!l.channel)a.push(["mkch",l]);else if(l.missing.length)a.push(["fill",l]);return a}
+async function pdDo(kind,l){if(kind==="scan")await api("/api/media/scan",{name:l.name,fill:true});
+  else if(kind==="mkch")await api("/api/media/mkchannel",{name:l.name,number:""});
+  else if(kind==="fill")await api("/api/tn/fill",{channel:l.channel.id})}
+function renderPending(){const L=$("pd-list");L.innerHTML="";$("pd-err").textContent="";
+  if(!PD){L.innerHTML='<div class="empty">Chargement…</div>';return}
+  if(!PD.length){L.innerHTML='<div class="empty">Tout est à l\'antenne 🎉</div>';$("pd-all").hidden=true;return}
+  PD.forEach(l=>{const d=document.createElement("div");d.className="pend";d.innerHTML="<b></b>";d.querySelector("b").textContent=l.name;
+    const line=(txt,label,kind)=>{const r=document.createElement("div");r.className="ln";const t=document.createElement("span");t.textContent=txt;r.append(t);
+      if(label){const b=btn(label,async e=>{e.target.disabled=true;e.target.textContent="…";try{await pdDo(kind,l);e.target.textContent="✓ C'est parti";alertMsg(kind==="scan"?"Analyse lancée : ça arrive sur la chaîne dans quelques minutes":kind==="mkch"?"Chaîne créée, elle se remplit toute seule":"Ajouté à la chaîne");setTimeout(()=>loadPending(true),kind==="fill"?800:4000)}catch(er){$("pd-err").textContent=er.message;e.target.disabled=false;e.target.textContent=label}});r.append(b)}
+      d.append(r)};
+    if(!l.channel)line("Pas de chaîne pour cette médiathèque ("+l.count+" vidéo"+(l.count>1?"s":"")+")","Créer sa chaîne","mkch");
+    if(!l.tunarr)line("Tunarr ne la connaît pas encore","Analyser","scan");
+    else if(l.unscanned)line(l.unscanned+" vidéo"+(l.unscanned>1?"s":"")+" pas encore vue"+(l.unscanned>1?"s":"")+" par Tunarr","Analyser","scan");
+    if(l.channel&&l.missing.length){line(l.missing.length+" vidéo"+(l.missing.length>1?"s":"")+" pas sur la chaîne n°"+l.channel.number+" ("+hm(l.missing.reduce((a,x)=>a+x.duration,0))+")","Mettre sur la chaîne","fill");
+      const tl=document.createElement("div");tl.className="tl";tl.textContent=l.missing.slice(0,8).map(x=>cleanTitle(x.title)).join(" · ")+(l.missing.length>8?" · et "+(l.missing.length-8)+" autres":"");d.append(tl)}
+    L.append(d)});
+  $("pd-all").hidden=false}
+$("med-pend-b").onclick=()=>{$("med-pd-m").hidden=false;PD=null;renderPending();loadPending(true)};
+$("pd-x").onclick=()=>{$("med-pd-m").hidden=true;loadMed()};
+$("pd-all").onclick=async e=>{if(!PD)return;e.target.disabled=true;let n=0;
+  for(const l of PD)for(const [k] of pdActions(l)){e.target.textContent=l.name+"…";try{await pdDo(k,l);n++}catch(er){$("pd-err").textContent=l.name+" : "+er.message}}
+  e.target.textContent="Tout régler";e.target.disabled=false;alertMsg(n+" action"+(n>1?"s":"")+" lancée"+(n>1?"s":"")+" · ce qui vient d'être analysé arrive sur les chaînes dans quelques minutes");setTimeout(()=>loadPending(true),3000)};
 /* corbeille */
 $("med-trash-b").onclick=$("med-trash-b2").onclick=()=>{$("med-tr-m").hidden=false;loadTrash()};
 $("tr-x").onclick=()=>$("med-tr-m").hidden=true;
