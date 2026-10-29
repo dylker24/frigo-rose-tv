@@ -1920,6 +1920,7 @@ def media_rename(path, name):
         return path
     if os.path.exists(dst) and os.path.normcase(dst) != os.path.normcase(path):
         raise RuntimeError("« %s » existe déjà ici" % name)
+    unlink_from_channels([path])   # l'ancien nom quitte la chaîne, le nouveau y sera remis tout seul
     os.rename(path, dst)
     _after_change([path, dst])
     return dst
@@ -1938,6 +1939,8 @@ def media_move(paths, dest):
     done = []
     for pth in paths:
         _check_inside(pth)
+    unlink_from_channels(paths)    # l'ancienne place quitte sa chaîne, la nouvelle chaîne la reçoit toute seule
+    for pth in paths:
         if os.path.normcase(os.path.abspath(dest)).startswith(os.path.normcase(os.path.abspath(pth)) + os.sep):
             raise RuntimeError("Impossible de déplacer un dossier dans lui-même")
         done.append(_move(pth, dest))
@@ -2232,29 +2235,14 @@ def _sync_set(name, **kw):
 
 
 def sync_lib_channel(name):
-    """Met la chaîne d'une médiathèque à jour : ajoute ce qui manque, retire ce qui n'existe plus."""
-    t = next((x for x in tn_libraries_all() if same_name(x["name"], name)), None)
+    """Met la chaîne d'une médiathèque à jour : ajoute ce qui manque. Ne retire jamais rien tout seul."""
     c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
-    if not t or not c:
+    if not c:
         return 0, 0
-    progs = tn_library_programs(t["id"], fresh=True)
-    alive = {x["id"] for x in progs}
-    cur = tn_programming(c["id"])
-    mine = [x for x in cur["lineup"] if x.get("id") and x.get("lib") == t["id"]]
-    dead = {x["id"] for x in mine if x["id"] not in alive or x.get("state") not in ("", "ok")}
-    removed = 0
-    # sécurité : si presque tout semble disparu, c'est sûrement Jellyfin qui répond mal → on ne retire rien
-    if dead and progs and len(dead) <= max(3, len(mine) // 2):
-        tn_backup(c["id"], cur["raw"])
-        keep = [x for x in cur["raw"] if x.get("id") not in dead]
-        removed = len(cur["raw"]) - len(keep)
-        tn_save(c["id"], keep)
-    added = 0
     try:
-        added = channel_fill(c["id"])
+        return channel_fill(c["id"]), 0
     except Exception:
-        pass
-    return added, removed
+        return 0, 0
 
 
 def follow_libs(names):
