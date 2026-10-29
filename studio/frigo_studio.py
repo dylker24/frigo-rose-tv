@@ -1420,9 +1420,10 @@ os.makedirs(BACKUPS, exist_ok=True)
 
 
 def tn(path, method="GET", body=None, timeout=20):
+    # pas de « Content-Type: json » sans contenu : Tunarr refuse (400 « Body cannot be empty »)
     req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, method=method,
                                  data=json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None),
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json"} if body is not None else {})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             t = r.read()
@@ -1469,7 +1470,7 @@ def jf_item_ids(parent, fresh=False):
         return c[1]
     ids = None
     if conf.get("jellyfin_key") and parent:
-        q = "ParentId=%s&Recursive=true&IsFolder=false&EnableImages=false&EnableUserData=false&Fields=Path&Limit=200000" % quote(parent)
+        q = "ParentId=%s&Recursive=true&IsFolder=false&MediaTypes=Video&EnableImages=false&EnableUserData=false&Fields=Path&Limit=200000" % quote(parent)
         for path in ("/Items?" + q, None):
             try:
                 if path is None:
@@ -1480,7 +1481,9 @@ def jf_item_ids(parent, fresh=False):
                     path = "/Users/%s/Items?%s" % (u["Id"], q)
                 r = jf(path, timeout=20) or {}
                 ids = {str(x.get("Id") or "").replace("-", "").lower(): (x.get("Name") or os.path.splitext(os.path.basename(x.get("Path") or ""))[0] or "?")
-                       for x in r.get("Items") or [] if x.get("Id")}
+                       for x in r.get("Items") or [] if x.get("Id") and not x.get("IsFolder")
+                       and x.get("Type") not in ("Folder", "CollectionFolder", "Season", "Series", "BoxSet", "PhotoAlbum", "Playlist")
+                       and (x.get("MediaType") in (None, "", "Video"))}
                 break
             except Exception:
                 ids = None
