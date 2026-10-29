@@ -8,7 +8,7 @@ téléchargés automatiquement au premier lancement sur Windows.
 """
 import hashlib, hmac, secrets, json, os, re, shutil, string, subprocess, sys, threading, time, urllib.request, urllib.error, uuid, webbrowser, zipfile, io
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode, quote
 
 APP = "Frigo Rosé Studio"
 def _read_version():
@@ -202,7 +202,7 @@ def jf_libraries(force=False):
         libs = []
         for v in vf:
             for loc in v.get("Locations") or []:
-                libs.append({"name": v.get("Name", ""), "type": v.get("CollectionType") or "", "path": loc})
+                libs.append({"name": v.get("Name", ""), "type": v.get("CollectionType") or "", "path": loc, "item": v.get("ItemId") or ""})
         jf_cache.update(t=time.time(), libs=libs, error="")
     except urllib.error.HTTPError as e:
         jf_cache.update(t=time.time(), libs=[], error="Clé refusée par Jellyfin" if e.code in (401, 403) else "Jellyfin répond une erreur %d" % e.code)
@@ -1649,6 +1649,434 @@ def channel_fill(cid):
     return n
 
 
+# ---------------------------------------------------------------- Médiathèque (gérer Jellyfin, les dossiers et Tunarr depuis Studio)
+TRASH_DIR = "_Corbeille Studio"
+TRASH_IDX = os.path.join(DATA, "corbeille.json")
+_mstat = {}
+
+
+def _need_key():
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Ajoute d'abord ta clé Jellyfin (Réglages)")
+
+
+def media_roots():
+    return [l["path"] for l in jf_libraries(force=False)["libs"]]
+
+
+def _inside(p, roots=None):
+    np_ = os.path.normcase(os.path.abspath(p))
+    for r in roots if roots is not None else media_roots():
+        nr = os.path.normcase(os.path.abspath(r)).rstrip("\\/")
+        if np_ == nr or np_.startswith(nr + os.sep):
+            return r
+    return None
+
+
+def _check_inside(p):
+    if not p or not _inside(p):
+        raise RuntimeError("Ce dossier n'est pas dans une de tes médiathèques")
+
+
+def _dir_stats(path):
+    c = _mstat.get(path)
+    if c and time.time() - c[0] < 90:
+        return c[1]
+    n = sz = 0
+    last = 0
+    for d, dirs, fs in os.walk(path):
+        dirs[:] = [x for x in dirs if x != TRASH_DIR]
+        for f in fs:
+            if os.path.splitext(f)[1].lower() in VIDEO_EXT:
+                try:
+                    st = os.stat(os.path.join(d, f))
+                except OSError:
+                    continue
+                n += 1
+                sz += st.st_size
+                last = max(last, st.st_mtime)
+    out = {"count": n, "size": sz, "last": last}
+    _mstat[path] = (time.time(), out)
+    return out
+
+
+def _forget_stats():
+    _mstat.clear()
+
+
+def media_libs():
+    _need_key()
+    libs = jf_libraries(force=True)
+    if libs["error"]:
+        raise RuntimeError(libs["error"])
+    try:
+        tl = tn_libraries_all()
+    except Exception:
+        tl = None
+    try:
+        chans = tn_channels()
+    except Exception:
+        chans = []
+    by = {}
+    for l in libs["libs"]:
+        b = by.setdefault(l["name"], {"name": l["name"], "type": l["type"], "item": l.get("item"), "paths": []})
+        b["paths"].append(l["path"])
+    out = []
+    for b in by.values():
+        st = {"count": 0, "size": 0, "last": 0}
+        for pth in b["paths"]:
+            if os.path.isdir(pth):
+                x = _dir_stats(pth)
+                st = {"count": st["count"] + x["count"], "size": st["size"] + x["size"], "last": max(st["last"], x["last"])}
+        b.update(st)
+        b["exists"] = all(os.path.isdir(x) for x in b["paths"])
+        if tl is not None:
+            t = next((x for x in tl if same_name(x["name"], b["name"])), None)
+            b["tunarr"] = {"enabled": bool(t and t["enabled"]), "found": bool(t)}
+        c = next((x for x in chans if same_name(x["name"], b["name"])), None)
+        if c:
+            b["channel"] = {"id": c["id"], "name": c["name"], "number": c["number"]}
+        out.append(b)
+    out.sort(key=lambda b: _key(b["name"]))
+    return out
+
+
+def tn_libraries_all():
+    out = []
+    for ms in tn("/api/media-sources") or []:
+        for l in ms.get("libraries") or []:
+            out.append({"id": l["id"], "name": (l.get("name") or "").strip(), "enabled": l.get("enabled", True), "source": ms.get("id"), "external": l.get("externalKey")})
+    return out
+
+
+def media_ls(path):
+    _check_inside(path)
+    if not os.path.isdir(path):
+        raise RuntimeError("Dossier introuvable")
+    root = _inside(path)
+    dirs, files = [], []
+    with os.scandir(path) as it:
+        for e in it:
+            if e.name.startswith(".") or e.name == TRASH_DIR:
+                continue
+            try:
+                if e.is_dir():
+                    dirs.append({"name": e.name, "path": e.path, **_dir_stats(e.path)})
+                elif os.path.splitext(e.name)[1].lower() in VIDEO_EXT:
+                    st = e.stat()
+                    files.append({"name": e.name, "path": e.path, "size": st.st_size, "mtime": st.st_mtime})
+            except OSError:
+                continue
+    dirs.sort(key=lambda x: _nat(x["name"]))
+    files.sort(key=lambda x: _nat(os.path.splitext(x["name"])[0]))
+    crumbs = []
+    cur = os.path.abspath(path)
+    while True:
+        crumbs.insert(0, {"name": os.path.basename(cur) or cur, "path": cur})
+        if os.path.normcase(cur) == os.path.normcase(os.path.abspath(root)):
+            break
+        nxt = os.path.dirname(cur)
+        if nxt == cur:
+            break
+        cur = nxt
+    return {"path": path, "root": root, "crumbs": crumbs, "dirs": dirs, "files": files}
+
+
+def media_search(q):
+    k = _fz(q)
+    if len(k) < 2:
+        return []
+    out = []
+    for r in media_roots():
+        for d, dirs, fs in os.walk(r):
+            dirs[:] = [x for x in dirs if x != TRASH_DIR]
+            for f in fs:
+                if os.path.splitext(f)[1].lower() in VIDEO_EXT and k in _fz(os.path.splitext(f)[0]):
+                    pth = os.path.join(d, f)
+                    try:
+                        sz = os.path.getsize(pth)
+                    except OSError:
+                        sz = 0
+                    out.append({"name": f, "path": pth, "size": sz, "dir": d, "lib": next((l["name"] for l in jf_cache["libs"] if l["path"] == r), "")})
+                    if len(out) >= 300:
+                        return out
+    return out
+
+
+def _after_change(paths):
+    """Jellyfin puis Tunarr relisent les médiathèques touchées."""
+    _forget_stats()
+    _health["data"] = None
+    if paths:
+        refresh_soon({"msg": "", "out": list(paths), "title": "médiathèque"})
+
+
+def media_rename(path, name):
+    _check_inside(path)
+    name = safe_name(name)
+    if os.path.isfile(path):
+        ext = os.path.splitext(path)[1]
+        if not name.lower().endswith(ext.lower()):
+            name += ext
+    dst = os.path.join(os.path.dirname(path), name)
+    if os.path.normcase(dst) == os.path.normcase(path):
+        return path
+    if os.path.exists(dst) and os.path.normcase(dst) != os.path.normcase(path):
+        raise RuntimeError("« %s » existe déjà ici" % name)
+    os.rename(path, dst)
+    _after_change([path, dst])
+    return dst
+
+
+def _move(src, dst_dir):
+    dst = unique_path(os.path.join(dst_dir, os.path.basename(src)))
+    shutil.move(src, dst)
+    return dst
+
+
+def media_move(paths, dest):
+    _check_inside(dest)
+    if not os.path.isdir(dest):
+        raise RuntimeError("Dossier de destination introuvable")
+    done = []
+    for pth in paths:
+        _check_inside(pth)
+        if os.path.normcase(os.path.abspath(dest)).startswith(os.path.normcase(os.path.abspath(pth)) + os.sep):
+            raise RuntimeError("Impossible de déplacer un dossier dans lui-même")
+        done.append(_move(pth, dest))
+    _after_change(list(paths) + done)
+    return done
+
+
+def _trash_load():
+    try:
+        with open(TRASH_IDX, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _trash_save(items):
+    tmp = TRASH_IDX + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False)
+    os.replace(tmp, TRASH_IDX)
+
+
+def _titles_in(pth):
+    if os.path.isfile(pth):
+        return {_fz(os.path.splitext(os.path.basename(pth))[0])}
+    t = set()
+    for d, _, fs in os.walk(pth):
+        for f in fs:
+            if os.path.splitext(f)[1].lower() in VIDEO_EXT:
+                t.add(_fz(os.path.splitext(f)[0]))
+    return t
+
+
+def unlink_from_channels(paths):
+    """Ce qu'on met à la corbeille est aussi retiré des chaînes (sinon Tunarr afficherait une erreur à cet endroit)."""
+    removed = 0
+    try:
+        libs = tn_libraries()
+        chans = tn_channels()
+    except Exception:
+        return 0
+    for pth in paths:
+        root = _inside(pth)
+        names = {l["name"] for l in jf_cache["libs"] if l["path"] == root}
+        titles = _titles_in(pth)
+        if not titles:
+            continue
+        for tl in [l for l in libs if any(same_name(l["name"], n) for n in names)]:
+            ids = {x["id"] for x in tn_library_programs(tl["id"], fresh=True) if _fz(x.get("title")) in titles}
+            if not ids:
+                continue
+            for c in chans:
+                try:
+                    cur = tn_programming(c["id"])
+                    if not any(x.get("id") in ids for x in cur["raw"]):
+                        continue
+                    tn_backup(c["id"], cur["raw"])
+                    keep = [x for x in cur["raw"] if x.get("id") not in ids]
+                    removed += len(cur["raw"]) - len(keep)
+                    tn_save(c["id"], keep)
+                except Exception:
+                    pass
+    return removed
+
+
+def media_trash(paths, unlink=True):
+    items = _trash_load()
+    removed = unlink_from_channels(paths) if unlink else 0
+    n = 0
+    for pth in paths:
+        root = _inside(pth)
+        if not root:
+            raise RuntimeError("Ce fichier n'est pas dans une de tes médiathèques")
+        tdir = os.path.join(os.path.dirname(os.path.abspath(root)), TRASH_DIR, time.strftime("%Y-%m-%d"))
+        os.makedirs(tdir, exist_ok=True)
+        dst = _move(pth, tdir)
+        sz = os.path.getsize(dst) if os.path.isfile(dst) else sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(dst) for f in fs)
+        items.insert(0, {"id": secrets.token_hex(6), "from": pth, "at": dst, "t": time.time(), "size": sz, "dir": os.path.isdir(dst)})
+        n += 1
+    _trash_save(items)
+    _after_change(paths)
+    return {"n": n, "removed": removed}
+
+
+def trash_list():
+    items = [x for x in _trash_load() if os.path.exists(x["at"])]
+    return items
+
+
+def trash_restore(ids):
+    items = _trash_load()
+    back = []
+    for x in [x for x in items if x["id"] in ids]:
+        if not os.path.exists(x["at"]):
+            continue
+        os.makedirs(os.path.dirname(x["from"]), exist_ok=True)
+        dst = unique_path(x["from"])
+        shutil.move(x["at"], dst)
+        back.append(dst)
+    _trash_save([x for x in items if x["id"] not in ids])
+    _after_change(back)
+    return len(back)
+
+
+def trash_empty(ids=None):
+    items = _trash_load()
+    gone = 0
+    keep = []
+    for x in items:
+        if ids is not None and x["id"] not in ids:
+            keep.append(x)
+            continue
+        try:
+            if os.path.isdir(x["at"]):
+                shutil.rmtree(x["at"])
+            elif os.path.exists(x["at"]):
+                os.remove(x["at"])
+            gone += 1
+        except OSError:
+            keep.append(x)
+    _trash_save(keep)
+    return gone
+
+
+JF_TYPES = {"films": "movies", "videos": "homevideos"}
+
+
+def tunarr_sync_libs(name, scan=True):
+    """Tunarr relit la liste des médiathèques Jellyfin, active la nouvelle et l'analyse."""
+    for _ in range(8):
+        try:
+            for ms in tn("/api/media-sources") or []:
+                tn("/api/media-sources/%s/libraries/refresh" % ms["id"], "POST", {}, timeout=60)
+            for t in tn_libraries_all():
+                if same_name(t["name"], name):
+                    src, lid = quote(str(t["source"]), safe=""), quote(str(t["id"]), safe="")
+                    if not t["enabled"]:
+                        tn("/api/media-sources/%s/libraries/%s" % (src, lid), "PUT", {"enabled": True})
+                    if scan:
+                        tn("/api/media-sources/%s/libraries/%s/scan?forceScan=true" % (src, lid), "POST")
+                    return t
+        except Exception:
+            pass
+        time.sleep(4)
+    return None
+
+
+def tn_create_channel(name, number=None):
+    chans = tn("/api/channels") or []
+    if any(same_name(c.get("name"), name) for c in chans):
+        raise RuntimeError("Une chaîne « %s » existe déjà" % name)
+    used = {c.get("number") for c in chans}
+    if not number:
+        number = next(n for n in range(1, 1000) if n not in used)
+    elif number in used:
+        raise RuntimeError("Le numéro %s est déjà pris" % number)
+    base = tn("/api/channels/%s" % chans[0]["id"]) if chans else {}
+    ch = {"disableFillerOverlay": base.get("disableFillerOverlay", False), "duration": 0, "fillerCollections": [], "fillerRepeatCooldown": base.get("fillerRepeatCooldown", 30000),
+          "groupTitle": base.get("groupTitle") or "Frigo Rosé TV", "guideMinimumDuration": base.get("guideMinimumDuration", 30000),
+          "icon": {"path": "", "width": 0, "duration": 0, "position": "bottom-right", "useDefaultIconFallback": True},
+          "id": str(__import__("uuid").uuid4()), "name": name, "number": number, "offline": {"mode": "pic", "picture": "", "soundtrack": ""},
+          "onDemand": {"enabled": False}, "startTime": int(time.time() // 60 * 60000), "stealth": False, "streamMode": base.get("streamMode") or "hls",
+          "transcodeConfigId": base.get("transcodeConfigId") or "00000000-0000-0000-0000-000000000000", "subtitlesEnabled": False}
+    if base.get("watermark"):
+        ch["watermark"] = dict(base["watermark"], url="")
+    tn("/api/channels", "POST", {"type": "new", "channel": ch}, timeout=30)
+    return {"id": ch["id"], "name": name, "number": number}
+
+
+def media_newlib(name, kind, make_channel=True, number=None):
+    _need_key()
+    name = re.sub(r"\s+", " ", (name or "").strip())
+    if not name:
+        raise RuntimeError("Donne un nom")
+    if not re.search(r"\btv$", name, re.I):
+        name += " TV"
+    libs = jf_libraries(force=True)["libs"]
+    if any(same_name(l["name"], name) for l in libs):
+        raise RuntimeError("Tu as déjà une médiathèque « %s »" % name)
+    base = os.path.dirname(os.path.abspath(libs[0]["path"])) if libs else os.path.join(os.path.expanduser("~"), "Videos")
+    folder = os.path.join(base, safe_name(name))
+    os.makedirs(folder, exist_ok=True)
+    jf("/Library/VirtualFolders?" + urlencode({"name": name, "collectionType": JF_TYPES.get(kind, "homevideos"), "paths": folder, "refreshLibrary": "true"}),
+       "POST", {"LibraryOptions": {"EnableRealtimeMonitor": True, "PathInfos": [{"Path": folder}]}}, timeout=30)
+    jf_libraries(force=True)
+    res = {"name": name, "path": folder}
+    st = {"msg": "Médiathèque créée"}
+
+    def follow():
+        t = tunarr_sync_libs(name)
+        st["msg"] += " · activée dans Tunarr" if t else " · Tunarr ne la voit pas encore (réessaie « Analyser » dans une minute)"
+    threading.Thread(target=follow, daemon=True).start()
+    if make_channel:
+        res["channel"] = tn_create_channel(name, number)
+    return res
+
+
+def media_renamelib(old, new):
+    _need_key()
+    new = re.sub(r"\s+", " ", (new or "").strip())
+    if not new:
+        raise RuntimeError("Donne un nom")
+    jf("/Library/VirtualFolders/Name?" + urlencode({"name": old, "newName": new, "refreshLibrary": "true"}), "POST", timeout=30)
+    jf_libraries(force=True)
+    threading.Thread(target=tunarr_sync_libs, args=(new, False), daemon=True).start()
+    return new
+
+
+def media_removelib(name):
+    _need_key()
+    jf("/Library/VirtualFolders?" + urlencode({"name": name, "refreshLibrary": "true"}), "DELETE", timeout=30)
+    jf_libraries(force=True)
+    try:
+        for ms in tn("/api/media-sources") or []:
+            tn("/api/media-sources/%s/libraries/refresh" % ms["id"], "POST", {}, timeout=60)
+    except Exception:
+        pass
+
+
+def media_scan(name):
+    _need_key()
+    lib = next((l for l in jf_libraries(force=True)["libs"] if l["name"] == name), None)
+    if not lib:
+        raise RuntimeError("Médiathèque introuvable")
+    if lib.get("item"):
+        jf("/Items/%s/Refresh?Recursive=true&MetadataRefreshMode=Default&ImageRefreshMode=Default" % lib["item"], "POST")
+    else:
+        jf("/Library/Refresh", "POST")
+    _forget_stats()
+
+    def later():
+        time.sleep(float(os.environ.get("FRS_TUNARR_DELAY", "45")))
+        tunarr_sync_libs(name)
+    threading.Thread(target=later, daemon=True).start()
+
+
 def auto_add_to_channels(js, last=False):
     """Après l'analyse Tunarr : on cherche les vidéos dans la médiathèque et on les ajoute à la chaîne choisie."""
     todo = [j for j in js if j.get("tchan") and not j.get("tchan_done") and j.get("out")]
@@ -1932,6 +2360,20 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"channel": channel_for_lib((q.get("path") or [""])[0])})
             except Exception as e:
                 return self.send(400, {"error": str(e)})
+        if u.path.startswith("/api/media/"):
+            q = parse_qs(u.query)
+            a = lambda k: (q.get(k) or [""])[0]
+            try:
+                if u.path == "/api/media/libs":
+                    return self.send(200, {"libs": media_libs()})
+                if u.path == "/api/media/ls":
+                    return self.send(200, media_ls(a("path")))
+                if u.path == "/api/media/search":
+                    return self.send(200, {"results": media_search(a("q"))})
+                if u.path == "/api/media/trash":
+                    return self.send(200, {"items": trash_list()})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/pc":
             return self.send(200, {**pc_state(), "away": away_status()})
         if u.path == "/api/yt":
@@ -2130,6 +2572,54 @@ class H(BaseHTTPRequestHandler):
             if WIN and os.path.exists(p):
                 subprocess.Popen(["explorer", "/select,", p] if os.path.isfile(p) else ["explorer", p])
             return self.send(200, {"ok": True})
+        if u.path.startswith("/api/media/"):
+            try:
+                act = u.path[len("/api/media/"):]
+                if act == "rename":
+                    return self.send(200, {"path": media_rename(b.get("path") or "", b.get("name") or "")})
+                if act == "move":
+                    return self.send(200, {"paths": media_move(b.get("paths") or [], b.get("dest") or "")})
+                if act == "mkdir":
+                    _check_inside(b.get("path") or "")
+                    pth = os.path.join(b["path"], safe_name(b.get("name") or ""))
+                    os.makedirs(pth, exist_ok=True)
+                    return self.send(200, {"path": pth})
+                if act == "trash":
+                    return self.send(200, media_trash(b.get("paths") or [], b.get("unlink", True) is not False))
+                if act == "restore":
+                    return self.send(200, {"n": trash_restore(set(b.get("ids") or []))})
+                if act == "empty":
+                    return self.send(200, {"n": trash_empty(set(b["ids"]) if b.get("ids") else None)})
+                if act == "newlib":
+                    return self.send(200, media_newlib(b.get("name") or "", b.get("kind") or "videos", b.get("channel", True) is not False, int(b["number"]) if str(b.get("number") or "").isdigit() else None))
+                if act == "renamelib":
+                    return self.send(200, {"name": media_renamelib(b.get("name") or "", b.get("new") or "")})
+                if act == "removelib":
+                    media_removelib(b.get("name") or "")
+                    return self.send(200, {"ok": True})
+                if act == "scan":
+                    media_scan(b.get("name") or "")
+                    return self.send(200, {"ok": True})
+                if act == "mkchannel":
+                    name = b.get("name") or ""
+                    ch = tn_create_channel(name, int(b["number"]) if str(b.get("number") or "").isdigit() else None)
+
+                    def fill_later():
+                        tunarr_sync_libs(name)
+                        for _ in range(6):
+                            time.sleep(float(os.environ.get("FRS_TUNARR_DELAY", "20")))
+                            try:
+                                if channel_fill(ch["id"]):
+                                    return
+                            except Exception:
+                                pass
+                    threading.Thread(target=fill_later, daemon=True).start()
+                    return self.send(200, {"channel": ch})
+                if act == "fillnew":
+                    return self.send(200, {"added": channel_fill(b.get("channel") or "")})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
+            return self.send(404, {"error": "introuvable"})
         if u.path == "/api/tn/fill":
             try:
                 n = channel_fill(b.get("channel") or "")

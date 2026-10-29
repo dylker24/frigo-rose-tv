@@ -78,6 +78,17 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .chk{display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--mute);cursor:pointer;user-select:none}
 .chk input{width:18px;height:18px;accent-color:var(--accent)}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--s3);color:var(--mute)}
+.mhead{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+.mlib{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:14px;color:var(--ink);cursor:pointer}
+.mlib:hover{border-color:#3a3a40}
+.mlib b{font-size:15px}.mlib small{color:var(--mute);font-size:12.5px}
+.mlib .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.tag{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--s3);color:var(--mute)}
+.tag.ok{background:rgba(61,214,140,.13);color:var(--ok)}.tag.warn{background:rgba(247,194,102,.14);color:var(--warn)}.tag.bad{background:rgba(255,107,107,.13);color:var(--bad)}
+.mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(224,36,94,.08);font-size:13px}
+.mbar span{margin-right:auto;font-weight:600}
+.it .ren{margin-left:6px}
+.mres .it .lib{font-size:12px;color:var(--faint);max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* explorateur */
 .fb{border:1px solid var(--line);border-radius:12px;background:var(--s2);overflow:hidden}
 .fb-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
@@ -237,6 +248,7 @@ html,body{overflow-x:hidden}
     <button data-v="dl" class="on">Télécharger</button>
     <button data-v="conv">Convertir</button>
     <button data-v="ch">Chaînes</button>
+    <button data-v="med">Médiathèque</button>
     <button data-v="dem">Demandes <span class="pill" id="dem-n" hidden style="padding:1px 7px;margin-left:4px;background:var(--accent);color:#fff"></span></button>
     <button data-v="pc">PC</button>
     <button data-v="set">Réglages</button>
@@ -342,6 +354,34 @@ html,body{overflow-x:hidden}
       </div>
     </div>
 
+
+    <!-- Médiathèque -->
+    <div class="card" id="v-med" hidden>
+      <div id="med-list-v">
+        <div class="mhead"><div><h1>Médiathèque</h1><p class="sub" style="margin-bottom:0">Tes dossiers Jellyfin sans ouvrir Jellyfin : crée, range, renomme, mets à la corbeille. Tunarr suit tout seul.</p></div>
+          <div class="acts" style="margin:0"><button class="btn pri" id="med-new">＋ Nouvelle médiathèque</button><button class="btn" id="med-trash-b">Corbeille</button></div></div>
+        <input class="inp" id="med-q" placeholder="Chercher une vidéo dans toutes les médiathèques…" autocomplete="off">
+        <div class="err" id="med-err"></div>
+        <div class="hint" id="med-sum" style="margin:2px 0 12px"></div>
+        <div class="fb mres" id="med-res" hidden><div class="fb-list" id="med-res-l" style="max-height:60vh"></div></div>
+        <div class="chl" id="med-libs"><div class="qempty">Chargement…</div></div>
+      </div>
+      <div id="med-one-v" hidden>
+        <button class="btn sm ghost" id="med-back">‹ Toutes les médiathèques</button>
+        <h1 id="med-title" style="margin-top:10px"></h1>
+        <p class="sub" id="med-sub"></p>
+        <div class="acts" style="margin-top:0"><button class="btn" id="med-scan">Analyser</button><button class="btn" id="med-ren-lib">Renommer</button><button class="btn" id="med-mkch" hidden>Créer sa chaîne</button><button class="btn" id="med-trash-b2">Corbeille</button><button class="btn ghost" id="med-rm-lib">Retirer de Jellyfin</button></div>
+        <div class="hint" id="med-msg"></div><div class="err" id="med-err2"></div>
+        <div class="fb" style="margin-top:14px">
+          <div class="fb-bar"><div class="crumbs" id="med-crumbs"></div><button class="btn sm ghost" id="med-mkdir">Nouveau dossier</button><button class="btn sm ghost" id="med-up">Ajouter des vidéos ici</button></div>
+          <div class="mbar" id="med-bar" hidden><span id="med-n"></span><button class="btn sm" id="med-ren">Renommer</button><button class="btn sm" id="med-mv">Déplacer…</button><button class="btn sm" id="med-del">Corbeille</button><button class="btn sm ghost" id="med-none">Décocher</button></div>
+          <div class="fb-list" id="med-files" style="max-height:62vh"></div>
+        </div>
+        <input type="file" id="med-file" accept="video/*" multiple hidden>
+        <div id="med-uplist"></div>
+      </div>
+    </div>
+
     <!-- Demandes -->
     <div class="card" id="v-dem" hidden>
       <h1>Demandes</h1>
@@ -440,6 +480,37 @@ html,body{overflow-x:hidden}
     <div class="acts"><button class="btn pri" id="add-go" disabled>Ajouter</button><button class="btn ghost" id="add-x">Fermer</button></div>
   </div>
 </div>
+<div class="modal" id="med-new-m" hidden>
+  <div class="card" style="width:min(500px,100%)">
+    <h1 style="font-size:20px">Nouvelle médiathèque</h1>
+    <p class="sub" style="margin-bottom:12px">Studio crée le dossier sur le PC, la médiathèque dans Jellyfin, l'active dans Tunarr et crée la chaîne.</p>
+    <label class="l">Nom</label><input class="inp" id="mn-name" placeholder="Ex : Western TV" autocomplete="off">
+    <label class="l">Type</label><div class="seg" id="mn-kind"><button data-k="videos" class="on">Séries / vidéos</button><button data-k="films">Films</button></div>
+    <div class="hint" id="mn-kind-h">Garde le nom des fichiers tel quel (comme tes autres chaînes de séries).</div>
+    <label class="chk"><input type="checkbox" id="mn-ch" checked> Créer aussi la chaîne sur la télé</label>
+    <div id="mn-num-w"><label class="l">Numéro de chaîne</label><input class="inp" id="mn-num" inputmode="numeric" placeholder="Le premier libre" style="max-width:180px"></div>
+    <div class="err" id="mn-err"></div>
+    <div class="acts"><button class="btn pri" id="mn-go">Créer</button><button class="btn ghost" id="mn-x">Annuler</button></div>
+  </div>
+</div>
+<div class="modal" id="med-mv-m" hidden>
+  <div class="card">
+    <h1 style="font-size:20px" id="mv-t">Déplacer vers…</h1>
+    <label class="l">Médiathèque</label><select class="inp" id="mv-lib"></select>
+    <div class="fb" style="margin-top:10px"><div class="fb-bar"><div class="crumbs" id="mv-crumbs"></div><button class="btn sm ghost" id="mv-mkdir">Nouveau dossier</button></div><div class="fb-list" id="mv-list"></div></div>
+    <div class="err" id="mv-err"></div>
+    <div class="acts"><button class="btn pri" id="mv-go">Déplacer ici</button><button class="btn ghost" id="mv-x">Annuler</button></div>
+  </div>
+</div>
+<div class="modal" id="med-tr-m" hidden>
+  <div class="card">
+    <h1 style="font-size:20px">Corbeille</h1>
+    <p class="sub" style="margin-bottom:10px">Ce que tu as mis à la corbeille depuis Studio. Rien n'est effacé tant que tu ne vides pas.</p>
+    <div class="fb"><div class="fb-list" id="tr-list"></div></div>
+    <div class="err" id="tr-err"></div>
+    <div class="acts"><button class="btn ghost" id="tr-empty">Vider la corbeille</button><button class="btn" id="tr-x">Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="pick-ch" hidden>
   <div class="card" style="width:min(480px,100%)">
     <h1 style="font-size:20px">Sur quelle chaîne ?</h1>
@@ -480,7 +551,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-  $("v-ch").hidden=v!=="ch";if(v==="ch")loadChannels();
+  $("v-ch").hidden=v!=="ch";if(v==="ch")loadChannels();$("v-med").hidden=v!=="med";if(v==="med")loadMed();
   $("v-up").hidden=v!=="dl";$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
   $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
   if(v==="dem")loadDem();
@@ -774,6 +845,105 @@ $("pc-reboot").onclick=async()=>{if(!confirm("Redémarrer le PC ? Tout ce qui to
   try{const r=await api("/api/restart",{what:"pc"});$("pc-msg").textContent=r.msg;$("pc-reboot-x").hidden=false}catch(e){$("pc-err").textContent=e.message}};
 $("pc-reboot-x").onclick=async()=>{try{const r=await api("/api/restart",{what:"pc_cancel"});$("pc-msg").textContent=r.msg;$("pc-reboot-x").hidden=true}catch(e){}};
 
+
+
+/* ---------- Médiathèque ---------- */
+let MED={libs:null,cur:null,path:null,data:null,sel:new Set()};
+const kindName=t=>({movies:"Films",homevideos:"Séries / vidéos",tvshows:"Séries",mixed:"Mélangé",music:"Musique"}[t]||t||"Vidéos");
+async function loadMed(){if(MED.cur)return medOpen(MED.cur,MED.path);$("med-list-v").hidden=false;$("med-one-v").hidden=true;
+  try{MED.libs=(await api("/api/media/libs")).libs;$("med-err").textContent=""}catch(e){$("med-err").textContent=e.message;$("med-libs").innerHTML="";return}renderMedLibs()}
+function renderMedLibs(){const L=$("med-libs");L.innerHTML="";const libs=MED.libs||[];
+  const tot=libs.reduce((a,l)=>a+l.count,0),sz=libs.reduce((a,l)=>a+l.size,0);$("med-sum").textContent=libs.length+" médiathèques · "+tot+" vidéos · "+size(sz);
+  libs.forEach(l=>{const b=document.createElement("div");b.className="mlib";b.tabIndex=0;b.innerHTML='<b></b><small></small><div class="tags"></div>';
+    b.querySelector("b").textContent=l.name;b.querySelector("small").textContent=l.count+" vidéo"+(l.count>1?"s":"")+" · "+size(l.size)+(l.last?" · dernier ajout "+ago(l.last):"");
+    const tg=b.querySelector(".tags");const tag=(c,t)=>{const s=document.createElement("span");s.className="tag "+c;s.textContent=t;tg.append(s)};
+    tag("",kindName(l.type));
+    if(!l.exists)tag("bad","Dossier introuvable");
+    if(l.channel)tag("ok","Chaîne n°"+l.channel.number);else tag("warn","Pas de chaîne");
+    if(l.tunarr&&!l.tunarr.enabled)tag("warn",l.tunarr.found?"Pas activée dans Tunarr":"Tunarr ne la voit pas");
+    if(!l.count)tag("","Vide");
+    b.onclick=()=>medOpen(l.name);b.onkeydown=e=>{if(e.key==="Enter")medOpen(l.name)};L.append(b)});
+  if(!libs.length)L.innerHTML='<div class="qempty">Aucune médiathèque dans Jellyfin</div>'}
+let medQT=null;$("med-q").oninput=()=>{clearTimeout(medQT);medQT=setTimeout(medSearch,300)};
+async function medSearch(){const q=$("med-q").value.trim();const R=$("med-res"),L=$("med-res-l");if(q.length<2){R.hidden=true;$("med-libs").hidden=false;return}
+  R.hidden=false;$("med-libs").hidden=true;L.innerHTML='<div class="empty">Recherche…</div>';
+  try{const r=(await api("/api/media/search?q="+encodeURIComponent(q))).results;L.innerHTML="";
+    if(!r.length){L.innerHTML='<div class="empty">Rien trouvé</div>';return}
+    r.forEach(x=>{const it=row(IC.vid,x.name,size(x.size));const lb=document.createElement("span");lb.className="lib";lb.textContent=x.lib;it.insertBefore(lb,it.querySelector(".sz"));
+      it.onclick=()=>{$("med-q").value="";R.hidden=true;$("med-libs").hidden=false;medOpen(x.lib,x.dir,x.path)};L.append(it)})}catch(e){L.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}}
+async function medOpen(name,path,focus){const l=(MED.libs||[]).find(x=>x.name===name);if(!l)return loadMed();MED.cur=name;MED.sel.clear();
+  $("med-list-v").hidden=true;$("med-one-v").hidden=false;$("med-err2").textContent="";
+  $("med-title").textContent=l.name;$("med-sub").textContent=kindName(l.type)+" · "+l.count+" vidéo"+(l.count>1?"s":"")+" · "+size(l.size)+" · "+(l.channel?"sur la chaîne n°"+l.channel.number+" · "+l.channel.name:"pas encore de chaîne");
+  $("med-mkch").hidden=!!l.channel;await medLs(path||l.paths[0],focus)}
+async function medLs(path,focus){MED.path=path;MED.sel.clear();const L=$("med-files");
+  try{MED.data=await api("/api/media/ls?path="+encodeURIComponent(path));$("med-err2").textContent=""}catch(e){$("med-err2").textContent=e.message;L.innerHTML="";return}
+  renderMedLs(focus)}
+function renderMedLs(focus){const d=MED.data,L=$("med-files");L.innerHTML="";
+  const cr=$("med-crumbs");cr.innerHTML="";d.crumbs.forEach((c,i)=>{const b=document.createElement("button");b.textContent=i?c.name:MED.cur;b.onclick=()=>medLs(c.path);cr.append(b);if(i<d.crumbs.length-1)cr.append("›")});
+  if(d.crumbs.length>1){const r=row(IC.up,"Dossier parent","");r.onclick=()=>medLs(d.crumbs[d.crumbs.length-2].path);L.append(r)}
+  const item=(x,isDir)=>{const r=row(isDir?IC.dir:IC.vid,x.name,isDir?x.count+" vidéo"+(x.count>1?"s":"")+" · "+size(x.size):size(x.size),true);
+    const cb=r.querySelector("input");cb.checked=MED.sel.has(x.path);r.classList.toggle("sel",cb.checked);
+    cb.onclick=e=>{e.stopPropagation();cb.checked?MED.sel.add(x.path):MED.sel.delete(x.path);r.classList.toggle("sel",cb.checked);medBar()};
+    r.onclick=()=>{if(isDir)medLs(x.path);else cb.click()};
+    if(focus&&x.path===focus){r.classList.add("sel");setTimeout(()=>r.scrollIntoView({block:"center"}),50)}
+    L.append(r)};
+  d.dirs.forEach(x=>item(x,true));d.files.forEach(x=>item(x,false));
+  if(!d.dirs.length&&!d.files.length)L.insertAdjacentHTML("beforeend",'<div class="empty">Dossier vide · ajoute des vidéos avec le bouton au-dessus</div>');medBar()}
+function medBar(){const n=MED.sel.size;$("med-bar").hidden=!n;$("med-n").textContent=n+" sélectionné"+(n>1?"s":"");$("med-ren").hidden=n!==1}
+$("med-none").onclick=()=>{MED.sel.clear();renderMedLs()};
+$("med-back").onclick=()=>{MED.cur=null;MED.path=null;loadMed()};
+const medMsg=m=>{$("med-msg").textContent=m;alertMsg(m)};
+async function medReload(){try{MED.libs=(await api("/api/media/libs")).libs}catch(e){}if(MED.cur){const l=(MED.libs||[]).find(x=>x.name===MED.cur);if(l)$("med-sub").textContent=kindName(l.type)+" · "+l.count+" vidéos · "+size(l.size)+" · "+(l.channel?"sur la chaîne n°"+l.channel.number+" · "+l.channel.name:"pas encore de chaîne")}await medLs(MED.path)}
+$("med-ren").onclick=async()=>{const p=[...MED.sel][0];const old=p.split(/[\\/]/).pop();const isF=/\.[a-z0-9]{2,4}$/i.test(old)&&MED.data.files.some(f=>f.path===p);
+  const base=isF?old.replace(/\.[^.]+$/,""):old;const n=prompt("Nouveau nom",base);if(!n||n===base)return;
+  try{await api("/api/media/rename",{path:p,name:n});medMsg("Renommé · Jellyfin et Tunarr se mettent à jour");await medReload()}catch(e){$("med-err2").textContent=e.message}};
+$("med-del").onclick=async()=>{const ps=[...MED.sel];if(!confirm("Mettre "+ps.length+" élément"+(ps.length>1?"s":"")+" à la corbeille ?\nIls sont aussi retirés des chaînes. Tu pourras les remettre depuis la corbeille."))return;
+  $("med-del").disabled=true;try{const r=await api("/api/media/trash",{paths:ps});medMsg(r.n+" à la corbeille"+(r.removed?" · retiré"+(r.removed>1?"s":"")+" "+r.removed+" fois des chaînes":""))}catch(e){$("med-err2").textContent=e.message}$("med-del").disabled=false;await medReload()};
+$("med-mkdir").onclick=async()=>{const n=prompt("Nom du nouveau dossier");if(!n)return;try{await api("/api/media/mkdir",{path:MED.path,name:n});await medLs(MED.path)}catch(e){$("med-err2").textContent=e.message}};
+$("med-scan").onclick=async()=>{try{await api("/api/media/scan",{name:MED.cur});medMsg("Jellyfin analyse « "+MED.cur+" », Tunarr suivra dans une minute")}catch(e){$("med-err2").textContent=e.message}};
+$("med-ren-lib").onclick=async()=>{const n=prompt("Nouveau nom de la médiathèque",MED.cur);if(!n||n===MED.cur)return;
+  try{const r=await api("/api/media/renamelib",{name:MED.cur,new:n});MED.cur=r.name;medMsg("Renommée · pense à renommer la chaîne pareil pour qu'elles restent liées");await medReload();$("med-title").textContent=r.name}catch(e){$("med-err2").textContent=e.message}};
+$("med-rm-lib").onclick=async()=>{if(!confirm("Retirer « "+MED.cur+" » de Jellyfin ?\nLes fichiers restent sur le PC, rien n'est effacé. La chaîne Tunarr n'est pas supprimée."))return;
+  try{await api("/api/media/removelib",{name:MED.cur});MED.cur=null;alertMsg("Médiathèque retirée de Jellyfin (fichiers gardés)");loadMed()}catch(e){$("med-err2").textContent=e.message}};
+$("med-mkch").onclick=async()=>{const num=prompt("Numéro de la nouvelle chaîne (laisse vide pour le premier libre)","");if(num===null)return;
+  try{const r=await api("/api/media/mkchannel",{name:MED.cur,number:num});medMsg("Chaîne n°"+r.channel.number+" créée · elle se remplit toute seule dans quelques minutes");CH.list=null;await medReload();$("med-mkch").hidden=true}catch(e){$("med-err2").textContent=e.message}};
+/* ajouter des vidéos dans le dossier ouvert (passe par l'envoi normal, et va sur la chaîne de la médiathèque) */
+$("med-up").onclick=()=>$("med-file").click();
+$("med-file").onchange=()=>{const fs=[...$("med-file").files];$("med-file").value="";const l=(MED.libs||[]).find(x=>x.name===MED.cur);
+  fs.forEach(f=>upQueue.push({f,dest:MED.path,sub:"",tchan:l&&l.channel?l.channel.id:""}));$("med-uplist").innerHTML='<div class="hint">Envoi en cours : suis l\'avancement dans l\'onglet Télécharger et la file d\'attente.</div>';upNext()};
+/* déplacer */
+let MV={path:null};
+$("med-mv").onclick=async()=>{const libs=MED.libs||[];$("mv-lib").innerHTML=libs.map(l=>'<option>'+esc(l.name)+'</option>').join("");$("mv-lib").value=MED.cur;$("mv-err").textContent="";
+  $("mv-t").textContent="Déplacer "+MED.sel.size+" élément"+(MED.sel.size>1?"s":"")+" vers…";$("med-mv-m").hidden=false;mvLs(MED.path)};
+$("mv-lib").onchange=()=>{const l=(MED.libs||[]).find(x=>x.name===$("mv-lib").value);if(l)mvLs(l.paths[0])};
+async function mvLs(p){let d;try{d=await api("/api/media/ls?path="+encodeURIComponent(p))}catch(e){$("mv-err").textContent=e.message;return}MV.path=d.path;
+  const cr=$("mv-crumbs");cr.innerHTML="";d.crumbs.forEach((c,i)=>{const b=document.createElement("button");b.textContent=i?c.name:$("mv-lib").value;b.onclick=()=>mvLs(c.path);cr.append(b);if(i<d.crumbs.length-1)cr.append("›")});
+  const L=$("mv-list");L.innerHTML="";if(d.crumbs.length>1){const r=row(IC.up,"Dossier parent","");r.onclick=()=>mvLs(d.crumbs[d.crumbs.length-2].path);L.append(r)}
+  d.dirs.filter(x=>!MED.sel.has(x.path)).forEach(x=>{const r=row(IC.dir,x.name,"");r.onclick=()=>mvLs(x.path);L.append(r)});if(!d.dirs.length)L.insertAdjacentHTML("beforeend",'<div class="empty">Pas de sous-dossier</div>')}
+$("mv-mkdir").onclick=async()=>{const n=prompt("Nom du nouveau dossier");if(!n)return;try{const r=await api("/api/media/mkdir",{path:MV.path,name:n});mvLs(r.path)}catch(e){$("mv-err").textContent=e.message}};
+$("mv-x").onclick=()=>$("med-mv-m").hidden=true;
+$("mv-go").onclick=async()=>{$("mv-go").disabled=true;try{const r=await api("/api/media/move",{paths:[...MED.sel],dest:MV.path});$("med-mv-m").hidden=true;medMsg(r.paths.length+" déplacé"+(r.paths.length>1?"s":"")+" · Jellyfin et Tunarr se mettent à jour");await medReload()}catch(e){$("mv-err").textContent=e.message}$("mv-go").disabled=false};
+/* nouvelle médiathèque */
+let mnKind="videos";
+document.querySelectorAll("#mn-kind button").forEach(b=>b.onclick=()=>{mnKind=b.dataset.k;document.querySelectorAll("#mn-kind button").forEach(x=>x.classList.toggle("on",x===b));
+  $("mn-kind-h").textContent=mnKind==="films"?"Jellyfin cherche l'affiche et les infos de chaque film.":"Garde le nom des fichiers tel quel (comme tes autres chaînes de séries)."});
+$("mn-ch").onchange=()=>$("mn-num-w").hidden=!$("mn-ch").checked;
+$("med-new").onclick=()=>{$("mn-name").value="";$("mn-num").value="";$("mn-err").textContent="";$("med-new-m").hidden=false;setTimeout(()=>$("mn-name").focus(),50)};
+$("mn-x").onclick=()=>$("med-new-m").hidden=true;
+$("mn-go").onclick=async()=>{const name=$("mn-name").value.trim();if(!name){$("mn-err").textContent="Donne un nom";return}$("mn-go").disabled=true;$("mn-err").textContent="";
+  try{const r=await api("/api/media/newlib",{name,kind:mnKind,channel:$("mn-ch").checked,number:$("mn-num").value.trim()});$("med-new-m").hidden=true;
+    alertMsg("« "+r.name+" » créée"+(r.channel?" avec la chaîne n°"+r.channel.number:"")+" · ajoute des vidéos dedans");CH.list=null;await loadMed();medOpen(r.name)}catch(e){$("mn-err").textContent=e.message}$("mn-go").disabled=false};
+/* corbeille */
+$("med-trash-b").onclick=$("med-trash-b2").onclick=()=>{$("med-tr-m").hidden=false;loadTrash()};
+$("tr-x").onclick=()=>$("med-tr-m").hidden=true;
+async function loadTrash(){const L=$("tr-list");L.innerHTML='<div class="empty">Chargement…</div>';let it=[];try{it=(await api("/api/media/trash")).items}catch(e){$("tr-err").textContent=e.message}
+  L.innerHTML="";$("tr-empty").hidden=!it.length;if(!it.length){L.innerHTML='<div class="empty">La corbeille est vide</div>';return}
+  it.forEach(x=>{const r=row(x.dir?IC.dir:IC.vid,x.from.split(/[\\/]/).pop(),size(x.size)+" · "+ago(x.t));r.title=x.from;r.style.cursor="default";
+    const b1=btn("Remettre",async()=>{await api("/api/media/restore",{ids:[x.id]});loadTrash();if(MED.cur)medReload();else loadMed()});
+    const b2=btn("Effacer",async()=>{if(!confirm("Effacer définitivement « "+x.from.split(/[\\/]/).pop()+" » ?"))return;await api("/api/media/empty",{ids:[x.id]});loadTrash()});b2.classList.add("ghost");
+    r.append(b1,b2);L.append(r)});
+  $("tr-empty").textContent="Vider la corbeille ("+size(it.reduce((a,x)=>a+x.size,0))+")"}
+$("tr-empty").onclick=async()=>{if(!confirm("Effacer définitivement tout ce qui est dans la corbeille ?"))return;try{const r=await api("/api/media/empty",{});alertMsg(r.n+" effacé"+(r.n>1?"s":""));loadTrash()}catch(e){$("tr-err").textContent=e.message}};
 
 /* ---------- chaînes Tunarr ---------- */
 const TAGS=/^(french|truefrench|multi|vff|vfq|vfi|vf|vostfr|subfrench|fastsub|vo|1080p|720p|480p|2160p|4k|uhd|hdr|web|webrip|web-dl|webdl|bluray|bdrip|brrip|dvdrip|hdtv|hdrip|x264|x265|h264|h265|hevc|avc|ac3|aac|dts|ddp5|ddp|10bit|remux|proper|repack|complete|integrale|custom|limited|extended)$/i;
