@@ -416,7 +416,8 @@ def refresh_soon(j):
 
 # ---------------------------------------------------------------- Tunarr
 def tunarr(path, method="GET", timeout=8):
-    req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, data=b"" if method == "POST" else None, method=method)
+    # POST sans contenu : ni corps ni Content-Type (sinon Tunarr répond 415 « x-www-form-urlencoded »)
+    req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, data=None, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         t = r.read()
         try:
@@ -1422,7 +1423,7 @@ os.makedirs(BACKUPS, exist_ok=True)
 def tn(path, method="GET", body=None, timeout=20):
     # pas de « Content-Type: json » sans contenu : Tunarr refuse (400 « Body cannot be empty »)
     req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, method=method,
-                                 data=json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None),
+                                 data=json.dumps(body).encode() if body is not None else None,
                                  headers={"Content-Type": "application/json"} if body is not None else {})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
