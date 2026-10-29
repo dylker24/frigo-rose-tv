@@ -186,6 +186,14 @@ def nvenc_ok():
 
 
 # ---------------------------------------------------------------- Jellyfin
+BGLOG = []
+
+
+def bglog(msg):
+    BGLOG.insert(0, time.strftime("%H:%M:%S ") + str(msg)[:1500])
+    del BGLOG[60:]
+
+
 def _trace():
     """Les dernières lignes de l'erreur, pour comprendre un bug à distance."""
     import traceback
@@ -2277,6 +2285,7 @@ def follow_libs(names):
             _sync_set(name, step="", done=True, msg="Chaîne à jour" + (" · " + ", ".join(parts) if parts else ""))
             _health["data"] = None
         except Exception as e:
+            bglog("synchro %s : %s" % (name, _trace()))
             _sync_set(name, step="", done=True, msg="Pas pu mettre la chaîne à jour (%s)" % e)
 
     for n in names:
@@ -2316,12 +2325,30 @@ def tn_scan_lib(lib_id, every=90):
     return True
 
 
+_catching = set()
+
+
 def catch_up_lib(lib_id, wait=None):
+    if lib_id in _catching:
+        return 0
+    _catching.add(lib_id)
+    try:
+        return _catch_up_lib(lib_id, wait)
+    except Exception:
+        bglog("rattrapage %s : %s" % (lib_id, _trace()))
+        return 0
+    finally:
+        _catching.discard(lib_id)
+
+
+def _catch_up_lib(lib_id, wait=None):
     """Tunarr relit la médiathèque, puis ce qui vient d'arriver est mis sur sa chaîne (seulement les nouveautés)."""
     new = lib_unscanned(lib_id, True)
+    bglog("rattrapage %s : %d à lire %s" % (lib_id, len(new), list(new.values())[:5]))
     if not new:
         return 0
     if not tn_scan_lib(lib_id):
+        bglog("rattrapage %s : relecture déjà demandée il y a moins de 90 s" % lib_id)
         return 0
     name = next((x["name"] for x in tn_libraries_all() if x["id"] == lib_id), "")
     _sync_set(name, step="Tunarr découvre %d nouveauté%s de Jellyfin…" % (len(new), "s" if len(new) > 1 else ""), done=False, msg="")
@@ -2353,10 +2380,10 @@ def watch_loop():
                 for t in tn_libraries_all():
                     if t["enabled"] and t.get("external"):
                         try:
-                            if lib_unscanned(t["id"], True):
-                                catch_up_lib(t["id"])
+                            if lib_unscanned(t["id"], True) and t["id"] not in _catching:
+                                threading.Thread(target=catch_up_lib, args=(t["id"],), daemon=True).start()
                         except Exception:
-                            pass
+                            bglog("surveillance : " + _trace())
         except Exception:
             pass
         time.sleep(float(os.environ.get("FRS_WATCH_EVERY", "300")))
@@ -2692,6 +2719,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/debug":
+            return self.send(200, {"log": BGLOG, "never": sorted(_never), "scan": {k: int(time.time() - v) for k, v in _scan_t.items()}})
         if u.path == "/api/pc":
             return self.send(200, {**pc_state(), "away": away_status()})
         if u.path == "/api/yt":
