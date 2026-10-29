@@ -198,6 +198,17 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .chl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .chc{display:flex;align-items:center;gap:12px;text-align:left;background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--ink)}
 .chc:hover{border-color:#3a3a40}
+.chc{cursor:pointer;flex-wrap:wrap}.chc .t{flex:1}
+.chc .hl{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mute);margin-top:2px;padding-top:9px;border-top:1px solid var(--line)}
+.chc .hl i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--faint)}
+.chc .hl.ok i{background:var(--ok)}.chc .hl.warn i{background:var(--warn)}.chc .hl.bad i{background:var(--bad)}
+.chc .hl.warn span{color:var(--warn)}.chc .hl.bad span{color:var(--bad)}
+.chc .hl .btn{margin-left:auto;padding:5px 10px;font-size:12px}
+.hsum{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--s2)}
+.hsum .p{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--mute);margin-right:10px}.hsum .p b{color:var(--ink);font-size:16px}
+.hsum .p i{width:9px;height:9px;border-radius:50%}
+.hsum .btn{margin-left:auto}
+
 .chc .n{width:38px;height:38px;border-radius:10px;background:var(--s3);display:grid;place-items:center;font-weight:700;flex:none;overflow:hidden}
 .chc .n img{width:100%;height:100%;object-fit:contain;background:#fff}
 .chc .t{min-width:0}.chc .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chc .t small{color:var(--mute);font-size:12px}
@@ -314,6 +325,7 @@ html,body{overflow-x:hidden}
         <h1>Tes chaînes</h1>
         <p class="sub">La programmation de chaque chaîne Tunarr : ajoute, retire, mélange, sans ouvrir Tunarr.</p>
         <div class="err" id="ch-err"></div>
+        <div class="hsum" id="ch-hsum" hidden></div>
         <div class="chl" id="ch-list"><div class="qempty">Chargement…</div></div>
         <label class="l" style="margin-top:22px">Nouveautés annoncées sur la télé</label>
         <div class="hint" style="margin-top:0">Chaque ajout sur une chaîne avec Studio apparaît dans la rangée « Nouveautés » de la télé pendant 2 semaines.</div>
@@ -323,7 +335,7 @@ html,body{overflow-x:hidden}
         <button class="btn sm ghost" id="ch-back">‹ Toutes les chaînes</button>
         <h1 id="ch-title" style="margin-top:10px"></h1>
         <p class="sub" id="ch-sub"></p>
-        <div class="acts" style="margin-top:0"><button class="btn pri" id="ch-add">＋ Ajouter du contenu</button><button class="btn" id="ch-shuffle">Mélanger</button><button class="btn" id="ch-dedupe">Retirer les doublons</button><button class="btn ghost" id="ch-undo">↶ Annuler la dernière modif</button></div>
+        <div class="acts" style="margin-top:0"><button class="btn pri" id="ch-add">＋ Ajouter du contenu</button><button class="btn" id="ch-shuffle">Mélanger</button><button class="btn" id="ch-dedupe">Retirer les doublons</button><button class="btn" id="ch-fill" hidden></button><button class="btn ghost" id="ch-undo">↶ Annuler la dernière modif</button></div>
         <div class="hint" id="ch-msg"></div><div class="err" id="ch-err2"></div>
         <input class="inp" id="ch-filter" placeholder="Chercher dans la programmation…" style="margin-top:14px" autocomplete="off">
         <div id="ch-lineup"></div>
@@ -788,25 +800,47 @@ function alertMsg(m){$("ch-msg").textContent=m;const t=$("toast-s");if(t){t.text
 async function loadChannels(force){
   if(CH.list&&!force){renderChannels()}
   try{CH.list=(await api("/api/tn/channels")).channels;$("ch-err").textContent=""}catch(e){$("ch-err").textContent=e.message}
-  renderChannels();fillTchan()}
+  renderChannels();fillTchan();if(!CH.cur)loadHealth(false)}
 async function loadNews(){try{const r=await api("/api/news",{});const L=$("news-list");L.innerHTML="";
   if(!r.news.length){L.innerHTML='<div class="hint" style="margin:0">Rien pour l\'instant</div>';return}
   r.news.slice(0,12).forEach(n=>{const d=document.createElement("div");d.className="sb";d.innerHTML='<div class="t"><b></b><small></small></div>';
     d.querySelector("b").textContent=(n.count>1?n.count+" nouveautés":cleanTitle((n.titles||[])[0]||""))+" · "+(n.number?"n°"+n.number+" ":"")+(n.channel||"");
     d.querySelector("small").textContent=ago((n.at||0)/1000)+(n.count>1?" · "+(n.titles||[]).slice(0,3).map(cleanTitle).join(", ")+(n.count>3?"…":""):"");
     const rm=btn("Retirer",async()=>{await api("/api/news",{action:"remove",id:n.id});loadNews()});rm.classList.add("ghost");d.append(rm);L.append(d)})}catch(e){}}
-function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=false;$("ch-one-v").hidden=true;const L=$("ch-list");L.innerHTML="";
-  (CH.list||[]).forEach(c=>{const b=document.createElement("button");b.className="chc";b.innerHTML='<span class="n"></span><span class="t"><b></b><small></small></span>';
+function loopTxt(h){const L=h.loop||0;if(!L)return "Chaîne vide";const per=86400000/L;
+  const r1=x=>(x>=10?Math.round(x):Math.round(x*10)/10).toString().replace(".",",");
+  if(per>=1.5)return "Repasse "+r1(per)+" fois par jour";
+  if(per>=0.9)return "Repasse les mêmes programmes chaque jour";
+  return "Ne repasse qu'au bout de "+r1(L/86400000)+" jours"}
+async function loadHealth(fresh){try{const r=await api("/api/tn/health"+(fresh?"?fresh=1":""));CH.health={};r.channels.forEach(h=>CH.health[h.id]=h);renderChannels()}catch(e){}}
+async function fillChannel(id,btnEl){if(btnEl){btnEl.disabled=true;btnEl.textContent="…"}
+  try{const r=await api("/api/tn/fill",{channel:id});alertMsg(r.msg);return r.added}catch(e){$("ch-err").textContent=e.message;$("ch-err2").textContent=e.message;return 0}}
+function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=false;$("ch-one-v").hidden=true;const L=$("ch-list");L.innerHTML="";const H=CH.health||{};
+  (CH.list||[]).forEach(c=>{const b=document.createElement("div");b.className="chc";b.tabIndex=0;b.innerHTML='<span class="n"></span><span class="t"><b></b><small></small></span>';
     b.querySelector(".n").textContent=c.number;
     b.querySelector("b").textContent="n°"+c.number+" · "+c.name;b.querySelector("small").textContent=(c.count!=null?c.count+" programmes · ":"")+hm(c.duration)+" en boucle";
-    b.onclick=()=>openChannel(c.id);L.append(b)});
-  if(CH.list&&!CH.list.length)L.innerHTML='<div class="qempty">Aucune chaîne dans Tunarr</div>'}
+    const h=H[c.id];
+    if(h&&!h.error){const hl=document.createElement("div");hl.className="hl "+h.level;hl.innerHTML="<i></i><span></span>";
+      hl.querySelector("span").textContent=loopTxt(h)+(h.dupes?" · "+h.dupes+" doublon"+(h.dupes>1?"s":""):"");
+      if(h.missing){const f=btn("Compléter +"+h.missing,async e=>{e.stopPropagation();if(await fillChannel(c.id,e.target))await loadChannels(true)});
+        f.title=h.missing+" programme"+(h.missing>1?"s":"")+" de « "+h.lib+" » ("+hm(h.missing_dur)+") pas encore sur la chaîne";hl.append(f)}
+      b.append(hl)}
+    b.onclick=()=>openChannel(c.id);b.onkeydown=e=>{if(e.key==="Enter")openChannel(c.id)};L.append(b)});
+  if(CH.list&&!CH.list.length)L.innerHTML='<div class="qempty">Aucune chaîne dans Tunarr</div>';
+  const hs=Object.values(H),S2=$("ch-hsum");S2.hidden=!hs.length;
+  if(hs.length){const n=l=>hs.filter(h=>h.level===l).length,miss=hs.filter(h=>h.missing),nm=miss.reduce((a,h)=>a+h.missing,0);
+    const pill=(c,v,t)=>'<span class="p"><i style="background:'+c+'"></i><b>'+v+'</b> '+t+'</span>';
+    S2.innerHTML=pill("var(--ok)",n("ok"),"au top")+pill("var(--warn)",n("warn"),"repassent chaque jour")+pill("var(--bad)",n("bad"),"tournent en boucle (moins de 6 h)")+
+      (nm?pill("var(--accent)",nm,"programme"+(nm>1?"s":"")+" attendent dans tes médiathèques"):"");
+    if(nm){const all=btn("Tout compléter",async e=>{if(!confirm("Ajouter les "+nm+" programmes en attente à la fin de leur chaîne ("+miss.length+" chaîne"+(miss.length>1?"s":"")+") ?"))return;e.target.disabled=true;let t=0;
+      for(const h of miss){e.target.textContent=h.name+"…";t+=await fillChannel(h.id)||0}alertMsg(t+" programme"+(t>1?"s":"")+" ajouté"+(t>1?"s":"")+" sur "+miss.length+" chaîne"+(miss.length>1?"s":""));await loadChannels(true)});all.classList.add("pri");S2.append(all)}}}
 async function openChannel(id){CH.cur=id;$("ch-list-v").hidden=true;$("ch-one-v").hidden=false;$("ch-msg").textContent="";$("ch-err2").textContent="";$("ch-filter").value="";
   $("ch-lineup").innerHTML='<div class="qempty">Chargement…</div>';await loadProg()}
 async function loadProg(){try{CH.prog=await api("/api/tn/channel?id="+encodeURIComponent(CH.cur));$("ch-err2").textContent=""}catch(e){$("ch-err2").textContent=e.message;return}renderProg()}
 function renderProg(){const P=CH.prog;if(!P)return;const tot=P.lineup.reduce((a,x)=>a+(x.duration||0),0);
   $("ch-title").textContent="n°"+P.number+" · "+P.name;$("ch-sub").textContent=P.lineup.length+" programme"+(P.lineup.length>1?"s":"")+" · "+hm(tot)+" avant de recommencer";
-  $("ch-undo").hidden=!P.can_undo;const f=kk($("ch-filter").value);const L=$("ch-lineup");L.innerHTML="";const frag=document.createDocumentFragment();let shown=0;
+  $("ch-undo").hidden=!P.can_undo;const hh=(CH.health||{})[CH.cur];$("ch-fill").hidden=!(hh&&hh.missing);if(hh&&hh.missing)$("ch-fill").textContent="Compléter +"+hh.missing;
+  if(hh&&!hh.error)$("ch-sub").textContent+=" · "+loopTxt(hh).toLowerCase();const f=kk($("ch-filter").value);const L=$("ch-lineup");L.innerHTML="";const frag=document.createDocumentFragment();let shown=0;
   P.lineup.forEach((x,i)=>{const t=cleanTitle(x.title);if(f&&!kk(t+" "+x.title).includes(f))return;if(++shown>600)return;
     const r=document.createElement("div");r.className="li"+(x.type!=="content"?" flex":"");r.innerHTML='<span class="ix">'+(i+1)+'</span><span class="tt"></span><span class="du">'+hm(x.duration)+'</span>';
     r.querySelector(".tt").textContent=t;r.querySelector(".tt").title=x.title;
@@ -820,6 +854,7 @@ async function edit(action,extra){$("ch-err2").textContent="";$("ch-msg").textCo
 $("ch-shuffle").onclick=()=>{if(confirm("Mélanger toute la programmation de la chaîne ?"))edit("shuffle")};
 $("ch-dedupe").onclick=()=>edit("dedupe");
 $("ch-undo").onclick=()=>edit("undo");
+$("ch-fill").onclick=async e=>{if(await fillChannel(CH.cur,e.target)){await loadHealth(true);await loadProg()}e.target.disabled=false};
 /* ajout de contenu */
 let ADD={progs:[],sel:new Set(),order:"end"};
 $("ch-add").onclick=async()=>{$("add-m").hidden=false;$("add-err").textContent="";ADD.sel.clear();$("add-q").value="";$("add-t").textContent="Ajouter sur n°"+CH.prog.number+" · "+CH.prog.name;

@@ -1489,6 +1489,7 @@ def tn_backup(cid, raw):
 def tn_save(cid, lineup):
     items = [x for x in (_clean_item(i) for i in lineup) if x]
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": False}, timeout=60)
+    _health["data"] = None
 
 
 def announce(cid, progs, cur=None):
@@ -1510,6 +1511,7 @@ def tn_add(cid, progs, announce_it=True):
     if not items:
         raise RuntimeError("Rien à ajouter")
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": True}, timeout=60)
+    _health["data"] = None
     if announce_it:
         threading.Thread(target=announce, args=(cid, [p for p in progs if p.get("id") and p.get("duration")], cur), daemon=True).start()
     return len(items)
@@ -1574,6 +1576,77 @@ def channel_for_lib(path):
     except Exception:
         pass
     return ""
+
+
+# ---------------------------------------------------------------- santé des chaînes
+_health = {"t": 0, "data": None}
+
+
+def _nat(t):
+    return [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", (t or "").lower())]
+
+
+def _ep_order(p):
+    return (_nat(p.get("show") or ""), p.get("season") or 0, p.get("episode") or 0, _nat(p.get("title")))
+
+
+def channel_health(fresh=False):
+    """Pour chaque chaîne : combien de temps avant de repasser la même chose, doublons, et ce qui attend dans sa médiathèque."""
+    if _health["data"] and not fresh and time.time() - _health["t"] < 60:
+        return _health["data"]
+    chans = tn_channels()
+    libs = tn_libraries()
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(c):
+        h = {"id": c["id"], "number": c["number"], "name": c["name"], "icon": c["icon"]}
+        try:
+            pr = tn_programming(c["id"])
+            content = [x for x in pr["lineup"] if x["type"] == "content" and x.get("id")]
+            total = sum(x["duration"] or 0 for x in pr["lineup"])
+            uniq = {}
+            for x in content:
+                uniq.setdefault(x["id"], x["duration"] or 0)
+            h.update(loop=total, unique=sum(uniq.values()), count=len(content), uniq_count=len(uniq), dupes=len(content) - len(uniq))
+            lib = next((l for l in libs if same_name(l["name"], c["name"])), None)
+            if lib:
+                lp = tn_library_programs(lib["id"])
+                miss = [x for x in lp if x["id"] not in uniq and x.get("duration")]
+                h.update(lib=lib["name"], lib_id=lib["id"], lib_count=len(lp), missing=len(miss), missing_dur=sum(x["duration"] for x in miss))
+        except Exception as e:
+            h["error"] = str(e)
+        lp_ = h.get("loop") or 0
+        if h.get("error"):
+            h["level"] = "?"
+        elif lp_ < 6 * 3600000:
+            h["level"] = "bad"
+        elif lp_ < 24 * 3600000:
+            h["level"] = "warn"
+        else:
+            h["level"] = "ok"
+        return h
+
+    with ThreadPoolExecutor(6) as ex:
+        out = list(ex.map(one, chans))
+    _health.update(t=time.time(), data=out)
+    return out
+
+
+def channel_fill(cid):
+    """Ajoute à la chaîne tout ce qui est dans sa médiathèque mais pas encore dessus (dans l'ordre des épisodes)."""
+    c = next((x for x in tn_channels() if x["id"] == cid), None)
+    if not c:
+        raise RuntimeError("Chaîne introuvable")
+    lib = next((l for l in tn_libraries() if same_name(l["name"], c["name"])), None)
+    if not lib:
+        raise RuntimeError("Je ne trouve pas de médiathèque qui porte le nom de « %s »" % c["name"])
+    on = {x["id"] for x in tn_programming(cid)["lineup"] if x.get("id")}
+    miss = sorted((x for x in tn_library_programs(lib["id"], fresh=True) if x["id"] not in on and x.get("duration")), key=_ep_order)
+    if not miss:
+        return 0
+    n = tn_add(cid, miss)
+    _health["data"] = None
+    return n
 
 
 def auto_add_to_channels(js, last=False):
@@ -1817,6 +1890,8 @@ class H(BaseHTTPRequestHandler):
                     d.pop("raw", None)
                     d["can_undo"] = any(x.startswith((q.get("id") or [""])[0] + "-") for x in os.listdir(BACKUPS))
                     return self.send(200, d)
+                if u.path == "/api/tn/health":
+                    return self.send(200, {"channels": channel_health((q.get("fresh") or [""])[0] == "1")})
                 if u.path == "/api/tn/libs":
                     return self.send(200, {"libs": tn_libraries()})
                 if u.path == "/api/tn/lib":
@@ -2023,6 +2098,12 @@ class H(BaseHTTPRequestHandler):
             if WIN and os.path.exists(p):
                 subprocess.Popen(["explorer", "/select,", p] if os.path.isfile(p) else ["explorer", p])
             return self.send(200, {"ok": True})
+        if u.path == "/api/tn/fill":
+            try:
+                n = channel_fill(b.get("channel") or "")
+                return self.send(200, {"added": n, "msg": ("%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")) if n else "Tout est déjà sur la chaîne"})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/tn/add":
             try:
                 cid = b.get("channel") or ""
