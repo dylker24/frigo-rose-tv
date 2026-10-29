@@ -315,6 +315,9 @@ body.panel-open .lerr,body.panel-open .loading{display:none!important}
 .zid-n .zn{position:absolute;top:-.7rem;right:-.7rem;min-width:2.6rem;height:2.6rem;padding:0 .6rem;border-radius:.8rem;background:var(--accent);color:#fff;font:800 1.3rem/1 var(--display);display:grid;place-items:center;box-shadow:0 0 0 .3rem #000}
 .zid-n img{max-height:7rem;max-width:16rem;object-fit:contain}
 .zid-name{font-size:1.35rem;font-weight:600;letter-spacing:.04em;color:#EBEBEB}
+.zapfx.on ~ #loading{visibility:hidden} /* pendant le zapping, le logo de la chaîne suffit : pas de rond par-dessus le nom */
+.zid::after{content:"";width:5.5rem;height:.22rem;border-radius:1rem;margin-top:.3rem;background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:200% 100%;animation:zbar 1.1s linear infinite}
+@keyframes zbar{from{background-position:100% 0}to{background-position:-100% 0}}
 .banner.anim .cnum{animation:numpop .55s cubic-bezier(.2,1.5,.4,1)}
 @keyframes numpop{from{transform:scale(.6);opacity:0}}
 .banner.anim .bmain>*{animation:rise .5s cubic-bezier(.2,.9,.3,1) both}
@@ -495,6 +498,9 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .pcdown b{display:block;color:#fff;font-size:22px;margin-bottom:2px}
 #splash.quick.play .iglow{animation-duration:1s;animation-delay:.1s}#splash.quick.play .imark{animation-duration:.6s;animation-delay:0s}#splash.quick.play .iword::after{animation-delay:.7s;animation-duration:.5s}
 .set-h{font:700 .78rem/1 var(--ui,inherit);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:1.2rem 0 -.2rem;padding-top:1.1rem;border-top:1px solid var(--line)}
+#profiles{background:radial-gradient(70% 55% at 50% -10%,rgba(var(--accent-rgb),.26),transparent 70%),radial-gradient(45% 45% at 100% 110%,rgba(var(--accent-rgb),.14),transparent 70%),radial-gradient(40% 40% at 0% 100%,rgba(122,167,255,.08),transparent 70%),var(--bg)}
+#profiles::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55));pointer-events:none}
+.pkick{font-size:1.05rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-t);margin-bottom:-1.8rem}
 </style>
 </head>
 <body>
@@ -650,6 +656,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 <div class="hello" id="hello" hidden><div class="pav" id="hello-av"></div><b id="hello-t"></b></div>
 <div class="full" id="profiles" hidden>
   <div class="pwrap">
+    <div class="pkick" id="p-kick"></div>
     <h1 class="ptitle" id="p-title">Qui regarde ?</h1>
     <div class="pgrid" id="p-grid"></div>
     <button class="pmanage" id="p-manage">Gérer les profils</button>
@@ -1960,6 +1967,7 @@ function showProfiles(){
 function tilesCount(){return profiles.length+(profiles.length<6?1:0)}
 function renderProfiles(){
   $("p-title").textContent=managing?"Gérer les profils":"Qui regarde ?";
+  {const h=new Date().getHours();$("p-kick").textContent=managing?"":h>=5&&h<12?"Bonjour":h>=12&&h<18?"Bon après-midi":h>=18&&h<23?"Bonsoir":"Bonne nuit";$("p-kick").hidden=managing}
   const g=$("p-grid");g.textContent="";
   profiles.forEach((p,i)=>{
     const t=el("button","ptile"+(i===pIdx?" f":""));const av=el("div","pav");av.innerHTML=avatarHTML(p);
