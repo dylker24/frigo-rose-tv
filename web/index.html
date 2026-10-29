@@ -67,7 +67,8 @@ body.touch .kbtn .cap,body.touch .keys .key>.cap:not(.kb){display:none}
 @keyframes helloIn{from{transform:scale(.55);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes helloTx{from{transform:translateY(1rem);opacity:0}to{transform:none;opacity:1}}
 @keyframes helloOut{to{opacity:0}}
-#festfx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:45}
+#festfx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#panel>.topbar,#panel>section,#panel>.hints{z-index:1} /* la déco des fêtes passe derrière les menus et le texte */
 .thm-dot{display:inline-block;width:1rem;height:1rem;border-radius:50%;margin-right:.55rem;vertical-align:-.15rem;box-shadow:0 0 0 .12rem rgba(255,255,255,.25)}
 #video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
 /* Aperçu dans la page Chaînes : la vidéo vient se poser dans la case survolée */
@@ -493,6 +494,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .pcdown{background:rgba(247,194,102,.12);border:1px solid rgba(247,194,102,.4);color:#F7C266;border-radius:14px;padding:14px 18px;margin-bottom:22px;font-size:20px;line-height:1.35}
 .pcdown b{display:block;color:#fff;font-size:22px;margin-bottom:2px}
 #splash.quick.play .iglow{animation-duration:1s;animation-delay:.1s}#splash.quick.play .imark{animation-duration:.6s;animation-delay:0s}#splash.quick.play .iword::after{animation-delay:.7s;animation-duration:.5s}
+.set-h{font:700 .78rem/1 var(--ui,inherit);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:1.2rem 0 -.2rem;padding-top:1.1rem;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -527,10 +529,10 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 <div class="pauseind" id="pauseind" hidden><span><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg></span></div>
 <div class="digits tnum" id="digits" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<canvas id="festfx" hidden></canvas>
 
 <div class="panel" id="panel" hidden>
   <div class="hbg" id="hbg" hidden><div class="hbg-art" id="hbg-art"></div><div class="hbg-shade"></div></div>
+  <canvas id="festfx" hidden></canvas>
   <div class="topbar">
     <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/></svg></span>Frigo Rosé TV</div>
     <nav class="tabs" id="tabs">
@@ -601,15 +603,6 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
   <section id="v-settings" hidden style="flex:1;min-height:0">
     <div class="set">
       <h1>Réglages</h1>
-      <div class="fld"><label for="s-server">Adresse de ton serveur Tunarr</label><input id="s-server" spellcheck="false" autocomplete="off"><small>Celle de ton PC dans Tailscale, avec le port 8000.</small></div>
-      <div class="fld"><label for="s-dem">Lien de ton appli Demandes (Netlify)</label><input id="s-dem" spellcheck="false" autocomplete="off" placeholder="https://…netlify.app"><small>Sert à afficher le QR code dans l'onglet Demandes.</small></div>
-      <div class="fld"><label>Logo de l'appli</label>
-        <div class="logo-row"><div class="logo-prev"><span class="mark" id="s-logo-prev"></span></div>
-          <button class="btn" id="s-logo">Choisir une image</button>
-          <button class="btn" id="s-logo-reset">Logo de base</button></div>
-        <small>Apparaît dans l'intro et en haut de l'appli. Un PNG sans fond rend le mieux.</small>
-        <input type="file" id="s-logo-file" accept="image/*" hidden>
-      </div>
       <div class="fld"><label id="s-theme-l">Thème</label>
         <div class="logo-row"><button class="btn" id="s-theme"></button><button class="btn" id="s-fest"></button></div>
         <small>La couleur de l'appli et la déco des fêtes, pour le profil en cours. En automatique, la déco s'allume toute seule à Halloween, Noël, au Nouvel an et à la Saint-Valentin.</small>
@@ -618,9 +611,19 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
         <div class="logo-row"><button class="btn" id="s-fit"></button></div>
         <small>Original garde les bandes noires, Zoom remplit l'écran en coupant un peu, Étiré déforme l'image pour remplir.</small>
       </div>
+      <h2 class="set-h">Avancé</h2>
+      <div class="fld"><label for="s-server">Adresse de ton serveur Tunarr</label><input id="s-server" spellcheck="false" autocomplete="off"><small>Celle de ton PC dans Tailscale, avec le port 8000.</small></div>
+      <div class="fld"><label for="s-dem">Lien de ton appli Demandes</label><input id="s-dem" spellcheck="false" autocomplete="off" placeholder="https://…"><small>Sert à afficher le QR code dans l'onglet Demandes (en général, il se remplit tout seul).</small></div>
+      <div class="fld"><label>Logo de l'appli</label>
+        <div class="logo-row"><div class="logo-prev"><span class="mark" id="s-logo-prev"></span></div>
+          <button class="btn" id="s-logo">Choisir une image</button>
+          <button class="btn" id="s-logo-reset">Logo de base</button></div>
+        <small>Apparaît dans l'intro et en haut de l'appli. Un PNG sans fond rend le mieux.</small>
+        <input type="file" id="s-logo-file" accept="image/*" hidden>
+      </div>
       <div class="fld"><label>Chargement rapide</label>
         <div class="logo-row"><button class="btn" id="s-warm"></button></div>
-        <small>Prépare les chaînes juste avant et juste après pour zapper plus vite, mais ton PC fait alors 3 conversions en même temps. À laisser désactivé sauf si ton PC est costaud.</small>
+        <small>Prépare les chaînes juste avant et juste après pour zapper plus vite. Ton PC fait alors 3 conversions par télé : avec la carte graphique ça passe, mais garde-le désactivé si plusieurs télés regardent en même temps.</small>
       </div>
       <div class="btns">
         <button class="btn" id="s-refresh">Actualiser les chaînes</button>
@@ -786,8 +789,12 @@ function cleanTitle(s){
   if(!s)return s;
   return cleanTitle0(s);
 }
+const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 function cleanTitle0(s){
   let t=s.trim().replace(/\.(mkv|mp4|avi|m4v|mov|ts|wmv)$/i,"");
+  // vidéos de famille nommées par la date : « 2009 02 22 Chancelade » → « Chancelade · 22 février 2009 »
+  const dt=/^((?:19|20)\d\d)[ ._-](0[1-9]|1[0-2])(?:[ ._-](0[1-9]|[12]\d|3[01]))?(?:[ ._-]+(.+))?$/.exec(t);
+  if(dt){const when=(dt[3]?(+dt[3]===1?"1er":+dt[3])+" ":"")+MOIS[+dt[2]-1]+" "+dt[1];const rest=(dt[4]||"").replace(/[._]+/g," ").trim();return rest?capWords(rest)+" · "+when:capWords(when)}
   const yr=/\(((?:19|20)\d\d)\)/.exec(t);
   if(yr){const rest=t.slice(yr.index+yr[0].length);if(rest&&(!/^\s/.test(rest)||rest.split(/[._ ]+/).filter(isTech).length>=1))t=t.slice(0,yr.index+yr[0].length).trim()}
   const toks=t.split(/[._ ]+/).filter(Boolean);
@@ -1701,7 +1708,8 @@ function newsItems(now){
     // le prochain passage d'un des programmes ajoutés
     let p=null;for(const q of progs[ch.id]||[]){if(q.stop<=now)continue;const k=norm(q.title);if(keys.some(x=>x===k||(x.length>5&&(k.includes(x)||x.includes(k))))){p=q;break}}
     const found=!!p;if(!p)p=progAt(ch,now);
-    const nt=n.count>1?n.count+" nouveautés":cleanTitle((n.titles||[])[0]||p.title);
+    const first=cleanTitle((n.titles||[])[0]||p.title),more=(n.count||1)-1;
+    const nt=more>0?first+" + "+more+" autre"+(more>1?"s":""):first;
     const when=found?(p.start<=now?"en ce moment":"à "+hhmm(p.start)+(new Date(p.start).getDate()!==new Date(now).getDate()?" demain":"")):"bientôt";
     out.push({i,ch,p,kind:p.start<=now?"now":"next",news:n,isNew:n.at>seen,nt,sub:"Sur "+ch.name+" · "+when});
     if(out.length>=12)break;
@@ -1730,7 +1738,7 @@ function renderDemandes(){
       try{new QRCode(qb,{text:link,width:320,height:320,colorDark:"#000000",colorLight:"#F5F5F5",correctLevel:QRCode.CorrectLevel.M})}catch(e){qb.textContent="QR indisponible"}
       qt.append(document.createTextNode("Film ou série, ton prénom, et c'est envoyé."),el("span","qurl",link.replace(/^https?:\/\//,"").replace(/\/$/,"")));
     }else if(link){qb.textContent="QR indisponible";qt.append(document.createTextNode("Va sur "),el("span","qurl",link.replace(/^https?:\/\//,"").replace(/\/$/,"")))}
-    else{qb.textContent="Bientôt ici";qt.textContent="Mets ton appli Demandes sur Netlify et ouvre-la une fois sur ton téléphone : le QR code s'affichera ici tout seul."}
+    else{qb.textContent="Bientôt ici";qt.textContent="Ouvre une fois l'appli Demandes sur ton téléphone : le QR code s'affichera ici tout seul."}
   }
   const list=$("d-list");list.textContent="";
   if(reqs===null){const e=el("div","empty");e.append(el("b",null,"Demandes indisponibles"),document.createTextNode("La connexion à la base des demandes n'a pas marché."));list.append(e);$("d-count").textContent="";return}
@@ -1762,11 +1770,11 @@ function demKey(k){
 
 /* ================= Réglages ================= */
 let sR=0,sC=0;
-const SROWS=()=>[[$("s-server")],[$("s-dem")],[$("s-logo"),$("s-logo-reset")],[$("s-theme"),$("s-fest")],[$("s-fit")],[$("s-warm")],[$("s-refresh"),$("s-save"),$("s-demo"),$("s-prof"),$("s-quit")]];
+const SROWS=()=>[[$("s-theme"),$("s-fest")],[$("s-fit")],[$("s-server")],[$("s-dem")],[$("s-logo"),$("s-logo-reset")],[$("s-warm")],[$("s-refresh"),$("s-save"),$("s-demo"),$("s-prof"),$("s-quit")]];
 function renderSettings(){
   if(document.activeElement!==$("s-server"))$("s-server").value=cfg.server;
   if(document.activeElement!==$("s-dem"))$("s-dem").value=cfg.demandes;
-  $("s-dem").placeholder=autoDem?"Automatique : "+autoDem.replace(/^https?:\/\//,""):"https://…netlify.app";
+  $("s-dem").placeholder=autoDem?"Automatique : "+autoDem.replace(/^https?:\/\//,""):"https://…";
   $("s-demo").textContent=demo?"Quitter le mode démo":"Passer en mode démo";
   $("s-logo-reset").hidden=!appLogo;
   $("s-warm").textContent=warmOn()?"Activé":"Désactivé";
@@ -1788,8 +1796,9 @@ function setKey(k){
   else if(k==="ok"){const e=vis[sC];if(e.tagName==="INPUT"){sR++;sC=0}else{e.click();return}}
   renderSettings();
 }
-$("s-server").onfocus=()=>{zone="content";sR=0;sC=0;renderTabs();renderSettings()};
-$("s-dem").onfocus=()=>{zone="content";sR=1;sC=0;renderTabs();renderSettings()};
+const sRowOf=e=>SROWS().findIndex(r=>r.includes(e));
+$("s-server").onfocus=()=>{zone="content";sR=sRowOf($("s-server"));sC=0;renderTabs();renderSettings()};
+$("s-dem").onfocus=()=>{zone="content";sR=sRowOf($("s-dem"));sC=0;renderTabs();renderSettings()};
 $("s-save").onclick=()=>{
   cfg.server=$("s-server").value.trim()||cfg.server;cfg.demandes=$("s-dem").value.trim();
   LS.set("frtv_server",cfg.server);LS.set("frtv_demandes",cfg.demandes);
@@ -2215,7 +2224,7 @@ document.querySelectorAll("#e-btns .btn").forEach(b=>b.onclick=()=>{
   const a=b.dataset.a;
   if(a==="retry")boot();
   else if(a==="demo"){demo=true;LS.set("frtv_demo","1");boot()}
-  else{zone="content";sIdx=0;setScreen("settings")}
+  else{zone="content";sR=2;sC=0;setScreen("settings")}
 });
 
 /* ================= Télécommande / clavier ================= */
