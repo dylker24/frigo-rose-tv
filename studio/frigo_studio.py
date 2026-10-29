@@ -351,8 +351,6 @@ _ref = {"timer": None, "jobs": []}
 
 def refresh_soon(j):
     """Plusieurs vidéos finissent en même temps : on actualise Jellyfin une seule fois, 15 s après la dernière."""
-    if not conf["jellyfin_key"]:
-        return
     with jobs_lock:
         _ref["jobs"].append(j)
         if _ref["timer"]:
@@ -362,11 +360,13 @@ def refresh_soon(j):
         def go():
             with jobs_lock:
                 js, _ref["jobs"] = _ref["jobs"], []
-            if jf_refresh():
-                for x in js:
+            ok = jf_refresh()
+            for x in js:
+                if ok:
                     x["msg"] += " · Jellyfin actualisé"
-                    if x.get("req"):
-                        req_steps(x["req"], {"jellyfin": True})
+                if x.get("req") and (ok or not conf["jellyfin_key"]):
+                    req_steps(x["req"], {"jellyfin": True})
+            if True:
                 # Tunarr garde sa propre liste : on lui demande de relire la médiathèque quand Jellyfin a fini
                 d1, d2 = float(os.environ.get("FRS_TUNARR_DELAY", "45")), float(os.environ.get("FRS_TUNARR_DELAY2", "150"))
                 for d in (d1, d2):
@@ -413,18 +413,33 @@ def tunarr_status():
     return {"ok": _tn["ok"], "version": _tn["version"]}
 
 
+def lib_names_for(f):
+    nf = os.path.normcase(os.path.abspath(f))
+    names = set()
+    for l in jf_cache.get("libs") or []:
+        lp = os.path.normcase(os.path.abspath(l["path"]))
+        if nf.startswith(lp.rstrip("\\/") + os.sep):
+            names.add(_key(l["name"]))
+    if not names:
+        d = os.path.dirname(os.path.abspath(f))
+        for _ in range(4):
+            if os.path.basename(d):
+                names.add(_key(os.path.basename(d)))
+            nd = os.path.dirname(d)
+            if nd == d:
+                break
+            d = nd
+    return names
+
+
 def tunarr_scan_for(js):
     """Relance l'analyse des médiathèques Tunarr qui correspondent aux dossiers où sont arrivées les vidéos."""
     try:
-        libs = jf_libraries(force=True)["libs"]
+        jf_libraries(force=True)
         names = set()
         for j in js:
             for f in j.get("out") or []:
-                nf = os.path.normcase(os.path.abspath(f))
-                for l in libs:
-                    lp = os.path.normcase(os.path.abspath(l["path"]))
-                    if nf.startswith(lp.rstrip("\\/") + os.sep):
-                        names.add(_key(l["name"]))
+                names |= lib_names_for(f)
         if not names:
             return
         done = 0
@@ -1443,9 +1458,8 @@ def auto_add_to_channels(js, last=False):
     for j in todo:
         try:
             # médiathèque Tunarr où est arrivé le fichier
-            f0 = j["out"][0]
-            jl = next((l for l in jlibs if os.path.normcase(os.path.abspath(f0)).startswith(os.path.normcase(os.path.abspath(l["path"])))), None)
-            cand = [l for l in libs if jl and _key(l["name"]) == _key(jl["name"])] or libs
+            names = lib_names_for(j["out"][0])
+            cand = [l for l in libs if _key(l["name"]) in names] or libs
             wanted = []
             for f in j["out"]:
                 stem = os.path.splitext(os.path.basename(f))[0]
@@ -1470,7 +1484,7 @@ def auto_add_to_channels(js, last=False):
                 if j.get("req"):
                     req_steps(j["req"], {"tunarr": True}, {"channel": tunarr_to_fb_channel(c)} if c else None)
             elif last:
-                j["msg"] += " · pas encore visible dans Tunarr : ajoute-la depuis l'onglet Chaînes"
+                j["msg"] += " · pas encore visible dans Tunarr" + (" (relie Jellyfin dans Réglages : c'est lui qui prévient Tunarr)" if not conf["jellyfin_key"] else " : réessaie « Mettre sur une chaîne » dans un moment")
         except Exception as e:
             if last:
                 j["msg"] += " · ajout à la chaîne raté (%s)" % e
