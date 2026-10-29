@@ -1461,7 +1461,7 @@ def jf_item_ids(parent, fresh=False):
         return c[1]
     ids = None
     if conf.get("jellyfin_key") and parent:
-        q = "ParentId=%s&Recursive=true&IsFolder=false&EnableImages=false&EnableUserData=false&Limit=200000" % quote(parent)
+        q = "ParentId=%s&Recursive=true&IsFolder=false&EnableImages=false&EnableUserData=false&Fields=Path&Limit=200000" % quote(parent)
         for path in ("/Items?" + q, None):
             try:
                 if path is None:
@@ -1471,7 +1471,8 @@ def jf_item_ids(parent, fresh=False):
                         break
                     path = "/Users/%s/Items?%s" % (u["Id"], q)
                 r = jf(path, timeout=20) or {}
-                ids = {str(x.get("Id") or "").replace("-", "").lower() for x in r.get("Items") or [] if x.get("Id")}
+                ids = {str(x.get("Id") or "").replace("-", "").lower(): (x.get("Name") or os.path.splitext(os.path.basename(x.get("Path") or ""))[0] or "?")
+                       for x in r.get("Items") or [] if x.get("Id")}
                 break
             except Exception:
                 ids = None
@@ -2190,7 +2191,9 @@ def media_pending():
                 on = {x.get("id") for x in tn_programming(l["channel"]["id"])["lineup"] if x.get("id")}
                 miss = sorted((x for x in progs if x["id"] not in on and x.get("duration")), key=_ep_order)
                 it["missing"] = [{"title": x["title"], "duration": x["duration"]} for x in miss]
-        it["unscanned"] = max(0, l["count"] - it["tn_count"])
+        un = lib_unscanned(t["id"]) if t and t["enabled"] else {}
+        it["unscanned"] = len(un) if (t and t["enabled"] and jf_item_ids(_libext.get(t["id"], ""))) else max(0, l["count"] - it["tn_count"])
+        it["unscanned_names"] = sorted(un.values())[:8]
         return it
 
     with ThreadPoolExecutor(6) as ex:
@@ -2280,6 +2283,83 @@ def follow_libs(names):
         if SYNC.get(n) and not SYNC[n].get("done"):
             continue  # déjà en cours : la boucle relira tout à la fin
         threading.Thread(target=run, args=(n,), daemon=True).start()
+
+
+_scan_t = {}
+_never = set()   # vidéos que Tunarr refuse de lire (bonus, bandes-annonces…) : on n'insiste pas
+
+
+def lib_unscanned(lib_id, fresh=False):
+    """Les vidéos que Jellyfin a déjà mais que Tunarr n'a pas encore lues : {id Jellyfin: nom}."""
+    if lib_id not in _libext:
+        try:
+            for l in tn_libraries_all():
+                _libext[l["id"]] = str(l.get("external") or "")
+        except Exception:
+            pass
+    ids = jf_item_ids(_libext.get(lib_id, ""), fresh)
+    if not ids:
+        return {}
+    known = {x.get("ext") for x in tn_library_programs(lib_id, fresh, alive=False)}
+    return {k: v for k, v in ids.items() if k not in known and k not in _never}
+
+
+def tn_scan_lib(lib_id, every=90):
+    """Demande à Tunarr de relire une médiathèque (pas plus d'une fois toutes les 90 s)."""
+    if time.time() - _scan_t.get(lib_id, 0) < every:
+        return False
+    t = next((x for x in tn_libraries_all() if x["id"] == lib_id), None)
+    if not t:
+        return False
+    _scan_t[lib_id] = time.time()
+    tn("/api/media-sources/%s/libraries/%s/scan?forceScan=true" % (quote(str(t["source"]), safe=""), quote(str(lib_id), safe="")), "POST")
+    return True
+
+
+def catch_up_lib(lib_id, wait=None):
+    """Tunarr relit la médiathèque, puis ce qui vient d'arriver est mis sur sa chaîne (seulement les nouveautés)."""
+    new = lib_unscanned(lib_id, True)
+    if not new:
+        return 0
+    if not tn_scan_lib(lib_id):
+        return 0
+    name = next((x["name"] for x in tn_libraries_all() if x["id"] == lib_id), "")
+    _sync_set(name, step="Tunarr découvre %d nouveauté%s de Jellyfin…" % (len(new), "s" if len(new) > 1 else ""), done=False, msg="")
+    for _ in range(12):
+        time.sleep(wait if wait is not None else float(os.environ.get("FRS_SYNC_TN", "10")))
+        progs = tn_library_programs(lib_id, True)
+        got = [x for x in progs if x.get("ext") in new]
+        if len(got) >= len(new):
+            break
+    _never.update(k for k in new if k not in {x.get("ext") for x in got})
+    added = 0
+    c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
+    if c and got:
+        on = {x.get("id") for x in tn_programming(c["id"])["lineup"]}
+        todo = sorted((x for x in got if x["id"] not in on and x.get("duration")), key=_ep_order)
+        if todo:
+            added = tn_add(c["id"], todo)
+    _sync_set(name, step="", done=True, msg=("%d nouveauté%s sur la chaîne n°%s" % (added, "s" if added > 1 else "", c["number"])) if added else "Tunarr est à jour")
+    _health["data"] = None
+    return added
+
+
+def watch_loop():
+    """Toutes les 5 minutes : si Jellyfin a des vidéos que Tunarr ne connaît pas encore, on rattrape tout seul."""
+    time.sleep(float(os.environ.get("FRS_WATCH_FIRST", "60")))
+    while True:
+        try:
+            if conf.get("jellyfin_key"):
+                for t in tn_libraries_all():
+                    if t["enabled"] and t.get("external"):
+                        try:
+                            if lib_unscanned(t["id"], True):
+                                catch_up_lib(t["id"])
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        time.sleep(float(os.environ.get("FRS_WATCH_EVERY", "300")))
 
 
 def auto_add_to_channels(js, last=False):
@@ -2586,7 +2666,12 @@ class H(BaseHTTPRequestHandler):
                 if u.path == "/api/tn/libs":
                     return self.send(200, {"libs": tn_libraries()})
                 if u.path == "/api/tn/lib":
-                    return self.send(200, {"programs": tn_library_programs((q.get("id") or [""])[0], fresh=(q.get("fresh") or [""])[0] == "1")})
+                    lid = (q.get("id") or [""])[0]
+                    fr = (q.get("fresh") or [""])[0] == "1"
+                    un = lib_unscanned(lid, fr)
+                    if un:  # Jellyfin a des vidéos que Tunarr n'a pas encore lues : on rattrape en arrière-plan
+                        threading.Thread(target=catch_up_lib, args=(lid,), daemon=True).start()
+                    return self.send(200, {"programs": tn_library_programs(lid, fresh=fr), "unscanned": sorted(un.values())})
                 if u.path == "/api/tn/for":
                     return self.send(200, {"channel": channel_for_lib((q.get("path") or [""])[0])})
             except Exception as e:
@@ -3015,6 +3100,7 @@ def main():
     threading.Thread(target=watcher, daemon=True).start()
     threading.Thread(target=subs_loop, daemon=True).start()
     threading.Thread(target=away_loop, daemon=True).start()
+    threading.Thread(target=watch_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
     try:

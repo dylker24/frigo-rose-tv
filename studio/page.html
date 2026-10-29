@@ -485,6 +485,7 @@ html,body{overflow-x:hidden}
     <h1 style="font-size:20px" id="add-t">Ajouter du contenu</h1>
     <div class="row" style="margin-top:4px"><div><label class="l">Médiathèque</label><select class="inp" id="add-lib"></select></div><div><label class="l">Chercher</label><input class="inp" id="add-q" placeholder="Titre…" autocomplete="off"></div></div>
     <div class="acts" style="margin-top:12px"><button class="btn sm" id="add-all">Cocher ce qui n'est pas encore sur la chaîne</button><button class="btn sm ghost" id="add-none">Tout décocher</button><span class="hint" id="add-n" style="margin:0"></span></div>
+    <div class="syncb" id="add-un" style="margin:12px 0 0"></div>
     <div class="fb" style="margin-top:12px"><div class="fb-list" id="add-list" style="max-height:46vh"></div></div>
     <div class="seg" id="add-order" style="margin-top:12px;max-width:420px"><button data-o="end" class="on">À la suite</button><button data-o="shuffle">Dans le désordre</button></div>
     <label class="chk"><input type="checkbox" id="add-news" checked> Annoncer sur la télé (rangée « Nouveautés »)</label>
@@ -972,7 +973,7 @@ function renderPending(){const L=$("pd-list");L.innerHTML="";$("pd-err").textCon
       d.append(r)};
     if(!l.channel)line("Pas de chaîne pour cette médiathèque ("+l.count+" vidéo"+(l.count>1?"s":"")+")","Créer sa chaîne","mkch");
     if(!l.tunarr)line("Tunarr ne la connaît pas encore","Analyser","scan");
-    else if(l.unscanned)line(l.unscanned+" vidéo"+(l.unscanned>1?"s":"")+" pas encore vue"+(l.unscanned>1?"s":"")+" par Tunarr","Analyser","scan");
+    else if(l.unscanned)line(l.unscanned+" vidéo"+(l.unscanned>1?"s":"")+" de Jellyfin pas encore vue"+(l.unscanned>1?"s":"")+" par Tunarr"+((l.unscanned_names||[]).length?" : "+l.unscanned_names.slice(0,3).join(", ")+(l.unscanned>3?"…":""):""),"Analyser","scan");
     if(l.channel&&l.missing.length){line(l.missing.length+" vidéo"+(l.missing.length>1?"s":"")+" pas sur la chaîne n°"+l.channel.number+" ("+hm(l.missing.reduce((a,x)=>a+x.duration,0))+")","Mettre sur la chaîne","fill");
       const tl=document.createElement("div");tl.className="tl";tl.textContent=l.missing.slice(0,8).map(x=>cleanTitle(x.title)).join(" · ")+(l.missing.length>8?" · et "+(l.missing.length-8)+" autres":"");d.append(tl)}
     L.append(d)});
@@ -1089,7 +1090,13 @@ $("ch-add").onclick=async()=>{$("add-m").hidden=false;$("add-err").textContent="
   const same=CH.libs.find(l=>sameName(l.name,CH.prog.name));if(same)sel.value=same.id;loadLib()};
 $("add-lib").onchange=()=>{ADD.sel.clear();loadLib()};
 $("add-q").oninput=()=>renderLib();
-async function loadLib(){$("add-list").innerHTML='<div class="empty">Chargement…</div>';try{ADD.progs=(await api("/api/tn/lib?fresh=1&id="+encodeURIComponent($("add-lib").value))).programs}catch(e){$("add-err").textContent=e.message;ADD.progs=[]}renderLib()}
+let addUnT=null;
+async function loadLib(quiet){if(!quiet)$("add-list").innerHTML='<div class="empty">Chargement…</div>';clearTimeout(addUnT);const lid=$("add-lib").value;let un=[];
+  try{const r=await api("/api/tn/lib?fresh=1&id="+encodeURIComponent(lid));ADD.progs=r.programs;un=r.unscanned||[]}catch(e){$("add-err").textContent=e.message;ADD.progs=[]}
+  if(lid!==$("add-lib").value)return;
+  $("add-un").innerHTML=un.length?'<div><i></i><span><b>'+un.length+' vidéo'+(un.length>1?'s':'')+' de Jellyfin pas encore lue'+(un.length>1?'s':'')+' par Tunarr</b> · '+esc(un.slice(0,4).join(" · "))+(un.length>4?"…":"")+' — Tunarr les découvre, elles arrivent dans la liste toutes seules (et sur la chaîne)</span></div>':"";
+  if(un.length&&!$("add-m").hidden)addUnT=setTimeout(()=>loadLib(true),6000);
+  renderLib()}
 function renderLib(){const on=new Set((CH.prog.lineup||[]).map(x=>x.id)),f=kk($("add-q").value),L=$("add-list");L.innerHTML="";
   const list=ADD.progs.map(p=>({...p,nice:cleanTitle(p.title)})).filter(p=>!f||kk(p.nice+" "+p.title).includes(f)).sort((a,b)=>a.nice.localeCompare(b.nice,"fr",{numeric:true}));
   list.slice(0,800).forEach(p=>{const r=document.createElement("div");r.className="it"+(ADD.sel.has(p.id)?" sel":"");r.innerHTML='<input type="checkbox"><span class="nm"></span>'+(on.has(p.id)?'<span class="on">déjà dessus</span>':"")+'<span class="sz">'+hm(p.duration)+'</span>';
