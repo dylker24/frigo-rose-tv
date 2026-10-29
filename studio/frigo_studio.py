@@ -2211,6 +2211,24 @@ def _retry(fn, tries=20, wait=0.5):
             time.sleep(wait)
 
 
+def restart_into(exe, folder, env):
+    """Arrête proprement le serveur, lance la nouvelle version, puis quitte (sans fenêtre d'erreur)."""
+    UPDATING["on"] = True
+    srv = SERVER.get("srv")
+    try:
+        if srv:
+            srv.shutdown()        # arrête la boucle du serveur proprement (sinon : WinError 10038)
+            srv.server_close()    # libère le port pour la nouvelle version
+    except Exception:
+        pass
+    flags = (0x00000008 | 0x00000200) if WIN else 0
+    subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
+    os._exit(0)
+
+
+UPDATING = {"on": False}
+
+
 def do_update():
     """Télécharge la nouvelle version, prend la place de l'ancienne et redémarre Studio."""
     exe = sys.executable
@@ -2249,13 +2267,7 @@ def do_update():
             raise
         env = {k: v for k, v in os.environ.items() if k not in ("FRS_VERSION", "_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL")}
         time.sleep(0.5)
-        try:
-            SERVER["srv"].server_close()   # libère le port pour la nouvelle version
-        except Exception:
-            pass
-        flags = (0x00000008 | 0x00000200) if WIN else 0
-        subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
-        os._exit(0)
+        restart_into(exe, folder, env)
     except Exception as e:
         try:
             if os.path.exists(new):
@@ -2823,7 +2835,13 @@ def main():
     threading.Thread(target=away_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
-    srv.serve_forever()
+    try:
+        srv.serve_forever()
+    except Exception:
+        pass
+    # le serveur s'est arrêté : pendant une mise à jour, on laisse la nouvelle version se lancer
+    while UPDATING["on"]:
+        time.sleep(1)
 
 
 if __name__ == "__main__":
