@@ -413,18 +413,37 @@ def tunarr_status():
     return {"ok": _tn["ok"], "version": _tn["version"]}
 
 
+def _fz(s):
+    """Nom « tolérant » : sans accents, sans « TV », sans les s du pluriel (Scènes de Ménage ↔ Scènes de Ménages, Simpson ↔ Simpsons)."""
+    import unicodedata
+    s = unicodedata.normalize("NFD", (s or "").lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    words = [w for w in re.split(r"[^a-z0-9]+", s) if w and w != "tv"]
+    return "".join(w[:-1] if len(w) > 3 and w.endswith(("s", "x")) else w for w in words)
+
+
+def same_name(a, b):
+    fa, fb_ = _fz(a), _fz(b)
+    if not fa or not fb_:
+        return False
+    if fa == fb_:
+        return True
+    import difflib
+    return difflib.SequenceMatcher(None, fa, fb_).ratio() >= 0.9
+
+
 def lib_names_for(f):
     nf = os.path.normcase(os.path.abspath(f))
     names = set()
     for l in jf_cache.get("libs") or []:
         lp = os.path.normcase(os.path.abspath(l["path"]))
         if nf.startswith(lp.rstrip("\\/") + os.sep):
-            names.add(_key(l["name"]))
+            names.add(l["name"])
     if not names:
         d = os.path.dirname(os.path.abspath(f))
         for _ in range(4):
             if os.path.basename(d):
-                names.add(_key(os.path.basename(d)))
+                names.add(os.path.basename(d))
             nd = os.path.dirname(d)
             if nd == d:
                 break
@@ -445,7 +464,7 @@ def tunarr_scan_for(js):
         done = 0
         for ms in tunarr("/api/media-sources") or []:
             for lib in ms.get("libraries") or []:
-                if _key(lib.get("name")) in names:
+                if any(same_name(lib.get("name"), n) for n in names):
                     tunarr("/api/media-sources/%s/libraries/%s/scan?forceScan=true" % (ms["id"], lib["id"]), "POST")
                     done += 1
         if done:
@@ -1447,7 +1466,7 @@ def channel_for_lib(path):
     name = lib["name"] if lib else os.path.basename(path.rstrip("\\/"))
     try:
         for c in tn_channels():
-            if _key(c["name"]) == _key(name):
+            if same_name(c["name"], name):
                 return c["id"]
     except Exception:
         pass
@@ -1469,7 +1488,7 @@ def auto_add_to_channels(js, last=False):
         try:
             # médiathèque Tunarr où est arrivé le fichier
             names = lib_names_for(j["out"][0])
-            cand = [l for l in libs if _key(l["name"]) in names] or libs
+            cand = [l for l in libs if any(same_name(l["name"], n) for n in names)] or libs
             wanted = []
             for f in j["out"]:
                 stem = os.path.splitext(os.path.basename(f))[0]

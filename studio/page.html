@@ -753,6 +753,9 @@ function cleanTitle(s){
 const hm=ms=>{const m=Math.round((ms||0)/60000);return m>=60?Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"):m+" min"};
 const kk=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 let CH={list:null,cur:null,prog:null,libs:null};
+/* noms tolérants : « Scènes de Ménage TV » = « Scènes de Ménages TV », « Les Simpson TV » = « Les Simpsons TV » */
+const fz=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").split(/[^a-z0-9]+/).filter(w=>w&&w!=="tv").map(w=>w.length>3&&/[sx]$/.test(w)?w.slice(0,-1):w).join("");
+const sameName=(a,b)=>{const x=fz(a),y=fz(b);return !!x&&x===y};
 function alertMsg(m){$("ch-msg").textContent=m;const t=$("toast-s");if(t){t.textContent=m;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,4500)}}
 async function loadChannels(force){
   if(CH.list&&!force){renderChannels()}
@@ -794,7 +797,7 @@ let ADD={progs:[],sel:new Set(),order:"end"};
 $("ch-add").onclick=async()=>{$("add-m").hidden=false;$("add-err").textContent="";ADD.sel.clear();$("add-q").value="";$("add-t").textContent="Ajouter sur n°"+CH.prog.number+" · "+CH.prog.name;
   if(!CH.libs){try{CH.libs=(await api("/api/tn/libs")).libs}catch(e){$("add-err").textContent=e.message;return}}
   const sel=$("add-lib");sel.innerHTML=CH.libs.map(l=>'<option value="'+esc(l.id)+'">'+esc(l.name)+'</option>').join("");
-  const same=CH.libs.find(l=>kk(l.name)===kk(CH.prog.name));if(same)sel.value=same.id;loadLib()};
+  const same=CH.libs.find(l=>sameName(l.name,CH.prog.name));if(same)sel.value=same.id;loadLib()};
 $("add-lib").onchange=()=>{ADD.sel.clear();loadLib()};
 $("add-q").oninput=()=>renderLib();
 async function loadLib(){$("add-list").innerHTML='<div class="empty">Chargement…</div>';try{ADD.progs=(await api("/api/tn/lib?fresh=1&id="+encodeURIComponent($("add-lib").value))).programs}catch(e){$("add-err").textContent=e.message;ADD.progs=[]}renderLib()}
@@ -821,7 +824,7 @@ function fillTchan(){document.querySelectorAll("select.tchan").forEach(sel=>{con
   if(sel.dataset.h!==h){sel.innerHTML=h;sel.dataset.h=h;sel.value=v;if(!sel.dataset.touched)autoTchan(sel)}})}
 const destFor={tchan:"dest","up-tchan":"up-dest","sb-tchan":"sb-dest"};
 function autoTchan(sel){const d=$(destFor[sel.id]);if(!d||!CH.list)return;const p=d.value||"";const lib=(S.libs||[]).find(l=>p&&(p===l.path||p.startsWith(l.path+"\\")||p.startsWith(l.path+"/")));
-  const name=lib?lib.name:p.split(/[\\/]/).filter(Boolean).pop()||"";const c=CH.list.find(c=>kk(c.name)===kk(name));sel.value=c?c.id:""}
+  const name=lib?lib.name:p.split(/[\\/]/).filter(Boolean).pop()||"";const c=CH.list.find(c=>sameName(c.name,name));sel.value=c?c.id:""}
 document.querySelectorAll("select.tchan").forEach(sel=>{sel.addEventListener("change",()=>{sel.dataset.touched=1});const d=$(destFor[sel.id]);if(d)d.addEventListener("change",()=>{delete sel.dataset.touched;autoTchan(sel)})});
 setInterval(()=>{if(!CH.list&&S&&S.setup)loadChannels(true)},15000);
 
