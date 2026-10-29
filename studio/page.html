@@ -89,6 +89,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .pend{border:1px solid var(--line);border-radius:12px;background:var(--s2);padding:14px;margin-top:10px}
 .pend b{font-size:15px}.pend .ln{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:13.5px;color:var(--mute);flex-wrap:wrap}
 .pend .ln .btn{margin-left:auto}.pend .tl{font-size:12.5px;color:var(--faint);margin-top:4px;line-height:1.5}
+.syncb{display:grid;gap:6px;margin:0 0 14px}.syncb:empty{display:none}
+.syncb div{display:flex;align-items:center;gap:10px;font-size:13.5px;padding:10px 14px;border-radius:12px;background:rgba(122,167,255,.1);border:1px solid rgba(122,167,255,.3);color:#BFD3FF}
+.syncb div.done{background:rgba(61,214,140,.1);border-color:rgba(61,214,140,.35);color:var(--ok)}
+.syncb i{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin 1s linear infinite;flex:none}
+.syncb .done i{animation:none;border:0;width:auto;height:auto}.syncb .done i:before{content:"✓"}
+@keyframes spin{to{transform:rotate(360deg)}}
 .mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(224,36,94,.08);font-size:13px}
 .mbar span{margin-right:auto;font-weight:600}
 .it .ren{margin-left:6px}
@@ -337,6 +343,7 @@ html,body{overflow-x:hidden}
 
     <!-- Chaînes -->
     <div class="card" id="v-ch" hidden>
+      <div class="syncb" id="sync-ch"></div>
       <div id="ch-list-v">
         <h1>Tes chaînes</h1>
         <p class="sub">La programmation de chaque chaîne Tunarr : ajoute, retire, mélange, sans ouvrir Tunarr.</p>
@@ -361,6 +368,7 @@ html,body{overflow-x:hidden}
 
     <!-- Médiathèque -->
     <div class="card" id="v-med" hidden>
+      <div class="syncb" id="sync-med"></div>
       <div id="med-list-v">
         <div class="mhead"><div><h1>Médiathèque</h1><p class="sub" style="margin-bottom:0">Tes dossiers Jellyfin sans ouvrir Jellyfin : crée, range, renomme, mets à la corbeille. Tunarr suit tout seul.</p></div>
           <div class="acts" style="margin:0"><button class="btn pri" id="med-new">＋ Nouvelle médiathèque</button><button class="btn" id="med-pend-b">Pas encore sur les chaînes <span class="cnt" id="med-pend-n" hidden></span></button><button class="btn" id="med-trash-b">Corbeille</button></div></div>
@@ -775,7 +783,7 @@ const upQueue=[];let upBusy=false;
 function upNext(){if(upBusy||!upQueue.length)return;upBusy=true;const it=upQueue.shift();
   const box=document.createElement("div");box.className="up";box.innerHTML='<b></b><br><small>Envoi…</small><div class="bar"><i style="width:0"></i></div>';
   box.querySelector("b").textContent=it.f.name;$("up-list").prepend(box);
-  const x=new XMLHttpRequest();x.open("PUT","/api/upload?dest="+encodeURIComponent(it.dest)+"&sub="+encodeURIComponent(it.sub)+"&tchan="+encodeURIComponent(it.tchan||"")+"&name="+encodeURIComponent(it.f.name));
+  const x=new XMLHttpRequest();x.open("PUT","/api/upload?dest="+encodeURIComponent(it.dest)+"&sub="+encodeURIComponent(it.sub)+"&tchan="+encodeURIComponent(it.tchan||"")+(it.sync?"&sync=1":"")+"&name="+encodeURIComponent(it.f.name));
   const t0=Date.now();
   x.upload.onprogress=e=>{if(!e.lengthComputable)return;const p=e.loaded/e.total;box.querySelector("i").style.width=(p*100)+"%";
     const sp=e.loaded/Math.max(1,(Date.now()-t0)/1000);box.querySelector("small").textContent="Envoi… "+Math.round(p*100)+" % · "+size(e.loaded)+" / "+size(e.total)+(p<1&&sp>0?" · encore "+fmtDur((e.total-e.loaded)/sp):"")};
@@ -923,7 +931,7 @@ $("med-mkch").onclick=async()=>{const num=prompt("Numéro de la nouvelle chaîne
 /* ajouter des vidéos dans le dossier ouvert (passe par l'envoi normal, et va sur la chaîne de la médiathèque) */
 $("med-up").onclick=()=>$("med-file").click();
 $("med-file").onchange=()=>{const fs=[...$("med-file").files];$("med-file").value="";const l=(MED.libs||[]).find(x=>x.name===MED.cur);
-  fs.forEach(f=>upQueue.push({f,dest:MED.path,sub:"",tchan:l&&l.channel?l.channel.id:""}));$("med-uplist").innerHTML='<div class="hint">Envoi en cours : suis l\'avancement dans l\'onglet Télécharger et la file d\'attente.</div>';upNext()};
+  fs.forEach(f=>upQueue.push({f,dest:MED.path,sub:"",tchan:"",sync:1}));$("med-uplist").innerHTML='<div class="hint">Envoi en cours : suis l\'avancement dans l\'onglet Télécharger et la file d\'attente.</div>';upNext()};
 /* déplacer */
 let MV={path:null};
 $("med-mv").onclick=async()=>{const libs=MED.libs||[];$("mv-lib").innerHTML=libs.map(l=>'<option>'+esc(l.name)+'</option>').join("");$("mv-lib").value=MED.cur;$("mv-err").textContent="";
@@ -974,6 +982,13 @@ $("pd-x").onclick=()=>{$("med-pd-m").hidden=true;loadMed()};
 $("pd-all").onclick=async e=>{if(!PD)return;e.target.disabled=true;let n=0;
   for(const l of PD)for(const [k] of pdActions(l)){e.target.textContent=l.name+"…";try{await pdDo(k,l);n++}catch(er){$("pd-err").textContent=l.name+" : "+er.message}}
   e.target.textContent="Tout régler";e.target.disabled=false;alertMsg(n+" action"+(n>1?"s":"")+" lancée"+(n>1?"s":"")+" · ce qui vient d'être analysé arrive sur les chaînes dans quelques minutes");setTimeout(()=>loadPending(true),3000)};
+
+/* synchro médiathèque → chaîne : bandeau dans les deux onglets, et rechargement quand c'est fini */
+let syncSeen={};
+function renderSync(){const L=S.sync||[];const h=L.map(x=>'<div class="'+(x.done?"done":"")+'"><i></i><span><b>'+esc(x.lib)+'</b> · '+esc(x.done?x.msg:x.step)+'</span></div>').join("");
+  ["sync-ch","sync-med"].forEach(id=>{const e=$(id);if(e&&e.dataset.h!==h){e.innerHTML=h;e.dataset.h=h}});
+  let fin=false;L.forEach(x=>{if(x.done&&syncSeen[x.lib]===false)fin=true;syncSeen[x.lib]=!!x.done});
+  if(fin){CH.health=null;if(view==="ch"){if(CH.cur)loadProg();else loadChannels(true)}else if(view==="med")(MED.cur?medReload():loadMed())}}
 /* corbeille */
 $("med-trash-b").onclick=$("med-trash-b2").onclick=()=>{$("med-tr-m").hidden=false;loadTrash()};
 $("tr-x").onclick=()=>$("med-tr-m").hidden=true;
@@ -1148,7 +1163,7 @@ function btn(t,f){const b=document.createElement("button");b.className="btn sm";
 async function refresh(){
   let r;try{r=await fetch("/api/state")}catch(e){if(updWait){$("upd-t").textContent="Studio redémarre…";return}$("status").className="status bad";$("status").lastChild.textContent="Appli fermée";return}
   if(r.status===401){const j=await r.json().catch(()=>({}));$("login").hidden=false;$("login-ok").hidden=j.need==="nopin";$("login-nopin").hidden=j.need!=="nopin";if(j.need!=="nopin"&&document.activeElement!==$("pin"))$("pin").focus();return}
-  if(!r.ok)return;S=await r.json();$("login").hidden=true;renderUpd();
+  if(!r.ok)return;S=await r.json();$("login").hidden=true;renderUpd();try{renderSync()}catch(e){}
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
   $("go-dl").disabled=!s.ready;$("phone-btn").hidden=!S.phone||S.remote;

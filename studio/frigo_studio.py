@@ -366,6 +366,10 @@ def refresh_soon(j):
             with jobs_lock:
                 js, _ref["jobs"] = _ref["jobs"], []
             ok = jf_refresh()
+            # envoyé depuis la Médiathèque : la chaîne suit sa médiathèque (ajouts + nettoyage), avec le bandeau de suivi
+            sy = {l["name"] for x in js if x.get("sync") for f in (x.get("out") or []) for l in jf_cache["libs"] if _inside(f, [l["path"]])}
+            if sy:
+                follow_libs(sorted(sy))
             for x in js:
                 if ok:
                     x["msg"] += " · Jellyfin actualisé"
@@ -1378,11 +1382,11 @@ def safe_name(n):
     return n or "video.mp4"
 
 
-def after_upload(path, dest, tchan=""):
+def after_upload(path, dest, tchan="", sync=False):
     """Fichier reçu : s'il est déjà en MP4 H.264, c'est fini ; sinon on le convertit à la même place."""
     if os.path.splitext(path)[1].lower() in VIDEO_EXT and needs_conversion(path):
-        return new_job("conv", src=path, dest=dest, delete=True, title=os.path.basename(path), uploaded=True, tchan=tchan)
-    j = new_job("up", title=os.path.basename(path), out=[path], pct=100, msg="Reçu · déjà en MP4", status="fini", tchan=tchan)
+        return new_job("conv", src=path, dest=dest, delete=True, title=os.path.basename(path), uploaded=True, tchan="" if sync else tchan, sync=sync)
+    j = new_job("up", title=os.path.basename(path), out=[path], pct=100, msg="Reçu · déjà en MP4", status="fini", tchan="" if sync else tchan, sync=sync)
     refresh_soon(j)
     return j
 
@@ -1431,23 +1435,76 @@ def tn_libraries():
 _libc = {}
 
 
-def tn_library_programs(lib_id, fresh=False):
-    """Tout le contenu d'une médiathèque Tunarr (on passe par sa base, pas par sa recherche qui oublie certains titres)."""
-    c = _libc.get(lib_id)
+_jfids = {}
+_libext = {}
+
+
+def jf_item_ids(parent, fresh=False):
+    """Les vidéos qui existent vraiment dans une médiathèque Jellyfin (Tunarr, lui, garde les fichiers supprimés)."""
+    c = _jfids.get(parent)
     if c and not fresh and time.time() - c[0] < 30:
         return c[1]
-    r = tn("/api/media-libraries/%s/programs" % lib_id, timeout=60)
-    arr = r if isinstance(r, list) else (r or {}).get("result") or []
-    out = []
-    for x in arr:
-        pg = x.get("program") or x
-        if not pg.get("uuid") and not x.get("id"):
-            continue
-        out.append({"id": pg.get("uuid") or x.get("id"), "title": pg.get("title") or "", "duration": x.get("duration") or pg.get("duration") or 0,
-                    "type": pg.get("type") or "", "year": pg.get("year"), "show": (pg.get("grandparent") or {}).get("title") if isinstance(pg.get("grandparent"), dict) else "",
-                    "season": pg.get("seasonNumber") or (pg.get("parent") or {}).get("index") if isinstance(pg.get("parent"), dict) else pg.get("seasonNumber"),
-                    "episode": pg.get("episodeNumber") or pg.get("index")})
-    _libc[lib_id] = (time.time(), out)
+    ids = None
+    if conf.get("jellyfin_key") and parent:
+        q = "ParentId=%s&Recursive=true&IsFolder=false&EnableImages=false&EnableUserData=false&Limit=200000" % quote(parent)
+        for path in ("/Items?" + q, None):
+            try:
+                if path is None:
+                    users = jf("/Users") or []
+                    u = next((x for x in users if (x.get("Policy") or {}).get("IsAdministrator")), users[0] if users else None)
+                    if not u:
+                        break
+                    path = "/Users/%s/Items?%s" % (u["Id"], q)
+                r = jf(path, timeout=20) or {}
+                ids = {str(x.get("Id") or "").replace("-", "").lower() for x in r.get("Items") or [] if x.get("Id")}
+                break
+            except Exception:
+                ids = None
+    _jfids[parent] = (time.time(), ids)
+    return ids
+
+
+def _ext_of(pg, x):
+    e = pg.get("externalId") or pg.get("externalKey") or x.get("externalKey") or ""
+    if not e:
+        for i in pg.get("identifiers") or []:
+            if i.get("type") == "jellyfin" and i.get("id"):
+                e = i["id"]
+                break
+    return str(e).replace("-", "").lower()
+
+
+def tn_library_programs(lib_id, fresh=False, alive=True):
+    """Tout le contenu d'une médiathèque Tunarr (on passe par sa base, pas par sa recherche qui oublie certains titres).
+    alive : on ne garde que ce qui existe encore dans Jellyfin (Tunarr garde les fichiers supprimés ou déplacés)."""
+    c = _libc.get(lib_id)
+    if c and not fresh and time.time() - c[0] < 30:
+        out = c[1]
+    else:
+        r = tn("/api/media-libraries/%s/programs" % quote(str(lib_id), safe=""), timeout=60)
+        arr = r if isinstance(r, list) else (r or {}).get("result") or []
+        out = []
+        for x in arr:
+            pg = x.get("program") or x
+            if not pg.get("uuid") and not x.get("id"):
+                continue
+            out.append({"id": pg.get("uuid") or x.get("id"), "title": pg.get("title") or "", "duration": x.get("duration") or pg.get("duration") or 0,
+                        "type": pg.get("type") or "", "year": pg.get("year"), "show": (pg.get("grandparent") or {}).get("title") if isinstance(pg.get("grandparent"), dict) else "",
+                        "season": pg.get("seasonNumber") or (pg.get("parent") or {}).get("index") if isinstance(pg.get("parent"), dict) else pg.get("seasonNumber"),
+                        "episode": pg.get("episodeNumber") or pg.get("index"), "ext": _ext_of(pg, x), "state": pg.get("state") or ""})
+        _libc[lib_id] = (time.time(), out)
+    if not alive:
+        return out
+    out = [x for x in out if x.get("state") in ("", "ok")]
+    if lib_id not in _libext:
+        try:
+            for l in tn_libraries_all():
+                _libext[l["id"]] = str(l.get("external") or "")
+        except Exception:
+            pass
+    ids = jf_item_ids(_libext.get(lib_id, ""), fresh)
+    if ids:  # Jellyfin a répondu : on écarte les fantômes
+        out = [x for x in out if not x.get("ext") or x["ext"] in ids]
     return out
 
 
@@ -1474,7 +1531,8 @@ def tn_programming(cid):
         t = it.get("type")
         pg = (progs.get(it.get("id")) or {}).get("program") or {}
         title = pg.get("title") or {"flex": "Pause (écran de chaîne)", "redirect": "Renvoi vers « %s »" % it.get("channelName", ""), "custom": "Programme personnalisé"}.get(t, "Programme")
-        items.append({"i": i, "type": t, "id": it.get("id"), "title": title, "duration": it.get("duration") or it.get("durationMs") or 0})
+        items.append({"i": i, "type": t, "id": it.get("id"), "title": title, "duration": it.get("duration") or it.get("durationMs") or 0,
+                      "lib": pg.get("libraryId") or "", "state": pg.get("state") or ""})
     return {"name": (r.get("name") or "").strip(), "number": r.get("number"), "lineup": items, "raw": r.get("lineup") or []}
 
 
@@ -1809,11 +1867,17 @@ def media_search(q):
 
 
 def _after_change(paths):
-    """Jellyfin puis Tunarr relisent les médiathèques touchées."""
+    """Jellyfin puis Tunarr relisent les médiathèques touchées, puis leurs chaînes se mettent à jour."""
     _forget_stats()
+    _jfids.clear()
     _health["data"] = None
     if paths:
-        refresh_soon({"msg": "", "out": list(paths), "title": "médiathèque"})
+        jf_refresh()
+        names = set()
+        for pth in paths:
+            r = _inside(pth)
+            names |= {l["name"] for l in jf_cache["libs"] if l["path"] == r}
+        follow_libs(sorted(names))
 
 
 def media_rename(path, name):
@@ -2117,6 +2181,90 @@ def media_pending():
     with ThreadPoolExecutor(6) as ex:
         res = list(ex.map(one, [l for l in libs if l["count"]]))
     return [it for it in res if it["missing"] or not it["channel"] or it["unscanned"] or not it["tunarr"]]
+
+
+# ---------------------------------------------------------------- la chaîne suit sa médiathèque
+SYNC = {}          # nom de médiathèque -> {"step", "t", "done", "msg"}
+_sync_lock = threading.Lock()
+
+
+def sync_state():
+    now = time.time()
+    with _sync_lock:
+        for k in [k for k, v in SYNC.items() if v.get("done") and now - v["t"] > 90]:
+            SYNC.pop(k, None)
+        return [{"lib": k, **v} for k, v in SYNC.items()]
+
+
+def _sync_set(name, **kw):
+    with _sync_lock:
+        SYNC[name] = {**SYNC.get(name, {}), **kw, "t": time.time()}
+
+
+def sync_lib_channel(name):
+    """Met la chaîne d'une médiathèque à jour : ajoute ce qui manque, retire ce qui n'existe plus."""
+    t = next((x for x in tn_libraries_all() if same_name(x["name"], name)), None)
+    c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
+    if not t or not c:
+        return 0, 0
+    progs = tn_library_programs(t["id"], fresh=True)
+    alive = {x["id"] for x in progs}
+    cur = tn_programming(c["id"])
+    mine = [x for x in cur["lineup"] if x.get("id") and x.get("lib") == t["id"]]
+    dead = {x["id"] for x in mine if x["id"] not in alive or x.get("state") not in ("", "ok")}
+    removed = 0
+    # sécurité : si presque tout semble disparu, c'est sûrement Jellyfin qui répond mal → on ne retire rien
+    if dead and progs and len(dead) <= max(3, len(mine) // 2):
+        tn_backup(c["id"], cur["raw"])
+        keep = [x for x in cur["raw"] if x.get("id") not in dead]
+        removed = len(cur["raw"]) - len(keep)
+        tn_save(c["id"], keep)
+    added = 0
+    try:
+        added = channel_fill(c["id"])
+    except Exception:
+        pass
+    return added, removed
+
+
+def follow_libs(names):
+    """Après un changement dans la Médiathèque : Jellyfin → Tunarr → chaîne, en suivant chaque étape."""
+    names = [n for n in dict.fromkeys(names) if n]
+    if not names:
+        return
+
+    def run(name):
+        try:
+            _sync_set(name, step="Jellyfin relit le dossier…", done=False, msg="")
+            time.sleep(float(os.environ.get("FRS_SYNC_JF", "20")))
+            _sync_set(name, step="Tunarr relit la médiathèque…")
+            _forget_stats()
+            disk = sum(_dir_stats(l["path"])["count"] for l in jf_cache["libs"] if l["name"] == name and os.path.isdir(l["path"]))
+            t = None
+            for i in range(10):
+                t = tunarr_sync_libs(name)
+                if t:
+                    time.sleep(float(os.environ.get("FRS_SYNC_TN", "15")))
+                    n = len(tn_library_programs(t["id"], fresh=True))
+                    if n == disk or i >= 5:
+                        break
+                time.sleep(float(os.environ.get("FRS_SYNC_TN", "15")))
+            _sync_set(name, step="Mise à jour de la chaîne…")
+            a, r = sync_lib_channel(name)
+            parts = []
+            if a:
+                parts.append("%d ajouté%s" % (a, "s" if a > 1 else ""))
+            if r:
+                parts.append("%d retiré%s" % (r, "s" if r > 1 else ""))
+            _sync_set(name, step="", done=True, msg="Chaîne à jour" + (" · " + ", ".join(parts) if parts else ""))
+            _health["data"] = None
+        except Exception as e:
+            _sync_set(name, step="", done=True, msg="Pas pu mettre la chaîne à jour (%s)" % e)
+
+    for n in names:
+        if SYNC.get(n) and not SYNC[n].get("done"):
+            continue  # déjà en cours : la boucle relira tout à la fin
+        threading.Thread(target=run, args=(n,), daemon=True).start()
 
 
 def auto_add_to_channels(js, last=False):
@@ -2466,7 +2614,7 @@ class H(BaseHTTPRequestHandler):
             c.pop("tunarr_cmd", None); c.pop("jellyfin_cmd", None)
             c["tunarr"] = tunarr_status()
             return self.send(200, {"setup": setup, "jobs": js, "conf": c, "libs": libs["libs"], "jf_error": libs["error"], "version": VERSION, "update": {"latest": upd["latest"], "available": bool(update_available()), "state": upd["state"], "pct": upd["pct"], "error": upd["error"],
-                      "busy": any(j["status"] == "en cours" for j in jobs)}, "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
+                      "busy": any(j["status"] == "en cours" for j in jobs)}, "sync": sync_state(), "win": WIN, "phone": ("http://%s:%d/" % (tailscale_ip(), PORT)) if tailscale_ip() and HOST != "127.0.0.1" else "", "remote": not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback})
         if u.path == "/api/ls":
             q = parse_qs(u.query)
             return self.send(200, list_dir((q.get("path") or [""])[0]))
@@ -2509,7 +2657,7 @@ class H(BaseHTTPRequestHandler):
             except OSError:
                 pass
             return self.send(400, {"error": "L'envoi a été coupé, réessaie"})
-        j = after_upload(final, folder, (q.get("tchan") or [""])[0])
+        j = after_upload(final, folder, (q.get("tchan") or [""])[0], (q.get("sync") or [""])[0] == "1")
         return self.send(200, {"ok": True, "path": final, "job": j["id"]})
 
     def do_POST(self):
