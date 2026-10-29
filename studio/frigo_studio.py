@@ -2239,7 +2239,9 @@ def do_update():
     exe = sys.executable
     folder = os.path.dirname(exe)
     stamp = int(time.time())
-    new = os.path.join(folder, "FrigoRoseStudio.nouveau-%d.exe" % stamp)
+    # le téléchargement se fait dans le dossier de Studio (pas à côté du programme), pour que rien ne le touche
+    os.makedirs(os.path.join(DATA, "maj"), exist_ok=True)
+    new = os.path.join(DATA, "maj", "FrigoRoseStudio-%d.exe" % stamp)
     moved = None
     try:
         upd.update(state="download", pct=0, error="")
@@ -2265,7 +2267,7 @@ def do_update():
         moved = os.path.join(folder, "FrigoRoseStudio.ancien-%d.exe" % stamp)
         _retry(lambda: os.replace(exe, moved))
         try:
-            _retry(lambda: os.replace(new, exe))
+            _retry(lambda: shutil.move(new, exe))
         except OSError:
             _retry(lambda: os.replace(moved, exe))  # on remet l'ancienne : Studio reste utilisable
             moved = None
@@ -2286,22 +2288,30 @@ def do_update():
 
 
 def cleanup_old_exe():
-    """Supprime les restes des mises à jour (anciennes versions, téléchargements ratés)."""
+    """Supprime les restes des mises à jour (anciennes versions, téléchargements ratés) — seulement ceux d'avant ce démarrage."""
     if not getattr(sys, "frozen", False):
         return
+    started = time.time()
     folder = os.path.dirname(sys.executable)
     me = os.path.normcase(os.path.abspath(sys.executable))
-    for _ in range(120):  # l'ancienne version met parfois un peu de temps à se fermer (antivirus…)
-        left = []
-        for n in os.listdir(folder):
-            if re.match(r"^FrigoRoseStudio\.(ancien|nouveau)(-\d+)?\.exe$", n, re.I):
-                f = os.path.join(folder, n)
-                if os.path.normcase(os.path.abspath(f)) == me:
+    places = [(folder, r"^FrigoRoseStudio\.(ancien|nouveau)(-\d+)?\.exe$"), (os.path.join(DATA, "maj"), r"^FrigoRoseStudio-\d+\.exe$")]
+    for _ in range(40):  # l'ancienne version met parfois un peu de temps à se fermer (antivirus…)
+        left = 0
+        for d, pat in places:
+            try:
+                names = os.listdir(d)
+            except OSError:
+                continue
+            for n in names:
+                f = os.path.join(d, n)
+                if not re.match(pat, n, re.I) or os.path.normcase(os.path.abspath(f)) == me:
                     continue
                 try:
+                    if os.path.getmtime(f) > started - 5 or upd.get("state"):
+                        continue  # une mise à jour est peut-être en train de l'écrire
                     os.remove(f)
                 except OSError:
-                    left.append(n)
+                    left += 1
         if not left:
             return
         time.sleep(3)
