@@ -177,6 +177,12 @@ def nvenc_ok():
 
 
 # ---------------------------------------------------------------- Jellyfin
+def _trace():
+    """Les dernières lignes de l'erreur, pour comprendre un bug à distance."""
+    import traceback
+    return "".join(traceback.format_exc().splitlines(True)[-8:])[-1500:]
+
+
 def _fast(url):
     """« localhost » sous Windows essaie d'abord l'IPv6 et perd ~2 s à chaque appel : on va droit en IPv4."""
     return re.sub(r"^(https?://)localhost(?=[:/]|$)", r"\g<1>127.0.0.1", (url or "").strip().rstrip("/"), flags=re.I)
@@ -2571,7 +2577,7 @@ class H(BaseHTTPRequestHandler):
                 if u.path == "/api/tn/for":
                     return self.send(200, {"channel": channel_for_lib((q.get("path") or [""])[0])})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path.startswith("/api/media/"):
             q = parse_qs(u.query)
             a = lambda k: (q.get(k) or [""])[0]
@@ -2587,7 +2593,7 @@ class H(BaseHTTPRequestHandler):
                 if u.path == "/api/media/trash":
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/pc":
             return self.send(200, {**pc_state(), "away": away_status()})
         if u.path == "/api/yt":
@@ -2599,7 +2605,7 @@ class H(BaseHTTPRequestHandler):
             try:
                 return self.send(200, {"results": yt_search(q)})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/state":
             with jobs_lock:
                 js = [public_job(j) for j in jobs]
@@ -2832,14 +2838,14 @@ class H(BaseHTTPRequestHandler):
                 if act == "fillnew":
                     return self.send(200, {"added": channel_fill(b.get("channel") or "")})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
             return self.send(404, {"error": "introuvable"})
         if u.path == "/api/tn/fill":
             try:
                 n = channel_fill(b.get("channel") or "")
                 return self.send(200, {"added": n, "msg": ("%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")) if n else "Tout est déjà sur la chaîne"})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/tn/add":
             try:
                 cid = b.get("channel") or ""
@@ -2859,7 +2865,7 @@ class H(BaseHTTPRequestHandler):
                 n = tn_add(cid, uniq, b.get("announce", True) is not False)
                 return self.send(200, {"msg": "%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/news":
             try:
                 if b.get("action") == "remove" and re.fullmatch(r"[-\w]{1,64}", b.get("id") or ""):
@@ -2874,7 +2880,7 @@ class H(BaseHTTPRequestHandler):
             try:
                 return self.send(200, {"msg": tn_edit(b.get("channel") or "", b.get("action"), b)})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/tn/job":
             # « Mettre sur une chaîne » après coup, depuis la file d'attente
             with jobs_lock:
@@ -2904,7 +2910,7 @@ class H(BaseHTTPRequestHandler):
                 _tn["t"] = 0
                 return self.send(200, {"msg": msg})
             except Exception as e:
-                return self.send(400, {"error": str(e)})
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/subs":
             act = b.get("action")
             with _subs_lock:
@@ -2926,7 +2932,7 @@ class H(BaseHTTPRequestHandler):
                     try:
                         n = check_sub(sb, first_take=max(0, min(20, int(b.get("take") or 0))))
                     except Exception as e:
-                        return self.send(400, {"error": str(e)})
+                        return self.send(400, {"error": str(e), "trace": _trace()})
                     subs.append(sb)
                     save_conf(conf)
                     return self.send(200, {"ok": True, "name": sb["name"], "queued": n})
@@ -2943,7 +2949,7 @@ class H(BaseHTTPRequestHandler):
                     except Exception as e:
                         sb["error"] = str(e)
                         save_conf(conf)
-                        return self.send(400, {"error": str(e)})
+                        return self.send(400, {"error": str(e), "trace": _trace()})
                     save_conf(conf)
                     return self.send(200, {"ok": True, "queued": n})
             return self.send(400, {"error": "?"})
