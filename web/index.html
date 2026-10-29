@@ -492,6 +492,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .home.deep .hrows{margin-top:0}
 .pcdown{background:rgba(247,194,102,.12);border:1px solid rgba(247,194,102,.4);color:#F7C266;border-radius:14px;padding:14px 18px;margin-bottom:22px;font-size:20px;line-height:1.35}
 .pcdown b{display:block;color:#fff;font-size:22px;margin-bottom:2px}
+#splash.quick.play .iglow{animation-duration:1s;animation-delay:.1s}#splash.quick.play .imark{animation-duration:.6s;animation-delay:0s}#splash.quick.play .iword::after{animation-delay:.7s;animation-duration:.5s}
 </style>
 </head>
 <body>
@@ -2146,12 +2147,14 @@ function chime(){
 let introT=null,introDone=false,dataState="idle",waitingStart=false;
 function runIntro(){
   const w=$("iword");w.textContent="";
-  [..."Frigo Rosé TV"].forEach((ch,i)=>{const sp=el("span",null,ch===" "?" ":ch);sp.style.animationDelay=(.75+i*.045)+"s";w.append(sp)});
+  // L'intro complète une fois par jour ; les autres fois, une version éclair (on veut regarder la télé vite)
+  const today=new Date().toDateString(),quick=LS.get("frtv_intro_day","")===today;LS.set("frtv_intro_day",today);
+  [..."Frigo Rosé TV"].forEach((ch,i)=>{const sp=el("span",null,ch===" "?"\xa0":ch);sp.style.animationDelay=(quick?.15+i*.02:.75+i*.045)+"s";w.append(sp)});
   $("splash-t").textContent="";
-  setScreen("splash");$("splash").classList.remove("out","waiting");void $("splash").offsetWidth;$("splash").classList.add("play");
-  chime();
+  setScreen("splash");$("splash").classList.remove("out","waiting");$("splash").classList.toggle("quick",quick);void $("splash").offsetWidth;$("splash").classList.add("play");
+  if(!quick)chime();
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  introT=setTimeout(endIntro,reduce?900:3000);
+  introT=setTimeout(endIntro,reduce?900:quick?1300:3000);
 }
 function endIntro(){
   clearTimeout(introT);if(introDone)return;introDone=true;
@@ -2258,7 +2261,7 @@ document.addEventListener("keydown",e=>{
   const inInput=document.activeElement&&document.activeElement.tagName==="INPUT";
   if(inInput&&!["up","down","ok"].includes(k)&&!(k==="back"&&e.key==="Escape"))return;
   e.preventDefault();
-  if(screen==="splash"){if(k==="ok")skipIntro();return}
+  if(screen==="splash"){skipIntro();return}
   if(screen==="profiles"){profKey(k);return}
   if(screen==="pedit"){editKey(k);return}
   if(screen==="error"){if(k==="left"||k==="up")eIdx=Math.max(0,eIdx-1);else if(k==="right"||k==="down")eIdx=Math.min(2,eIdx+1);else if(k==="ok"){document.querySelectorAll("#e-btns .btn")[eIdx].click();return}renderErr();return}
