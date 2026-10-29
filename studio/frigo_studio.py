@@ -44,7 +44,7 @@ VIDEO_EXT = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".
 DEFAULT_CONF = {"jellyfin_url": "http://localhost:8096", "jellyfin_key": "", "folders": [], "last_dest": "", "quality": "1080", "keep_thumb": True,
                 "watch_on": False, "watch_src": "", "watch_dest": "", "watch_delete": False, "parallel": 2,
                 "tunarr_url": "http://localhost:8000", "pin_hash": "", "secret": "", "subs": [], "subs_every": 3,
-                "tunarr_cmd": None, "jellyfin_cmd": None}
+                "tunarr_cmd": None, "jellyfin_cmd": None, "away": False}
 FB_URL = os.environ.get("FRS_FB_URL") or "https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.app/frigorosetv"
 _conf_lock = threading.Lock()
 
@@ -1086,6 +1086,109 @@ def restart(kind):
     return "%s relancé, il sera prêt dans quelques secondes" % kind.capitalize()
 
 
+# ---------------------------------------------------------------- Mode absence + battement de cœur
+_away_wake = threading.Event()
+_away = {"log": [], "down": {"tunarr": 0, "jellyfin": 0}, "last_ok": {}, "beat": 0, "beat_ok": False}
+
+
+def away_log(msg):
+    _away["log"].insert(0, {"t": time.time(), "msg": msg})
+    del _away["log"][30:]
+
+
+def no_sleep(on):
+    """Empêche Windows de se mettre en veille tant que Studio tourne (l'écran, lui, peut s'éteindre)."""
+    if not WIN:
+        return
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED, ES_AWAYMODE_REQUIRED = 0x80000000, 0x00000001, 0x00000040
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | (ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED if on else 0))
+    except Exception:
+        pass
+
+
+def _svc_ok(kind):
+    try:
+        if kind == "tunarr":
+            tunarr("/api/version", timeout=4)
+        else:
+            with urllib.request.urlopen(conf["jellyfin_url"].rstrip("/") + "/System/Info/Public", timeout=4):
+                pass
+        return True
+    except Exception:
+        return False
+
+
+def away_status():
+    return {"on": bool(conf.get("away")), "nosleep": bool(conf.get("away")) and WIN, "autostart": autostart_get(),
+            "can_start": {k: bool((conf.get(k + "_cmd") or {}).get("cmdline")) for k in ("tunarr", "jellyfin")},
+            "tailscale": bool(tailscale_ip()), "beat_ok": _away["beat_ok"], "beat": _away["beat"], "log": _away["log"][:12]}
+
+
+def away_set(on):
+    conf["away"] = bool(on)
+    save_conf(conf)
+    if on:
+        try:
+            autostart_set(True)
+        except Exception:
+            pass
+        for k in ("tunarr", "jellyfin"):
+            remember_cmd(k)
+        away_log("Mode absence activé")
+    else:
+        away_log("Mode absence désactivé")
+    _away_wake.set()  # la boucle (qui garde l'anti-veille) applique tout de suite
+    time.sleep(0.6)
+    return away_status()
+
+
+def heartbeat():
+    """Dit à la télé et aux téléphones que le PC est allumé (toutes les minutes)."""
+    st = {"at": int(time.time() * 1000), "tunarr": _svc_ok("tunarr"), "jellyfin": _svc_ok("jellyfin"), "away": bool(conf.get("away")), "version": VERSION}
+    try:
+        fb("/studio", "PUT", st)
+        _away.update(beat=time.time(), beat_ok=True)
+    except Exception:
+        _away["beat_ok"] = False
+    return st
+
+
+def away_loop():
+    if conf.get("away"):
+        away_log("Studio a démarré, mode absence toujours actif")
+    while True:
+        try:
+            # l'anti-veille est tenu par ce fil-ci, qui ne s'arrête jamais (Windows l'oublie si le fil se termine)
+            no_sleep(bool(conf.get("away")))
+            st = heartbeat()
+            if conf.get("away"):
+                for k in ("tunarr", "jellyfin"):
+                    if st[k]:
+                        if _away["down"][k] >= 2:
+                            away_log("%s remarche" % k.capitalize())
+                        _away["down"][k] = 0
+                        continue
+                    _away["down"][k] += 1
+                    # 2 minutes sans réponse : on le relance (puis on réessaie toutes les 10 minutes)
+                    n = _away["down"][k]
+                    if n == 2 or (n > 2 and n % 10 == 0):
+                        try:
+                            if find_proc(k) and n == 2:
+                                restart(k)
+                                away_log("%s ne répondait plus : relancé" % k.capitalize())
+                            else:
+                                start_cmd(k)
+                                away_log("%s était arrêté : démarré" % k.capitalize())
+                        except Exception as e:
+                            away_log("%s ne répond pas et je n'arrive pas à le relancer (%s)" % (k.capitalize(), e))
+        except Exception:
+            pass
+        _away_wake.wait(float(os.environ.get("FRS_BEAT", "60")))
+        _away_wake.clear()
+
+
 def nvidia():
     exe = shutil.which("nvidia-smi") or (r"C:\Windows\System32\nvidia-smi.exe" if WIN else "")
     if not exe or not os.path.exists(exe):
@@ -1723,7 +1826,7 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send(400, {"error": str(e)})
         if u.path == "/api/pc":
-            return self.send(200, pc_state())
+            return self.send(200, {**pc_state(), "away": away_status()})
         if u.path == "/api/yt":
             q = (parse_qs(u.query).get("q") or [""])[0].strip()
             if not q:
@@ -1901,6 +2004,8 @@ class H(BaseHTTPRequestHandler):
             save_conf(conf)
             _watch["seen"].clear()
             return self.send(200, {"ok": True})
+        if u.path == "/api/away":
+            return self.send(200, away_set(bool(b.get("on"))))
         if u.path == "/api/autostart":
             try:
                 return self.send(200, {"on": autostart_set(bool(b.get("on")))})
@@ -2073,6 +2178,7 @@ def main():
         threading.Thread(target=worker, args=("conv",), daemon=True).start()
     threading.Thread(target=watcher, daemon=True).start()
     threading.Thread(target=subs_loop, daemon=True).start()
+    threading.Thread(target=away_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
     srv.serve_forever()

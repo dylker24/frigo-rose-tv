@@ -490,6 +490,8 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .hrows{margin-top:auto}
 .home.deep .hero{display:none}
 .home.deep .hrows{margin-top:0}
+.pcdown{background:rgba(247,194,102,.12);border:1px solid rgba(247,194,102,.4);color:#F7C266;border-radius:14px;padding:14px 18px;margin-bottom:22px;font-size:20px;line-height:1.35}
+.pcdown b{display:block;color:#fff;font-size:22px;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -672,6 +674,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 
 <div class="full" id="error" hidden>
   <div class="errbox">
+    <div class="pcdown" id="e-pc" hidden></div>
     <span class="kick">Pas de connexion</span>
     <h1>Je n'arrive pas à joindre ton serveur Tunarr</h1>
     <ol>
@@ -1028,7 +1031,7 @@ function play(ch,attempt){
   }else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=url;video.play().catch(()=>{})}
   else liveError("Ce navigateur ne sait pas lire les chaînes.");
 }
-function liveError(msg){$("loading").hidden=true;$("lerr").hidden=false;if(msg)$("lerr-t").textContent=msg}
+function liveError(msg){$("loading").hidden=true;$("lerr").hidden=false;if(msg)$("lerr-t").textContent=msg;const p=typeof pcProblem==="function"&&pcProblem();if(p)$("lerr-t").textContent=p.t+". "+p.m}
 video.addEventListener("playing",()=>{setTimeout(chPreviewPos,60);clearTimeout(waitT);clearTimeout(loadDog);warmNeighbors();$("loading").hidden=true;$("lerr").hidden=true;videoOk=true;if($("zapfx").classList.contains("on"))zapRelease();if(screen==="home")renderHomeBg(homeFocus())});
 video.addEventListener("waiting",()=>{clearTimeout(waitT);waitT=setTimeout(()=>{if(screen==="live")$("loading").hidden=false},700)});
 
@@ -1599,6 +1602,25 @@ function guideKey(k){
   renderGuide();
 }
 
+
+/* État du PC de la maison (Studio envoie un signe de vie toutes les minutes) */
+let PCST=null,pcWasDown=null;
+function pcProblem(){
+  if(!PCST||!PCST.at)return null;
+  const age=Date.now()-PCST.at;
+  if(age>5*60000){const d=new Date(PCST.at),today=new Date().toDateString()===d.toDateString();
+    return {t:"Le PC de la maison ne répond plus",m:"Plus de nouvelles depuis "+(today?"":d.toLocaleDateString("fr-FR",{weekday:"long"})+" ")+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+". Il est sans doute éteint, en veille ou sans internet : les chaînes reviendront dès qu'il sera rallumé."}}
+  if(PCST.tunarr===false)return {t:"Tunarr est arrêté sur le PC",m:PCST.away?"Le mode absence essaie de le relancer, ça revient dans quelques minutes.":"Relance-le depuis Frigo Rosé Studio (onglet PC)."};
+  return null}
+function checkPc(){
+  const p=pcProblem(),down=!!p;
+  const e=$("e-pc");if(e){e.hidden=!down;if(p){e.textContent="";const b=document.createElement("b");b.textContent=p.t;e.append(b,document.createTextNode(p.m))}}
+  if(p&&!$("lerr").hidden)$("lerr-t").textContent=p.t+". "+p.m;
+  if(pcWasDown!==null&&down!==pcWasDown&&!["splash"].includes(screen)){
+    if(down)toast("⚠️ "+p.t,7000);
+    else{toast("✅ Le PC est de retour, les chaînes remarchent",6000);if(screen==="error"&&typeof boot==="function")setTimeout(boot,4000)}}
+  pcWasDown=down}
+setInterval(checkPc,30000);
 /* ================= Demandes (Firebase) ================= */
 const ST={attente:"Demandé",cours:"En préparation",ajoute:"À l'antenne",non:"Pas dispo"};
 const AV=["#E0245E","#5B4BE0","#0E8A5F","#C2410C","#0E7490","#9333EA","#B91C1C"];
@@ -1623,6 +1645,7 @@ function startFirebase(){
         if(nw.length&&!["splash","profiles","pedit","error"].includes(screen))toast("🆕 Nouveau sur "+(nw[0].channel||"Frigo Rosé TV")+" : "+(nw[0].count>1?nw[0].count+" programmes":cleanTitle((nw[0].titles||[])[0]||"")),6000)}
       updateNewsBadge();if(screen==="home")renderHome();
     },()=>{});
+    fdb.ref("frigorosetv/studio").on("value",s=>{PCST=s.val()||null;checkPc()},()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
     syncChannels();publishProfiles();
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}

@@ -61,6 +61,18 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .btn.ghost{background:none;color:var(--mute)}
 .btn.ghost:hover{color:var(--ink);background:var(--s2)}
 .acts{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
+.away{margin:16px 0 6px;border:1px solid var(--line);border-radius:14px;background:var(--s2);padding:16px}
+.away.on{border-color:rgba(61,214,140,.45);background:linear-gradient(180deg,rgba(61,214,140,.08),var(--s2))}
+.away-h{display:flex;align-items:center;gap:14px}
+.away-h b{font-size:17px;display:block}.away-h small{color:var(--mute);font-size:13px}
+.sw{margin-left:auto;flex:none;width:54px;height:30px;border-radius:20px;background:var(--s3);border:1px solid var(--line);position:relative;cursor:pointer;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
+.away.on .sw{background:var(--ok);border-color:var(--ok)}.away.on .sw:after{left:27px}
+.away ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:7px;font-size:14px}
+.away li{display:flex;gap:9px;align-items:flex-start;color:var(--mute)}
+.away li i{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;background:var(--s3);color:var(--faint);margin-top:1px}
+.away li.y i{background:rgba(61,214,140,.18);color:var(--ok)}.away li.n i{background:rgba(247,194,102,.16);color:var(--warn)}
+.away .log{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12.5px;color:var(--faint);display:grid;gap:3px}
 .hint{font-size:13px;color:var(--faint);margin-top:7px}
 .err{color:var(--bad);font-size:14px;margin-top:10px;min-height:1px}
 .chk{display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--mute);cursor:pointer;user-select:none}
@@ -282,6 +294,7 @@ html,body{overflow-x:hidden}
     <div class="card" id="v-pc" hidden>
       <h1>Ton PC</h1>
       <p class="sub">Tout ce qui tourne chez toi, même quand tu n'es pas là.</p>
+      <div class="away" id="away"><div class="away-h"><div><b>Mode absence</b><small id="away-s">À activer avant de partir de la maison</small></div><button class="sw" id="away-sw" aria-label="Mode absence"></button></div><ul id="away-l"></ul><div class="log" id="away-log" hidden></div></div>
       <div class="pcg" id="pc-svc"></div>
       <label class="l">Qui regarde en ce moment</label>
       <div id="pc-watch"></div>
@@ -728,7 +741,22 @@ function renderPc(){if(!PC)return;
   if(PC.cpu!=null)tile("Processeur",Math.round(PC.cpu)+" %",PC.uptime?"PC allumé depuis "+fmtLong(PC.uptime):"");
   if(PC.ram)tile("Mémoire",PC.ram.pct+" %",size(PC.ram.used)+" / "+size(PC.ram.total));
   if(PC.gpu)tile("Carte graphique",(PC.gpu.use!=null?PC.gpu.use+" %":"—"),[PC.gpu.name,PC.gpu.temp!=null?PC.gpu.temp+" °C":"",PC.gpu.enc!=null?PC.gpu.enc+" conversion"+(PC.gpu.enc>1?"s":"")+" en cours":""].filter(Boolean).join(" · "));
-  $("pc-reboot").hidden=!S.win;}
+  $("pc-reboot").hidden=!S.win;renderAway()}
+
+function renderAway(){const A=PC&&PC.away;if(!A)return;$("away").classList.toggle("on",A.on);
+  $("away-s").textContent=A.on?"Actif · tu peux partir tranquille":"À activer avant de partir de la maison";
+  const it=(ok,t,warn)=>'<li class="'+(ok?"y":warn?"n":"")+'"><i>'+(ok?"✓":warn?"!":"·")+'</i><span>'+t+'</span></li>';
+  let h="";
+  h+=it(A.on&&A.nosleep,"Le PC ne se met plus en veille (l'écran peut s'éteindre)");
+  h+=it(A.autostart,"Studio se relance tout seul si le PC redémarre",A.on&&!A.autostart);
+  h+=it(A.on&&A.can_start.tunarr&&A.can_start.jellyfin,"Tunarr et Jellyfin sont surveillés et relancés s'ils plantent"+(A.on&&!(A.can_start.tunarr&&A.can_start.jellyfin)?" — lance-les une fois à la main pour que Studio sache le faire":""),A.on&&!(A.can_start.tunarr&&A.can_start.jellyfin));
+  h+=it(A.tailscale,A.tailscale?"Tailscale marche : tu peux ouvrir Studio de partout":"Tailscale n'est pas connecté sur le PC : sans lui, pas d'accès à distance",!A.tailscale);
+  h+=it(A.beat_ok,A.beat_ok?"La télé voit que le PC est allumé (et te prévient s'il s'éteint)":"Je n'arrive pas à prévenir la télé (internet ?)",A.on&&!A.beat_ok);
+  if(A.on)h+=it(false,"Pense à mettre les mises à jour Windows en pause (Paramètres → Windows Update → Suspendre)",true);
+  $("away-l").innerHTML=h;
+  const lg=$("away-log");lg.hidden=!(A.log||[]).length;lg.innerHTML=(A.log||[]).map(x=>'<div>'+new Date(x.t*1000).toLocaleString("fr-FR",{weekday:"short",hour:"2-digit",minute:"2-digit"})+' · '+esc(x.msg)+'</div>').join("")}
+$("away-sw").onclick=async()=>{if(!PC)return;const on=!(PC.away&&PC.away.on);$("away-sw").disabled=true;
+  try{PC.away=await api("/api/away",{on});renderAway()}catch(e){$("pc-err").textContent=e.message}$("away-sw").disabled=false};
 const fmtLong=s=>{s=Math.round(s||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?d+" j "+h+" h":h?h+" h "+m+" min":m+" min"};
 $("pc-reboot").onclick=async()=>{if(!confirm("Redémarrer le PC ? Tout ce qui tourne (Tunarr, Jellyfin, téléchargements) va s'arrêter."))return;
   try{const r=await api("/api/restart",{what:"pc"});$("pc-msg").textContent=r.msg;$("pc-reboot-x").hidden=false}catch(e){$("pc-err").textContent=e.message}};
