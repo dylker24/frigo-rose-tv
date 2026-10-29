@@ -177,8 +177,13 @@ def nvenc_ok():
 
 
 # ---------------------------------------------------------------- Jellyfin
+def _fast(url):
+    """« localhost » sous Windows essaie d'abord l'IPv6 et perd ~2 s à chaque appel : on va droit en IPv4."""
+    return re.sub(r"^(https?://)localhost(?=[:/]|$)", r"\g<1>127.0.0.1", (url or "").strip().rstrip("/"), flags=re.I)
+
+
 def jf(path, method="GET", body=None, timeout=8):
-    url = conf["jellyfin_url"].rstrip("/") + path
+    url = _fast(conf["jellyfin_url"]) + path
     data = json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None)
     req = urllib.request.Request(url, data=data, method=method, headers={
         "X-Emby-Token": conf["jellyfin_key"], "Content-Type": "application/json",
@@ -384,7 +389,7 @@ def refresh_soon(j):
 
 # ---------------------------------------------------------------- Tunarr
 def tunarr(path, method="GET", timeout=8):
-    req = urllib.request.Request(conf.get("tunarr_url", "http://localhost:8000").rstrip("/") + path, data=b"" if method == "POST" else None, method=method)
+    req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, data=b"" if method == "POST" else None, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         t = r.read()
         try:
@@ -1113,7 +1118,7 @@ def _svc_ok(kind):
         if kind == "tunarr":
             tunarr("/api/version", timeout=4)
         else:
-            with urllib.request.urlopen(conf["jellyfin_url"].rstrip("/") + "/System/Info/Public", timeout=4):
+            with urllib.request.urlopen(_fast(conf["jellyfin_url"]) + "/System/Info/Public", timeout=4):
                 pass
         return True
     except Exception:
@@ -1244,7 +1249,7 @@ def pc_state():
     # Jellyfin
     jfs = {"ok": False}
     try:
-        with urllib.request.urlopen(conf["jellyfin_url"].rstrip("/") + "/System/Info/Public", timeout=3) as r:
+        with urllib.request.urlopen(_fast(conf["jellyfin_url"]) + "/System/Info/Public", timeout=3) as r:
             info = json.loads(r.read())
         jfs.update(ok=True, version=info.get("Version", ""), name=info.get("ServerName", ""))
         if conf.get("jellyfin_key"):
@@ -1388,7 +1393,7 @@ os.makedirs(BACKUPS, exist_ok=True)
 
 
 def tn(path, method="GET", body=None, timeout=20):
-    req = urllib.request.Request(conf.get("tunarr_url", "http://localhost:8000").rstrip("/") + path, method=method,
+    req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + path, method=method,
                                  data=json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None),
                                  headers={"Content-Type": "application/json"})
     try:
@@ -2094,24 +2099,24 @@ def media_pending():
     """Ce qui est dans Jellyfin mais pas encore passé sur Tunarr : vidéos pas sur leur chaîne, médiathèques sans chaîne ou pas encore lues par Tunarr."""
     libs = media_libs()
     tl = tn_libraries_all()
-    out = []
-    for l in libs:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(l):
         t = next((x for x in tl if same_name(x["name"], l["name"])), None)
-        it = {"name": l["name"], "count": l["count"], "channel": l.get("channel"), "missing": [], "tunarr": bool(t and t["enabled"])}
+        it = {"name": l["name"], "count": l["count"], "channel": l.get("channel"), "missing": [], "tunarr": bool(t and t["enabled"]), "tn_count": 0}
         if t and t["enabled"]:
-            progs = tn_library_programs(t["id"], fresh=True)
+            progs = tn_library_programs(t["id"])
             it["tn_count"] = len(progs)
             if l.get("channel"):
                 on = {x.get("id") for x in tn_programming(l["channel"]["id"])["lineup"] if x.get("id")}
                 miss = sorted((x for x in progs if x["id"] not in on and x.get("duration")), key=_ep_order)
                 it["missing"] = [{"title": x["title"], "duration": x["duration"]} for x in miss]
-        else:
-            it["tn_count"] = 0
         it["unscanned"] = max(0, l["count"] - it["tn_count"])
-        if it["missing"] or not l.get("channel") or it["unscanned"] or not it["tunarr"]:
-            if l["count"]:
-                out.append(it)
-    return out
+        return it
+
+    with ThreadPoolExecutor(6) as ex:
+        res = list(ex.map(one, [l for l in libs if l["count"]]))
+    return [it for it in res if it["missing"] or not it["channel"] or it["unscanned"] or not it["tunarr"]]
 
 
 def auto_add_to_channels(js, last=False):
