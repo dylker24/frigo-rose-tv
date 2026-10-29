@@ -9,6 +9,15 @@ téléchargés automatiquement au premier lancement sur Windows.
 import hashlib, hmac, secrets, json, os, re, shutil, string, subprocess, sys, threading, time, urllib.request, urllib.error, uuid, webbrowser, zipfile, io
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, urlencode, quote
+# Tout est chargé dès le démarrage : une version « .exe » relit ses morceaux dans son propre fichier,
+# et si une mise à jour remplace ce fichier pendant qu'elle tourne, un module chargé plus tard serait illisible.
+import traceback, unicodedata, difflib, random, ctypes, ipaddress, socket, email.utils, http.client, encodings.idna, json.decoder  # noqa: F401
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor  # noqa: F401
+try:
+    import winreg  # noqa: F401
+except ImportError:
+    winreg = None
 
 APP = "Frigo Rosé Studio"
 def _read_version():
@@ -2371,18 +2380,22 @@ def _retry(fn, tries=20, wait=0.5):
 
 
 def restart_into(exe, folder, env):
-    """Arrête proprement le serveur, lance la nouvelle version, puis quitte (sans fenêtre d'erreur)."""
+    """Arrête le serveur, lance la nouvelle version, puis quitte (sans fenêtre d'erreur, et sans jamais rester bloqué)."""
     UPDATING["on"] = True
     srv = SERVER.get("srv")
-    try:
-        if srv:
-            srv.shutdown()        # arrête la boucle du serveur proprement (sinon : WinError 10038)
+    if srv:
+        t = threading.Thread(target=srv.shutdown, daemon=True)  # arrête la boucle proprement (sinon : WinError 10038)
+        t.start()
+        t.join(3)
+        try:
             srv.server_close()    # libère le port pour la nouvelle version
-    except Exception:
-        pass
+        except Exception:
+            pass
     flags = (0x00000008 | 0x00000200) if WIN else 0
-    subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
-    os._exit(0)
+    try:
+        subprocess.Popen([exe, "--silent", "--after-update"], cwd=folder, env=env, creationflags=flags, close_fds=True)
+    finally:
+        os._exit(0)           # quoi qu'il arrive, l'ancienne version s'en va
 
 
 UPDATING = {"on": False}
