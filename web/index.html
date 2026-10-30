@@ -1959,6 +1959,7 @@ function startFirebase(){
     fdb.ref("frigorosetv/studio").on("value",s=>{PCST=s.val()||null;checkPc()},()=>{});
     /* Studio a corrigé l'image d'un film : on oublie les images gardées et on les recharge */
     fdb.ref("frigorosetv/config/imgreset").on("value",s=>{const v=+s.val()||0;if(v<=(+LS.get("frtv_imgreset","0")))return;LS.set("frtv_imgreset",String(v));IMG.bad.clear();IMG.ready.clear();if(screen==="home")renderHome()},()=>{});
+    fdb.ref("frigorosetv/config/demandesUrl2").on("value",s=>{autoDem2=String(s.val()||"");if(screen==="demandes")renderDemandes()},()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
     syncChannels();publishProfiles();startProfSync();
     fdb.ref("frigorosetv/stats").on("value",s=>{TOPS=s.val()||{};if(screen==="home")renderHome()},()=>{});
@@ -1980,7 +1981,8 @@ function syncChannels(){
     if(Object.keys(upd).length)return fdb.ref("frigorosetv/channels").update(upd);
   }).catch(()=>{synced=""});
 }
-function demLink(){return (cfg.demandes||autoDem||"").trim()}
+let autoDem2="";
+function demLink(){return (cfg.demandes||autoDem2||autoDem||"").trim()}
 /* ================= Profils et « qui regarde » partagés avec Studio ================= */
 function profileByName(n){const k=norm(n);if(!k)return null;return profiles.find(p=>norm(p.name)===k)||null}
 const DEVICE_ID=(()=>{let d=LS.get("frtv_device","");if(!d){d="d"+Math.random().toString(36).slice(2,10);LS.set("frtv_device",d)}return d})();
@@ -2135,7 +2137,7 @@ function renderDemandes(){
     qb.dataset.u=qk;qb.textContent="";qt.textContent="";
     if(link&&window.QRCode){
       try{new QRCode(qb,{text:link,width:320,height:320,colorDark:"#000000",colorLight:"#F5F5F5",correctLevel:QRCode.CorrectLevel.M})}catch(e){qb.textContent="QR indisponible"}
-      qt.append(document.createTextNode("Film ou série, ton prénom, et c'est envoyé."),el("span","qurl",link.replace(/^https?:\/\//,"").replace(/\/$/,"")));
+      qt.append(document.createTextNode("Un film, une série, une idée de chaîne ou une vidéo : c'est envoyé."),el("span","qurl",link.replace(/^https?:\/\//,"").replace(/\/$/,"")));
     }else if(link){qb.textContent="QR indisponible";qt.append(document.createTextNode("Va sur "),el("span","qurl",link.replace(/^https?:\/\//,"").replace(/\/$/,"")))}
     else{qb.textContent="Bientôt ici";qt.textContent="Ouvre une fois l'appli Demandes sur ton téléphone : le QR code s'affichera ici tout seul."}
   }
@@ -2151,7 +2153,7 @@ function renderDemandes(){
     const av=el("div","av",(r.who||"?").trim().charAt(0).toUpperCase()||"?");av.style.background=AV[hash((r.who||"").toLowerCase())%AV.length];
     {const pf=profileByName(r.who);if(pf){av.textContent="";av.classList.add("pic");av.innerHTML=avatarHTML(pf)}}
     const tx=el("div","tx");tx.append(el("b",null,r.title||"Sans titre"));
-    let meta=(r.type==="serie"?"Série":"Film")+" · "+(r.who||"Quelqu'un");
+    let meta=({serie:"Série",chaine:"Idée de chaîne",video:"Vidéo"}[r.type]||"Film")+" · "+(r.who||"Quelqu'un");
     const rc=regieCh[r.channel];if(s==="ajoute"&&rc)meta+=" · sur "+rc.name+(rc.number?", n°"+rc.number:"");
     tx.append(el("span",null,meta));
     row.append(av,tx,el("span","chip "+s,ST[s]));

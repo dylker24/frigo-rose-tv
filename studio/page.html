@@ -62,6 +62,13 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .btn.ghost:hover{color:var(--ink);background:var(--s2)}
 .acts{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
 .tvm textarea{width:100%;margin-top:12px;resize:vertical;min-height:62px;font:inherit}.tvm-r{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.tvm-r .inp{flex:1;min-width:140px}
+.dchips{display:flex;gap:6px;overflow-x:auto;margin:10px 0 4px;scrollbar-width:none}.dchips::-webkit-scrollbar{display:none}
+.dchips button{flex:none;display:flex;align-items:center;gap:7px;font:600 13px inherit;color:var(--mute);background:var(--s2);border:1px solid var(--line);border-radius:99px;padding:4px 12px 4px 4px;cursor:pointer;white-space:nowrap}
+.dchips button.all{padding-left:12px}.dchips button .pav2{width:24px!important;height:24px!important;border-radius:50%;font-size:11px}
+.dchips button.on{background:#fff;color:#000;border-color:#fff}.dchips .c{opacity:.6;font-variant-numeric:tabular-nums}
+.rtag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px;margin-right:6px;vertical-align:1px;background:rgba(124,108,255,.18);color:#a99cff}.rtag.video{background:rgba(255,61,127,.16);color:#ff6b95}
+.rnote{font-size:13px;color:var(--fg,#ddd);opacity:.85;margin-top:4px;white-space:pre-line}
+.rlink{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#ff6b95;text-decoration:none}.rlink img{width:72px;height:40px;border-radius:6px;object-fit:cover}
 .away{margin:16px 0 6px;border:1px solid var(--line);border-radius:14px;background:var(--s2);padding:16px}
 .away.on{border-color:rgba(61,214,140,.45);background:linear-gradient(180deg,rgba(61,214,140,.08),var(--s2))}
 .away-h{display:flex;align-items:center;gap:14px}
@@ -426,6 +433,8 @@ html,body{overflow-x:hidden}
       <h1>Demandes</h1>
       <p class="sub">Ce que la famille a demandé avec le QR code de la télé. Coche les étapes, choisis la chaîne, ou cherche direct sur YouTube.</p>
       <div class="dfilter seg" id="dfilter" style="max-width:420px"><button data-f="open" class="on">En cours</button><button data-f="done">À l'antenne</button><button data-f="all">Toutes</button></div>
+      <input class="inp" id="dq" type="search" placeholder="Chercher un titre, un prénom…" autocomplete="off" style="margin-top:12px">
+      <div class="dchips" id="dchips"></div>
       <div id="dlist"><div class="qempty">Chargement…</div></div>
     </div>
 
@@ -780,6 +789,22 @@ function profAv(p,size){const d=document.createElement("span");d.className="pav2
   if(p.pic&&!p.own){const im=document.createElement("img");im.src=AVBASE+p.pic;im.alt="";d.append(im)}else{d.textContent=(p.name||p.profile||"?").trim().charAt(0).toUpperCase();d.style.background=PAVC[((p.av||0)%8+8)%8]}return d}
 const stOf=r=>ST[r.status]?r.status:"attente";
 function nextSt(r,steps){const n=STEPS.filter(s=>steps[s[0]]).length;if(stOf(r)==="non")return "non";return n===4?"ajoute":n>0?"cours":"attente"}
+
+/* Demandes : recherche + par personne */
+const nrm=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+$("dq").oninput=()=>{DEM.q=$("dq").value;renderDem()};
+function renderDchips(){
+  const box=$("dchips");box.textContent="";const pc={};
+  (DEM.reqs||[]).forEach(r=>{const k=nrm(r.who);if(k){(pc[k]=pc[k]||{name:r.who,n:0}).n++}});
+  Object.values(DEM.prof||{}).forEach(p=>{if(p&&p.name){const k=nrm(p.name);pc[k]=pc[k]||{name:p.name,n:0}}});
+  const keys=Object.keys(pc).sort((a,b)=>pc[b].n-pc[a].n||pc[a].name.localeCompare(pc[b].name,"fr"));
+  if(keys.length<2){box.hidden=true;return}box.hidden=false;
+  const all=document.createElement("button");all.className="all"+(DEM.person?"":" on");all.textContent="Tout le monde";all.onclick=()=>{DEM.person="";renderDem()};box.append(all);
+  keys.forEach(k=>{const b=document.createElement("button");b.className=DEM.person===k?"on":"";const pf=DEM.prof[kk(pc[k].name)];
+    const av=pf?profAv(pf):(()=>{const a=document.createElement("span");a.className="pav2";a.textContent=pc[k].name.charAt(0).toUpperCase();a.style.background=AVC[hsh(pc[k].name.toLowerCase())%AVC.length];return a})();
+    const c=document.createElement("span");c.className="c";c.textContent=pc[k].n;b.append(av,document.createTextNode(pc[k].name),c);
+    b.onclick=()=>{DEM.person=DEM.person===k?"":k;if(DEM.person)DEM.filter="all",document.querySelectorAll("#dfilter button").forEach(x=>x.classList.toggle("on",x.dataset.f==="all"));renderDem()};box.append(b)});
+}
 async function loadDem(){
   try{const [rq,ch,pf]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json()),fetch(FB+"/profiles.json").then(r=>r.json()).catch(()=>null)]);DEM.prof=pf||{};
     DEM.reqs=Object.entries(rq||{}).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));DEM.ch=ch||{};DEM.err=""}
@@ -795,8 +820,11 @@ function renderDem(){
   box.innerHTML="";
   if(DEM.err){box.innerHTML='<div class="qempty">'+esc(DEM.err)+'</div>';return}
   if(!DEM.reqs){box.innerHTML='<div class="qempty">Chargement…</div>';return}
-  const list=DEM.reqs.filter(r=>DEM.filter==="all"||(DEM.filter==="open"?["attente","cours"].includes(stOf(r)):stOf(r)==="ajoute"));
-  if(!list.length){box.innerHTML='<div class="qempty">'+(DEM.filter==="open"?"Aucune demande en attente 🎉":"Rien ici")+'</div>';return}
+  renderDchips();
+  const dqk=nrm(DEM.q||"");
+  const list=DEM.reqs.filter(r=>DEM.filter==="all"||(DEM.filter==="open"?["attente","cours"].includes(stOf(r)):stOf(r)==="ajoute"))
+    .filter(r=>(!DEM.person||nrm(r.who)===DEM.person)&&(!dqk||dqk.split(" ").every(w=>nrm([r.title,r.who,r.note,r.link].join(" ")).includes(w))));
+  if(!list.length){box.innerHTML='<div class="qempty">'+(dqk||DEM.person?"Rien trouvé":DEM.filter==="open"?"Aucune demande en attente 🎉":"Rien ici")+'</div>';return}
   const chs=Object.entries(DEM.ch).map(([k,v])=>({k,...v})).filter(c=>c.name).sort((a,b)=>(a.number||999)-(b.number||999));
   list.forEach(r=>{const st=stOf(r),steps=r.steps||{},d=document.createElement("div");d.className="req";
     const av=document.createElement("div");av.className="av";av.textContent=(r.who||"?").trim().charAt(0).toUpperCase()||"?";av.style.background=AVC[hsh((r.who||"").toLowerCase())%AVC.length];
@@ -804,7 +832,11 @@ function renderDem(){
     const chn=r.channel&&DEM.ch[r.channel]?DEM.ch[r.channel]:null;
     d.innerHTML='<div class="rh"><span></span><div class="rt"><b></b><small></small></div><span class="chip '+st+'">'+ST[st]+'</span></div>';
     {const pf=DEM.prof[kk(r.who)];d.querySelector(".rh>span").replaceWith(pf?(x=>(x.style.width=x.style.height="38px",x))(profAv(pf)):av)}d.querySelector(".rt b").textContent=r.title||"Sans titre";
-    d.querySelector(".rt small").textContent=(r.type==="serie"?"Série":"Film")+" · "+(r.who||"Quelqu'un")+(when?" · "+when:"")+(chn?" · "+(chn.number?"n°"+chn.number+" ":"")+chn.name:"");
+    d.querySelector(".rt small").textContent=({serie:"Série",chaine:"Idée de chaîne",video:"Vidéo"}[r.type]||"Film")+" · "+(r.who||"Quelqu'un")+(when?" · "+when:"")+(chn?" · "+(chn.number?"n°"+chn.number+" ":"")+chn.name:(r.want&&DEM.ch[r.want]?" · pour "+DEM.ch[r.want].name:""));
+    if(r.type==="chaine"||r.type==="video"){const tg=document.createElement("span");tg.className="rtag "+r.type;tg.textContent=r.type==="video"?"Vidéo":"Chaîne";d.querySelector(".rt b").prepend(tg)}
+    if(r.note){const n=document.createElement("div");n.className="rnote";n.textContent=r.note;d.querySelector(".rt").append(n)}
+    if(r.link){const a2=document.createElement("a");a2.className="rlink";a2.href=r.link;a2.target="_blank";a2.rel="noopener";a2.onclick=e=>e.stopPropagation();
+      if(r.thumb){const im=document.createElement("img");im.src=r.thumb;im.alt="";a2.append(im)}a2.append(document.createTextNode("Voir la vidéo ↗"));d.querySelector(".rt").append(a2)}
     d.querySelector(".rh").onclick=()=>{DEM.open=DEM.open===r.id?null:r.id;renderDem()};
     if(DEM.open===r.id){const b=document.createElement("div");b.className="rb";
       const sp=document.createElement("div");sp.className="steps";
@@ -813,7 +845,7 @@ function renderDem(){
       const row=document.createElement("div");row.className="rrow";
       const sel=document.createElement("select");sel.className="inp";sel.innerHTML='<option value="">Chaîne : à choisir</option>'+chs.map(c=>'<option value="'+esc(c.k)+'">'+(c.number?"n°"+c.number+" · ":"")+esc(c.name)+'</option>').join("");
       sel.value=r.channel||"";sel.onchange=()=>patchReq(r,{channel:sel.value});
-      const yt=btn("🔎 Chercher sur YouTube",()=>{setForReq(r);show("dl");$("url").value=r.title||"";dlLabel();ytSearch(r.title||"");window.scrollTo(0,0)});yt.classList.add("pri");
+      const yt=r.link?btn("⬇ Télécharger cette vidéo",()=>{setForReq(r);show("dl");$("url").value=r.link;dlLabel();window.scrollTo(0,0)}):btn("🔎 Chercher sur YouTube",()=>{setForReq(r);show("dl");$("url").value=r.title||"";dlLabel();ytSearch(r.title||"");window.scrollTo(0,0)});yt.classList.add("pri");
       const no=btn(st==="non"?"Remettre en attente":"Pas dispo",()=>st==="non"?patchReq(r,{status:nextSt({...r,status:"attente"},steps)}):patchReq(r,{status:"non"}));
       row.append(yt,sel,no);b.append(sp,row);d.append(b)}
     box.append(d)})}
