@@ -2600,7 +2600,7 @@ function quitApp(){try{if(presRef&&presT)presRef.remove()}catch(e){}try{stopVide
 if(IN_TV_APP){const fb=document.querySelector('#ctrl .cb[data-c="full"]');if(fb)fb.remove();$("s-quit").hidden=false;
   /* Appli télé ancienne version : on le dit (une seule réinstallation suffit) */
   const av=+((/FrigoRoseTV\/(\d+)/.exec(navigator.userAgent)||[])[1]||1);
-  if(av<2)setTimeout(()=>toast("Nouvelle version de l'appli télé : réinstalle-la depuis dylker24.github.io/frigo-rose-tv/tv.apk",9000),6000)}
+  if(av<3)setTimeout(()=>toast("Nouvelle version de l'appli télé : réinstalle-la depuis dylker24.github.io/frigo-rose-tv/tv.apk",9000),6000)}
 $("s-quit").onclick=()=>quitApp();
 
 /* ================= Tablette : tactile ================= */
