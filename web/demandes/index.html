@@ -523,7 +523,7 @@ try{
   ref("requests").on("value",s=>{const v=s.val()||{};reqs=Object.keys(v).map(k=>({id:k,...v[k]})).filter(r=>r&&r.title).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));loaded=true;renderAll()});
   ref("channels").on("value",s=>{const v=s.val()||{};chans=Object.keys(v).map(k=>({id:k,...v[k]})).filter(c=>c&&c.name);renderAll()});
   let pubP={},syncP={};
-  const mergeP=()=>{const m={};Object.values(pubP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...p}});Object.values(syncP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...(m[nk(p.name)]||{}),name:p.name,av:p.av,pic:p.pic,img:p.img}});profs=m;if(!$("scr-who").hidden)renderWho();else renderAll()};
+  const mergeP=()=>{const m={};const hasSync=Object.values(syncP).some(p=>p&&p.name);/* les profils en ligne font foi ; l'ancienne liste ne sert que s'il n'y en a pas */Object.values(hasSync?{}:pubP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...p}});Object.values(syncP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...(m[nk(p.name)]||{}),name:p.name,av:p.av,pic:p.pic,img:p.img}});profs=m;if(!$("scr-who").hidden)renderWho();else renderAll()};
   ref("profiles").on("value",s=>{pubP=s.val()||{};mergeP()},()=>{});
   ref("profsync").on("value",s=>{syncP=s.val()||{};mergeP()},()=>{});
   registerUrl();

@@ -808,7 +808,8 @@ function renderDchips(){
     b.onclick=()=>{DEM.person=DEM.person===k?"":k;if(DEM.person)DEM.filter="all",document.querySelectorAll("#dfilter button").forEach(x=>x.classList.toggle("on",x.dataset.f==="all"));renderDem()};box.append(b)});
 }
 async function loadDem(){
-  try{const [rq,ch,pf]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json()),fetch(FB+"/profiles.json").then(r=>r.json()).catch(()=>null)]);DEM.prof=pf||{};
+  try{const [rq,ch,pf,ps]=await Promise.all([fetch(FB+"/requests.json").then(r=>r.json()),fetch(FB+"/channels.json").then(r=>r.json()),fetch(FB+"/profiles.json").then(r=>r.json()).catch(()=>null),fetch(FB+"/profsync.json").then(r=>r.json()).catch(()=>null)]);
+    {const sy=Object.values(ps||{}).filter(p=>p&&p.name);if(sy.length){const m={};sy.forEach(p=>{m[kk(p.name)]={name:p.name,av:p.av||0,pic:p.pic||"",own:!!p.img}});DEM.prof=m}else DEM.prof=pf||{}}
     DEM.reqs=Object.entries(rq||{}).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));DEM.ch=ch||{};DEM.err=""}
   catch(e){DEM.err="Impossible de joindre les demandes (internet ?)"}
   DEM.t=Date.now();renderDem()}
