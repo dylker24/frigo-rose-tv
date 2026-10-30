@@ -113,6 +113,52 @@ body.panel-open .lerr,body.panel-open .loading{display:none!important}
 .digits{z-index:50;position:fixed;top:2rem;right:2.8rem;font:800 4.5rem/1 var(--display);color:#fff;background:rgba(0,0,0,.7);padding:1rem 1.6rem;border-radius:1.2rem;min-width:7rem;text-align:center}
 .toast{z-index:50;position:fixed;top:5.4rem;left:50%;transform:translateX(-50%);background:var(--s1);padding:.8rem 1.3rem;border-radius:.9rem;font-weight:600;box-shadow:0 0 0 1px var(--line)}
 
+
+
+
+/* Top 10 : gros chiffres */
+.hcard.top .hthumb::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.72),rgba(0,0,0,0) 55%);pointer-events:none}
+.hcard.top .rk{position:absolute;z-index:2;left:.55rem;bottom:-.55rem;font:900 5.6rem/1 var(--display);letter-spacing:-.06em;color:rgba(0,0,0,.25);
+  -webkit-text-stroke:.16rem #fff;text-shadow:0 .3rem 1.2rem rgba(0,0,0,.6);pointer-events:none}
+.hcard.top .hthumb .n{display:none}
+.hcard.top .tntag{left:auto;right:.45rem;top:.45rem;bottom:auto}
+.lite .hcard.top .rk{-webkit-text-stroke:0;color:#fff;font-size:4.4rem}
+
+/* Mosaïque */
+body.mosaic #panel .topbar{display:none}
+body.mosaic .chs-tools{display:none}
+body.mosaic .chgrid{gap:1.1rem 1rem}
+body.mosaic .chtile .hthumb img.pic{animation:hkb 24s ease-in-out infinite alternate}
+body.mosaic .chtile:nth-child(3n+1) .hthumb img.pic{animation-duration:30s;animation-delay:-7s}
+body.mosaic .chtile:nth-child(3n+2) .hthumb img.pic{animation-direction:alternate-reverse;animation-delay:-13s}
+body.mosaic .chtile .hthumb::after{content:"";position:absolute;right:.6rem;top:.6rem;width:.55rem;height:.55rem;border-radius:50%;background:#ff3d57;box-shadow:0 0 0 .22rem rgba(255,61,87,.3);z-index:3;animation:mdot 1.6s ease-in-out infinite}
+@keyframes mdot{50%{opacity:.35}}
+.lite body.mosaic .chtile .hthumb img.pic,.lite body.mosaic .chtile .hthumb::after{animation:none}
+/* Reprendre au début */
+.sopill{position:fixed;z-index:30;top:2.1rem;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.7rem;padding:.6rem 1.1rem;border-radius:999px;
+  background:rgba(20,20,24,.6);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 0 0 1px rgba(255,255,255,.12);font-size:.95rem;transition:opacity .4s}
+.sopill .so-dot{width:.6rem;height:.6rem;border-radius:50%;background:#f5b400;box-shadow:0 0 0 .25rem rgba(245,180,0,.25)}
+.sopill .so-t{color:#d6d6d6;font-variant-numeric:tabular-nums}.sopill .so-k{color:#bdbdbd;font-size:.85rem}
+.hide-ui~.sopill,.sopill.dim{opacity:.35}
+.lite .sopill{background:#16161a;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* Message envoyé depuis Studio */
+.tvmsg{position:fixed;z-index:60;left:50%;top:2.2rem;transform:translateX(-50%);width:min(62rem,88vw);border-radius:1.4rem;overflow:hidden;
+  background:rgba(22,22,26,.62);-webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6);
+  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 1.6rem 4rem rgba(0,0,0,.55);animation:tmIn .55s cubic-bezier(.2,.9,.25,1.15)}
+.tvmsg.out{animation:tmOut .35s ease-in forwards}
+.tm-in{display:flex;align-items:center;gap:1.4rem;padding:1.4rem 1.7rem}
+.tm-ico{flex:none;width:3.4rem;height:3.4rem;border-radius:1rem;display:grid;place-items:center;background:var(--accent);color:#fff;box-shadow:0 .5rem 1.4rem rgba(255,61,127,.45)}
+.tm-ico svg{width:1.7rem;height:1.7rem}
+.tm-body{flex:1;min-width:0}
+.tm-kick{font-size:.8rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-t)}
+.tm-text{margin-top:.3rem;font:700 1.75rem/1.25 var(--display);letter-spacing:-.01em;text-wrap:balance;white-space:pre-line}
+.tm-ok{flex:none;display:flex;align-items:center;gap:.5rem;font-size:.9rem;color:#cfcfcf}
+.tm-bar{height:.22rem;background:var(--accent);transform-origin:left;animation:tmBar var(--tmd,15s) linear forwards}
+@keyframes tmIn{from{opacity:0;transform:translate(-50%,-1.5rem) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes tmOut{to{opacity:0;transform:translate(-50%,-1rem) scale(.97)}}
+@keyframes tmBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.lite .tvmsg{background:#16161a;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none}
+.lite .tm-bar{animation:none;display:none}
 /* Panneau (guide, demandes, réglages) */
 .panel{position:fixed;inset:0;background:rgba(0,0,0,.96);padding:1.9rem 3rem;display:flex;flex-direction:column;gap:1.1rem}
 .topbar{height:2.5rem;display:flex;align-items:center;gap:1.75rem;flex:none}
@@ -370,6 +416,7 @@ body.panel-open .lerr,body.panel-open .loading{display:none!important}
 @keyframes hswap{from{opacity:0;transform:translateY(.5rem)}}
 .hrows{display:flex;flex-direction:column;gap:.9rem}
 .hrow h2{margin:0 0 .4rem;font-size:1.05rem;font-weight:700}
+.hrow:not(.tonight) h2 small{margin-left:.7rem;font-size:.85rem;font-weight:500;color:var(--mute)}
 .hview{overflow:hidden;margin:0 -3rem;padding:.45rem 3rem}
 .htrack{display:flex;gap:.9rem;transition:transform .3s cubic-bezier(.2,.8,.3,1);will-change:transform}
 .hcard{width:13rem;flex:none;display:flex;flex-direction:column;gap:.4rem;cursor:pointer;background:none;border:0;padding:0;text-align:left;color:var(--ink);font:inherit}
@@ -601,7 +648,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
   <div class="scrim"></div>
   <div class="clock tnum" id="clock"></div>
   <div class="bug"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/></svg></span><span>Frigo Rosé TV</span></div>
-  <div class="ctrl" id="ctrl"><button class="cb" data-c="home" aria-label="Accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg><span class="tip">Accueil</span></button><button class="cb" data-c="back30" aria-label="Reculer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Reculer de 30 s</span></button><button class="cb big" data-c="play" id="cb-play" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg><span class="tip">Pause</span></button><button class="cb" data-c="fwd30" aria-label="Avancer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Avancer de 30 s</span></button><button class="cb" data-c="live" aria-label="Revenir au direct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg><span class="tip">Revenir au direct</span></button><button class="cb" data-c="guide" aria-label="Guide TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v16"/></svg><span class="tip">Guide TV</span></button><button class="cb" data-c="list" aria-label="Liste des chaînes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg><span class="tip">Liste des chaînes</span></button><button class="cb" data-c="fav" id="cb-fav" aria-label="Favori"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6-4.5-4.2 6.1-.8z"/></svg><span class="tip">Ajouter aux favoris</span></button><button class="cb" data-c="format" aria-label="Format d'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 12h10M7 12l2-2M7 12l2 2M17 12l-2-2M17 12l-2 2"/></svg><span class="tip">Format d'image</span></button><button class="cb" data-c="full" aria-label="Plein écran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Plein écran</span></button></div>
+  <div class="ctrl" id="ctrl"><button class="cb" data-c="home" aria-label="Accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg><span class="tip">Accueil</span></button><button class="cb" data-c="restart" aria-label="Reprendre au début"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14"/><path d="M19 5l-9 7 9 7z" fill="currentColor"/></svg><span class="tip">Reprendre au début</span></button><button class="cb" data-c="back30" aria-label="Reculer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Reculer de 30 s</span></button><button class="cb big" data-c="play" id="cb-play" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg><span class="tip">Pause</span></button><button class="cb" data-c="fwd30" aria-label="Avancer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Avancer de 30 s</span></button><button class="cb" data-c="live" aria-label="Revenir au direct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg><span class="tip">Revenir au direct</span></button><button class="cb" data-c="mosaic" aria-label="Mosaïque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><span class="tip">Mosaïque</span></button><button class="cb" data-c="guide" aria-label="Guide TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v16"/></svg><span class="tip">Guide TV</span></button><button class="cb" data-c="list" aria-label="Liste des chaînes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg><span class="tip">Liste des chaînes</span></button><button class="cb" data-c="fav" id="cb-fav" aria-label="Favori"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6-4.5-4.2 6.1-.8z"/></svg><span class="tip">Ajouter aux favoris</span></button><button class="cb" data-c="format" aria-label="Format d'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 12h10M7 12l2-2M7 12l2 2M17 12l-2-2M17 12l-2 2"/></svg><span class="tip">Format d'image</span></button><button class="cb" data-c="full" aria-label="Plein écran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Plein écran</span></button></div>
   <div class="banner" id="banner">
     <div class="cnum" id="b-box"><b id="b-num">1</b><small>CHAÎNE</small><img id="b-cl" alt="" hidden><span class="cnn" id="b-cn" hidden></span></div>
     <div class="bmain">
@@ -656,7 +703,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 
   <section id="v-chaines" hidden class="chs">
     <div class="chs-h"><div><h1>Chaînes</h1><span id="chs-count"></span></div>
-      <div class="chs-tools" id="chs-tools"><button data-t="all">Toutes</button><button data-t="fav">★ Favorites</button><button data-t="refresh" class="rf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Actualiser</button></div></div>
+      <div class="chs-tools" id="chs-tools"><button data-t="all">Toutes</button><button data-t="fav">★ Favorites</button><button data-t="mosaic">Mosaïque</button><button data-t="refresh" class="rf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Actualiser</button></div></div>
     <div class="chgrid" id="chgrid"></div>
   </section>
 
@@ -736,6 +783,8 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
   <div class="hints" id="hints"></div>
 </div>
 
+<div class="tvmsg" id="tvmsg" hidden><div class="tm-in"><div class="tm-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg></div><div class="tm-body"><div class="tm-kick" id="tm-kick">Message</div><div class="tm-text" id="tm-text"></div></div><div class="tm-ok"><span class="cap">OK</span>Fermer</div></div><div class="tm-bar" id="tm-bar"></div></div>
+<div class="sopill" id="sopill" hidden><span class="so-dot"></span><b>Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span></div>
 <div class="hpeek" id="hpeek" hidden><div class="hp-img" id="hp-img"></div><div class="hp-body"><div class="hp-kick" id="hp-kick"></div><div class="hp-title" id="hp-title"></div><div class="hp-meta" id="hp-meta"></div><div class="hp-desc" id="hp-desc"></div></div></div>
 <div class="saver" id="saver" hidden><div class="sv-imgs" id="sv-imgs"></div><div class="sv-shade"></div>
   <div class="sv-clock tnum" id="sv-clock"></div><div class="sv-date" id="sv-date"></div>
@@ -1125,6 +1174,7 @@ function streamUrl(u){try{const x=new URL(u);const m=x.searchParams.get("streamM
 let loadDog=null,slowT=null;
 function stopVideo(){clearTimeout(loadDog);if(hls){hls.destroy();hls=null}video.removeAttribute("src");video.load()}
 function play(ch,attempt){
+  if(SO){SO=null;document.body.classList.remove("so-on");$("sopill").hidden=true}
   attempt=attempt||0;$("lerr").hidden=true;clearTimeout(loadDog);
   stopVideo();
   if(demo||!ch.url){$("novideo").hidden=false;$("novideo").textContent="Mode démo · ici passera la vidéo de "+ch.name;$("loading").hidden=true;return}
@@ -1147,6 +1197,49 @@ function liveError(msg){$("loading").hidden=true;$("lerr").hidden=false;if(msg)$
 video.addEventListener("playing",()=>{setTimeout(chPreviewPos,60);clearTimeout(waitT);clearTimeout(loadDog);warmNeighbors();$("loading").hidden=true;$("lerr").hidden=true;videoOk=true;if($("zapfx").classList.contains("on"))zapRelease();if(screen==="home")renderHomeBg(homeFocus())});
 video.addEventListener("waiting",()=>{clearTimeout(waitT);waitT=setTimeout(()=>{if(screen==="live")$("loading").hidden=false},700)});
 
+
+/* ================= Reprendre au début (le programme en cours, lu depuis Jellyfin via Studio) ================= */
+let SO=null;
+function studioBase(){try{const u=new URL(cfg.server);return u.protocol+"//"+u.hostname+":8795"}catch(e){return ""}}
+async function startOver(){
+  const ch=channels[cur];
+  if(demo||!ch){noVideoToast();return}
+  ctlMode=false;
+  const base=studioBase();let r=null;
+  toast("Je reprends au début…",4000);
+  try{const ac=new AbortController();const tt=setTimeout(()=>ac.abort(),9000);
+    const res=await fetch(base+"/tv/startover?num="+encodeURIComponent(ch.num||cur+1),{signal:ac.signal});clearTimeout(tt);
+    r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  catch(e){toast(r&&r.error?r.error:"Pour reprendre au début, Frigo Rosé Studio doit être ouvert sur le PC",5000);return}
+  if(channels[cur]!==ch)return;
+  let host="";try{host=new URL(cfg.server).hostname}catch(e){}
+  playVod(ch,{url:"http://"+host+":"+(r.port||8096)+r.path,title:r.title,dur:r.dur,start:r.start});
+}
+function playVod(ch,so){
+  stopVideo();SO={ch,...so};videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent="On reprend au début…";
+  document.body.classList.add("so-on");$("sopill").hidden=false;updateSoPill();
+  if(window.Hls&&Hls.isSupported()){
+    hls=new Hls({enableWorker:true,maxBufferLength:30,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:8,fragLoadingMaxRetry:8});
+    const mine=hls;
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>{video.currentTime=0;video.play().catch(()=>{})});
+    hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal||hls!==mine)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return}toast("La reprise au début n'a pas marché, retour au direct",4500);backToLive()});
+    hls.loadSource(so.url);hls.attachMedia(video);
+    loadDog=setTimeout(()=>{if(hls===mine&&!videoOk){toast("La reprise au début met trop de temps, retour au direct",4500);backToLive()}},45000);
+  }else{video.src=so.url;video.play().catch(()=>{})}
+  showUI(true);
+}
+function backToLive(){
+  if(!SO)return;const ch=channels[cur];SO=null;document.body.classList.remove("so-on");$("sopill").hidden=true;
+  if(ch)play(ch);showBanner();
+}
+function updateSoPill(){
+  if(!SO)return;const t=video.currentTime||0,d=(SO.dur||0)/1000;
+  const f=x=>{x=Math.max(0,Math.floor(x));const h=Math.floor(x/3600),m=Math.floor(x%3600/60),s2=x%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s2).padStart(2,"0")};
+  $("so-t").textContent=d?f(t)+" / "+f(d):f(t);
+}
+setInterval(()=>{if(SO&&screen==="live")updateSoPill()},1000);
+video.addEventListener("playing",()=>{if(SO){clearTimeout(toastT);$("toast").hidden=true}});
+video.addEventListener("ended",()=>{if(SO){toast("Fin du programme · retour au direct",4000);backToLive()}});
 let lastLive=-1,inPreview=false;
 function tune(i,silent,preview){
   if(i<0||i>=channels.length)return;
@@ -1229,10 +1322,37 @@ function homeRows(){
   const rec=recents().map(id=>nowRow.find(x=>x.ch.id===id)).filter(Boolean);
   if(rec.length)rows.push({id:"rec",title:"Reprendre",list:rec,live:true});
   if(fav.length)rows.push({id:"fav",title:"Tes chaînes favorites",list:fav,live:true});
+  const top=topItems(now);if(top.length)rows.push({id:"top",title:"Top 10 de la maison",hint:"les plus regardés chez vous",list:top,live:false,top:true});
   rows.push({id:"now",title:"En ce moment sur Frigo Rosé TV",list:nowRow,live:true});
   if(nw.length)rows.push({id:"news",title:"Nouveau sur Frigo Rosé TV",list:nw,live:false,news:true});
   if(next.length)rows.push({id:"next",title:"À suivre",list:next.slice(0,14),live:false});
   return {rows,nowRow};
+}
+
+/* ================= Top 10 de la maison : ce qui est le plus regardé chez vous ================= */
+let TOPS={},logKey="";
+function showOf(p){return String((p&&p.title)||"").split(" · ")[0].trim()}
+function logView(ch,p){
+  if(!fdb||demo||!p||p.synthetic)return;const t=showOf(p),k=norm(t).slice(0,60);if(!k)return;
+  try{fdb.ref("frigorosetv/stats/"+k).transaction(v=>({t,n:((v&&v.n)||0)+1,last:Date.now(),ch:ch.name}))}catch(e){}
+}
+setInterval(()=>{
+  const ch=channels[cur];if(screen!=="live"||!ch||!videoOk||demo)return;
+  const now=Date.now(),p=progAt(ch,now);if(!p||p.synthetic)return;
+  const k=ch.id+"|"+p.start;if(k===logKey)return;
+  if(watchId===ch.id&&now-Math.max(watchStart,p.start)>=60000){logKey=k;logView(ch,p)}
+},5000);
+function topItems(now){
+  const out=[],seen=new Set();
+  const find=key=>{let best=null;channels.forEach((ch,i)=>{const list=progs[ch.id]||[];
+    for(const q of list){if(q.stop<=now||q.start>now+24*60*MIN)continue;if(norm(showOf(q))!==key)continue;
+      if(!best||q.start<best.p.start)best={i,ch,p:q,kind:q.start<=now?"now":"next"};break}});return best};
+  const ranked=Object.values(TOPS).filter(x=>x&&x.t&&x.n).map(x=>({...x,score:x.n*Math.pow(.5,(now-(x.last||0))/(14*864e5))})).sort((a,b)=>b.score-a.score);
+  for(const x of ranked){if(out.length>=10)break;const key=norm(x.t);if(seen.has(key))continue;const it=find(key);if(it){seen.add(key);out.push(it)}}
+  // pas encore assez de données : les chaînes les plus reprises dans les profils
+  if(out.length<10){const cnt={};profiles.forEach(pr=>(pr.recent||[]).forEach((id,j)=>{cnt[id]=(cnt[id]||0)+(12-j)}));
+    Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).forEach(id=>{if(out.length>=10)return;const i=channels.findIndex(c=>c.id===id);if(i<0)return;const p=progAt(channels[i],now);if(!p)return;const key=norm(showOf(p));if(seen.has(key)||out.some(o=>o.i===i))return;seen.add(key);out.push({i,ch:channels[i],p,kind:"now"})})}
+  return out.length>=3?out:[];
 }
 /* Ce soir : ce qui passe vers 21h sur chaque chaîne (affiché de 15h à 21h30) */
 function tonightItems(now){
@@ -1356,6 +1476,7 @@ function renderHome(light){
       if(big){const ov=el("div","nov");ov.append(el("span","nk","Nouveau · arrivé "+x.ago),el("strong",null,x.nt),el("span","nw",x.when.charAt(0).toUpperCase()+x.when.slice(1)+" sur "+x.ch.name));th.append(ov)}
       else if(row.news&&x.isNew)th.append(el("span","newtag","NOUVEAU"));
       if(row.tonight)th.append(el("span","tntag",x.p.start<=now?"EN CE MOMENT":hhmm(x.p.start)));
+      if(row.top){c.classList.add("top");th.append(el("span","rk",String(j+1)));th.append(el("span","tntag",x.p.start<=now?"EN CE MOMENT":hhmm(x.p.start)))}
       if(big)c.append(th,el("b",null,x.p.desc?x.p.desc.slice(0,90)+(x.p.desc.length>90?"…":""):"Ajouté "+x.ago+" sur "+x.ch.name),el("small",null,x.p.cat||"\u00a0"));
       else if(row.news)c.append(th,el("b",null,x.nt),el("small",null,x.sub));else
       c.append(th,el("b",null,x.p.title),el("small",null,row.live?x.ch.name+" · encore "+dur(x.p.stop-now):hhmm(x.p.start)+" · "+x.ch.name));
@@ -1413,11 +1534,16 @@ function homeKey(k){
 
 /* ================= Page Chaînes ================= */
 let cIdx=0,chFilter="all",chZone="grid",chTool=0;
-const CHT=["all","fav","refresh"];
+const CHT=["all","fav","mosaic","refresh"];
 function chList(){const all=channels.map((c,i)=>i);return chFilter==="fav"?all.filter(i=>isFav(channels[i])):all}
 function chCols(){return 4}
+
+/* ================= Mosaïque : toutes les chaînes d'un coup d'œil ================= */
+let MOS=false;
+function openMosaic(){MOS=true;document.body.classList.add("mosaic");chFilter="all";openChaines()}
+function closeMosaic(){if(!MOS)return;MOS=false;document.body.classList.remove("mosaic")}
 function openChaines(){const l=chList();cIdx=Math.max(0,l.indexOf(cur));chZone="grid";zone="content";setScreen("chaines");chPreviewSched()}
-function applyTool(t){const v=CHT[t];if(v==="refresh"){manualRefresh();return}if(v&&v!==chFilter){chFilter=v;cIdx=0}}
+function applyTool(t){const v=CHT[t];if(v==="refresh"){manualRefresh();return}if(v==="mosaic"){openMosaic();return}if(v&&v!==chFilter){chFilter=v;cIdx=0}}
 let refreshing=false;
 async function manualRefresh(){
   if(demo){toast("Pas disponible en mode démo");return}
@@ -1438,6 +1564,7 @@ function chFast(){
 }
 function renderChaines(){
   const g=$("chgrid");g.textContent="";const now=Date.now();
+  {const h=document.querySelector("#v-chaines h1");if(h)h.textContent=MOS?"Mosaïque":"Chaînes"}
   document.querySelectorAll("#chs-tools button").forEach((b,i)=>{const v=b.dataset.t;b.classList.toggle("on",v===chFilter);b.classList.toggle("f",zone==="content"&&chZone==="tools"&&CHT.indexOf(v)===chTool)});
   const l=chList();
   $("chs-count").textContent=chFilter==="fav"?l.length+" favorite"+(l.length>1?"s":""):channels.length+" chaînes";
@@ -1582,7 +1709,7 @@ function showBanner(){const bn=$("banner");bn.classList.remove("anim");void bn.o
 const PLAYICO='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
 const PAUSEICO=$("cb-play").querySelector("svg").outerHTML;
 const CTLS=()=>[...document.querySelectorAll("#ctrl .cb")];
-let ctlMode=false,ctlIdx=2,uiT=null;
+let ctlMode=false,ctlIdx=Math.max(0,CTLS().findIndex(b=>b.dataset.c==="play")),uiT=null;
 function showUI(ctl){
   renderBanner();updatePlayUI();
   const keep=ctl||ctlMode||window.TOUCH||(video.paused&&videoOk&&!demo);
@@ -1612,6 +1739,7 @@ function updatePlayUI(){updateFavBtn();
 function liveEdge(){if(hls&&hls.liveSyncPosition)return hls.liveSyncPosition;const sr=video.seekable;return sr.length?sr.end(sr.length-1)-3:video.currentTime}
 function updateDelay(){
   const t=$("b-ondir-t"),o=$("b-ondir");
+  if(SO){t.textContent="DEPUIS LE DÉBUT";o.classList.add("late");return}
   if(demo||!videoOk){t.textContent="EN DIRECT";o.classList.remove("late");return}
   const behind=liveEdge()-video.currentTime;
   if(behind>15){const m=Math.floor(behind/60),sec=Math.floor(behind%60);t.textContent="DIFFÉRÉ −"+m+":"+String(sec).padStart(2,"0");o.classList.add("late")}
@@ -1634,22 +1762,24 @@ function seekRange(){
   const b=video.buffered,ct=video.currentTime;for(let i=0;i<b.length;i++){if(b.start(i)<=ct+.5&&b.end(i)>=ct-.5){st=Math.min(st,b.start(i));break}}
   return [st,en];
 }
-function goLive(){if(demo||!videoOk){noVideoToast();return}video.currentTime=liveEdge();video.play().catch(()=>{});setTimeout(()=>{updatePlayUI();showUI(true)},80)}
+function goLive(){if(SO){backToLive();return}if(demo||!videoOk){noVideoToast();return}video.currentTime=liveEdge();video.play().catch(()=>{});setTimeout(()=>{updatePlayUI();showUI(true)},80)}
 function toggleFull(){try{if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>toast("Plein écran pas disponible ici"));else document.exitFullscreen()}catch(e){toast("Plein écran pas disponible ici")}}
 function doCtl(c){
   if(c==="home"){ctlMode=false;openHome()}
   else if(c==="back30")seek(-30);
   else if(c==="fwd30")seek(30);
   else if(c==="play")togglePlay();
-  else if(c==="live")goLive();
+  else if(c==="live"){if(SO)backToLive();else goLive()}
+  else if(c==="restart"){if(SO){video.currentTime=0;video.play().catch(()=>{})}else startOver()}
   else if(c==="guide"){ctlMode=false;openGuide()}
+  else if(c==="mosaic"){ctlMode=false;openMosaic()}
   else if(c==="list"){ctlMode=false;renderCtl();openMg()}
   else if(c==="full")toggleFull();
   else if(c==="fav")toggleFav(channels[cur]);
   else if(c==="format")cycleFit();
   else if(c==="chup")zap(1);
   else if(c==="chdown")zap(-1);
-  else if(c==="ctl"){ctlMode=true;ctlIdx=2;renderCtl();showUI(true)}
+  else if(c==="ctl"){ctlMode=true;ctlIdx=Math.max(0,CTLS().findIndex(b=>b.dataset.c==="play"));renderCtl();showUI(true)}
 }
 document.querySelectorAll("#ctrl .cb,.keys [data-c]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();const i=CTLS().indexOf(b);if(i>=0){ctlIdx=i}doCtl(b.dataset.c)}));
 video.addEventListener("pause",updatePlayUI);video.addEventListener("play",updatePlayUI);
@@ -1682,7 +1812,7 @@ function digit(d){
 /* ================= Écrans ================= */
 const TABS=["home","chaines","guide","search","demandes","settings"];
 function setScreen(s){
-  screen=s;if(s!=="home")hidePeek();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
+  screen=s;if(s!=="home")hidePeek();if(s!=="chaines")closeMosaic();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
   $("splash").hidden=s!=="splash";$("error").hidden=s!=="error";$("profiles").hidden=s!=="profiles";$("pedit").hidden=s!=="pedit";
   const inPanel=["home","chaines","guide","search","demandes","settings"].includes(s);
   video.muted=s!=="live";
@@ -1830,7 +1960,9 @@ function startFirebase(){
     /* Studio a corrigé l'image d'un film : on oublie les images gardées et on les recharge */
     fdb.ref("frigorosetv/config/imgreset").on("value",s=>{const v=+s.val()||0;if(v<=(+LS.get("frtv_imgreset","0")))return;LS.set("frtv_imgreset",String(v));IMG.bad.clear();IMG.ready.clear();if(screen==="home")renderHome()},()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
-    syncChannels();publishProfiles();
+    syncChannels();publishProfiles();startProfSync();
+    fdb.ref("frigorosetv/stats").on("value",s=>{TOPS=s.val()||{};if(screen==="home")renderHome()},()=>{});
+    fdb.ref("frigorosetv/config/message").on("value",s=>{try{onTvMsg(s.val())}catch(e){}},()=>{});
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}
 }
 /* Les chaînes de Tunarr sont envoyées à la régie de l'appli Demandes (ajout et numéros, jamais de suppression) */
@@ -1857,6 +1989,73 @@ function profPublic(p){return {name:p.name,av:p.av||0,pic:p.pic||"",own:!!p.img}
 function publishProfiles(){
   if(!fdb||demo)return;
   try{const up={};profiles.forEach(p=>{const k=norm(p.name);if(k)up[k]=profPublic(p)});fdb.ref("frigorosetv/profiles").update(up)}catch(e){}
+}
+
+
+/* Message de Studio sur toutes les télés */
+let TM=null,tmT=null;
+function showTvMsg(m){
+  if(!m||!m.text)return;TM=m;LS.set("frtv_msgseen",String(m.at||0));
+  if(SV.on)try{saverClose()}catch(e){}
+  $("tm-kick").textContent=m.from?"Message de "+m.from:"Message";
+  $("tm-text").textContent=m.text;
+  const t=$("tvmsg"),d=Math.min(40000,Math.max(9000,m.text.length*120));t.style.setProperty("--tmd",d+"ms");t.classList.remove("out");t.hidden=false;
+  const b=$("tm-bar");b.style.animation="none";void b.offsetWidth;b.style.animation="";
+  try{chime()}catch(e){}
+  clearTimeout(tmT);tmT=setTimeout(hideTvMsg,d);
+}
+function hideTvMsg(){clearTimeout(tmT);const t=$("tvmsg");if(t.hidden)return;TM=null;t.classList.add("out");setTimeout(()=>{t.hidden=true;t.classList.remove("out")},350)}
+function onTvMsg(m){
+  if(!m||!m.text)return;const at=+m.at||0;
+  if(at<=(+LS.get("frtv_msgseen","0")))return;
+  if(m.until&&Date.now()>+m.until)return;
+  if(["splash","profiles","pedit"].includes(screen)){setTimeout(()=>onTvMsg(m),4000);return}
+  showTvMsg(m);
+}
+/* Profils en ligne : les mêmes sur toutes les télés (chez toi, chez tes beaux-parents…)
+   et gardés même si on réinstalle l'appli. Firebase : frigorosetv/profsync/<id> */
+const PSIG={};let profSyncOn=false,profPushT=null;
+function profCloud(p){const o={id:p.id,name:p.name,av:p.av||0,up:p.up||0};if(p.pic)o.pic=p.pic;if(p.img)o.img=p.img;if(p.fest)o.fest=p.fest;if(Array.isArray(p.favs))o.favs=p.favs.slice(0,200);if(Array.isArray(p.recent))o.recent=p.recent.slice(0,12);return o}
+function profSig(p){const o=profCloud(p);delete o.up;return JSON.stringify(o)}
+function pushCloudProfiles(){
+  clearTimeout(profPushT);profPushT=setTimeout(()=>{
+    if(!fdb||demo||!profSyncOn)return;
+    const up={};profiles.forEach(p=>{const sg=profSig(p);if(PSIG[p.id]!==sg){p.up=Date.now();PSIG[p.id]=sg;up[p.id]=profCloud(p)}});
+    if(Object.keys(up).length){try{fdb.ref("frigorosetv/profsync").update(up).catch(()=>{});LS.trySet("frtv_profiles",JSON.stringify(profiles))}catch(e){}}
+  },600);
+}
+function cloudRemoveProfile(id){try{if(fdb&&!demo&&id){fdb.ref("frigorosetv/profsync/"+id).remove().catch(()=>{});delete PSIG[id]}}catch(e){}}
+function mergeCloudProfiles(v){
+  v=v||{};let changed=false;
+  const known=new Set((LS.get("frtv_profknown","")||"").split(",").filter(Boolean));
+  // supprimé sur une autre télé
+  const before=profiles.length;profiles=profiles.filter(p=>!(known.has(p.id)&&!v[p.id]));
+  if(profiles.length!==before){changed=true;if(profile&&!profiles.includes(profile)){profile=null;try{updateChip()}catch(e){}}}
+  for(const id in v){
+    const c=v[id];if(!c||!c.name)continue;
+    let p=profiles.find(x=>x.id===id);
+    if(!p){const twin=profiles.find(x=>!v[x.id]&&norm(x.name)===norm(c.name));
+      if(twin){// le même prénom créé ici avant la synchro : on garde un seul profil
+        const old=twin.id;twin.id=id;if(LS.get("frtv_profile","")===old)LS.set("frtv_profile",id);
+        const last=LS.get("frtv_last_"+old,"");if(last)LS.set("frtv_last_"+id,last);
+        twin.favs=[...new Set([...(c.favs||[]),...(twin.favs||[])])];p=twin;changed=true;
+        if((c.up||0)>(twin.up||0)){["name","av","pic","img","fest","recent"].forEach(k=>{if(c[k]!==undefined)twin[k]=c[k];else if(k!=="recent")delete twin[k]});twin.up=c.up}
+        continue}
+      profiles.push(Object.assign({},c));PSIG[id]=profSig(c);changed=true;continue}
+    if((c.up||0)>(p.up||0)){Object.keys(p).forEach(k=>{if(k!=="id")delete p[k]});Object.assign(p,c);PSIG[id]=profSig(p);changed=true}
+    else if(PSIG[id]===undefined&&profSig(p)===profSig(c))PSIG[id]=profSig(c);
+  }
+  LS.set("frtv_profknown",Object.keys(v).join(","));
+  if(changed){LS.trySet("frtv_profiles",JSON.stringify(profiles));
+    if(screen==="pedit"&&ed&&ed.first&&profiles.length)showProfiles();
+    else if(screen==="profiles")renderProfiles();
+    else if(["home","chaines"].includes(screen))try{refreshViews()}catch(e){}
+    try{updateChip()}catch(e){}}
+  pushCloudProfiles();
+}
+function startProfSync(){
+  if(!fdb||demo||profSyncOn)return;profSyncOn=true;
+  fdb.ref("frigorosetv/profsync").on("value",s=>{try{mergeCloudProfiles(s.val())}catch(e){}},()=>{profSyncOn=false});
 }
 let presT=0,presRef=null;
 function presence(){
@@ -1916,13 +2115,13 @@ function newsItems(now){
     return {i:x.i,ch:x.ch,p,kind:x.next&&x.next.start<=now?"now":"next",news:x.n,isNew:x.anyNew,nt,when,ago:newsAgo(x.at,now),sub:x.ch.name+" · "+when};
   });
 }
-function updateNewsBadge(){
+function updateNewsBadge(){const b0=document.querySelector('.tab[data-v="home"] .bdg');if(b0)b0.remove();return;
   const t=document.querySelector('.tab[data-v="home"]');if(!t)return;
   const n=newsItems(Date.now()).filter(x=>x.isNew).length;
   let b=t.querySelector(".bdg");if(!n){if(b)b.remove();return}
   if(!b){b=el("span","bdg");t.append(b)}b.textContent=n>9?"9+":String(n);
 }
-function updateDemBadge(){
+function updateDemBadge(){const b0=document.querySelector('.tab[data-v="demandes"] .bdg');if(b0)b0.remove();return;
   const t=document.querySelector('.tab[data-v="demandes"]');if(!t)return;
   const n=(reqs||[]).filter(r=>!r.status||r.status==="attente").length;
   let b=t.querySelector(".bdg");if(!n){if(b)b.remove();return}
@@ -2062,7 +2261,7 @@ const PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="#A6A6A6" stroke-width="
 const PEN='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 let profiles=[];try{profiles=JSON.parse(LS.get("frtv_profiles","[]"))||[]}catch(e){profiles=[]}
 let profile=null,pIdx=0,managing=false,ed=null,eZone=0,eBtn=0,delSure=false;
-function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles))){toast("Plus de place pour les photos, utilise une image plus légère");return false}setTimeout(()=>{try{publishProfiles()}catch(e){}},0);return true}
+function saveProfiles(){if(!LS.trySet("frtv_profiles",JSON.stringify(profiles))){toast("Plus de place pour les photos, utilise une image plus légère");return false}setTimeout(()=>{try{publishProfiles();pushCloudProfiles()}catch(e){}},0);return true}
 /* Collections de photos de profil (comme Netflix). Pour en ajouter : un dossier dans avatars/ et une ligne ici. */
 const AVBASE="https://dylker24.github.io/frigo-rose-tv/avatars/";
 const AVPACKS=[
@@ -2280,7 +2479,7 @@ function chooseProfileFromEdit(i){profile=profiles[i];LS.set("frtv_profile",prof
 $("ed-cancel").onclick=()=>showProfiles();
 $("ed-del").onclick=()=>{
   if(!delSure){delSure=true;renderEdit();return}
-  const id=ed.id;profiles=profiles.filter(p=>p.id!==id);saveProfiles();
+  const id=ed.id;profiles=profiles.filter(p=>p.id!==id);cloudRemoveProfile(id);saveProfiles();
   if(profile&&profile.id===id){profile=null;updateChip()}
   if(!profiles.length)openEdit(null,true);else showProfiles();
 };
@@ -2524,7 +2723,9 @@ setInterval(()=>{if(!SV.on&&["home","chaines","guide"].includes(screen)&&Date.no
 window.addEventListener("blur",()=>{clearTimeout(okT);okT=null;okLong=false});
 document.addEventListener("keyup",e=>{if(keyName(e)!=="ok"||!okT)return;clearTimeout(okT);okT=null;if(okLong){okLong=false;return}runOk()});
 document.addEventListener("keydown",e=>{
-  if(SV.on){e.preventDefault();e.stopImmediatePropagation();saverClose();return}  // une touche réveille la télé, sans rien faire d'autre
+  if(SV.on){e.preventDefault();e.stopImmediatePropagation();saverClose();return}
+  if(TM&&!$("tvmsg").hidden&&/^(ok|back)$/.test(keyName(e)||"")){e.preventDefault();e.stopImmediatePropagation();hideTvMsg();return}
+  if(SO&&screen==="live"&&!mgOpen&&!ctlMode&&keyName(e)==="back"){e.preventDefault();e.stopImmediatePropagation();backToLive();return}  // une touche réveille la télé, sans rien faire d'autre
   hidePeek();
   if(keyName(e)==="ok"&&!(document.activeElement&&document.activeElement.tagName==="INPUT")&&longOkTarget()){
     e.preventDefault();lastKey=Date.now();if(e.repeat||okT)return;okLong=false;
@@ -2558,7 +2759,7 @@ document.addEventListener("keydown",e=>{
     else if(k==="right")openMg();
     else if(k==="info")showBanner();
     else if(k==="guide")openGuide();
-    else if(k==="ok"){ctlMode=true;ctlIdx=2;renderCtl();showUI(true)}
+    else if(k==="ok"){ctlMode=true;ctlIdx=Math.max(0,CTLS().findIndex(b=>b.dataset.c==="play"));renderCtl();showUI(true)}
     return;
   }
   if(k==="back"){if(inInput)document.activeElement.blur();closePanel();return}

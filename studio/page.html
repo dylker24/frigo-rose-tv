@@ -61,6 +61,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .btn.ghost{background:none;color:var(--mute)}
 .btn.ghost:hover{color:var(--ink);background:var(--s2)}
 .acts{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
+.tvm textarea{width:100%;margin-top:12px;resize:vertical;min-height:62px;font:inherit}.tvm-r{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.tvm-r .inp{flex:1;min-width:140px}
 .away{margin:16px 0 6px;border:1px solid var(--line);border-radius:14px;background:var(--s2);padding:16px}
 .away.on{border-color:rgba(61,214,140,.45);background:linear-gradient(180deg,rgba(61,214,140,.08),var(--s2))}
 .away-h{display:flex;align-items:center;gap:14px}
@@ -366,6 +367,10 @@ html,body{overflow-x:hidden}
       <div id="ch-list-v">
         <h1>Tes chaînes</h1>
         <p class="sub">La programmation de chaque chaîne Tunarr : ajoute, retire, mélange, sans ouvrir Tunarr.</p>
+        <div class="away tvm" id="tvm"><div class="away-h"><div><b>Message sur les télés</b><small id="tvm-s">S'affiche en haut de l'écran, sur toutes les télés</small></div></div>
+          <textarea class="inp" id="tvm-t" rows="2" maxlength="220" placeholder="Ex : Coucou Christelle ! Actualise les chaînes, il y a des nouveautés 😉"></textarea>
+          <div class="tvm-r"><input class="inp" id="tvm-from" placeholder="Signé (facultatif)" maxlength="30" autocomplete="off"><button class="btn pri" id="tvm-send">Envoyer</button><button class="btn ghost" id="tvm-clear" hidden>Retirer</button></div>
+          <div class="err" id="tvm-err"></div></div>
         <div class="err" id="ch-err"></div>
         <div class="hsum" id="ch-hsum" hidden></div>
         <div class="chl" id="ch-list"><div class="qempty">Chargement…</div></div>
@@ -613,7 +618,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);if(b.dataset.v===v&&b.scrollIntoView)try{b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}catch(e){}});
-  $("v-ch").hidden=v!=="ch";if(v==="ch")loadChannels();$("v-med").hidden=v!=="med";if(v==="med")loadMed();
+  $("v-ch").hidden=v!=="ch";if(v==="ch"){loadChannels();loadTvm()}$("v-med").hidden=v!=="med";if(v==="med")loadMed();
   $("v-up").hidden=v!=="dl";$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
   $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
   if(v==="dem")loadDem();
@@ -1008,6 +1013,15 @@ async function medInfo(path){$("inf-conv").textContent="Convertir en MP4 léger"
   $("inf-body").innerHTML='<div class="infg"><b>Durée</b><span>'+fmtD(INF.duration)+'</span><b>Taille</b><span>'+size(INF.size)+' · '+Math.round(INF.bitrate/1e5)/10+' Mb/s</span><b>Format</b><span>'+esc(INF.container)+'</span><b>Vidéo</b><span>'+esc((v.codec||"?").toUpperCase())+' · '+(v.w||"?")+'×'+(v.h||"?")+(v.fps?' · '+v.fps+' im/s':'')+(v.interlaced?' · entrelacée':'')+'</span><b>Son</b><span>'+esc(A)+'</span></div>'+
     (INF.heavy.length?'<div class="warnbox"><b>Lourd à lire pour Tunarr</b> : '+esc(INF.heavy.join(", "))+'. La chaîne met plus de temps à démarrer quand ce fichier passe. En le convertissant en MP4 H.264, il démarrera vite.</div>':'<div class="okbox">Parfait pour Tunarr : ce fichier démarre vite.</div>');
   $("inf-conv").hidden=!INF.heavy.length;loadIdent(path)}
+
+/* Message sur les télés */
+async function loadTvm(){try{const r=await api("/api/tvmsg");const m=r.message;const on=m&&m.text&&(!m.until||Date.now()<m.until);
+  $("tvm-clear").hidden=!on;$("tvm-s").textContent=on?"En ce moment : « "+m.text.slice(0,60)+(m.text.length>60?"…":"")+" »":"S'affiche en haut de l'écran, sur toutes les télés";
+  if(!$("tvm-from").value){try{$("tvm-from").value=localStorage.getItem("frs_tvm_from")||""}catch(e){}}}catch(e){}}
+$("tvm-send").onclick=async()=>{const t=$("tvm-t").value.trim();$("tvm-err").textContent="";if(!t){$("tvm-err").textContent="Écris ton message";return}
+  const from=$("tvm-from").value.trim();try{localStorage.setItem("frs_tvm_from",from)}catch(e){}
+  try{await api("/api/tvmsg",{text:t,from});$("tvm-t").value="";alertMsg("Message envoyé · il s'affiche sur les télés allumées, et sur les autres à leur prochaine ouverture (pendant 24 h)");loadTvm()}catch(e){$("tvm-err").textContent=e.message}};
+$("tvm-clear").onclick=async()=>{try{await api("/api/tvmsg",{clear:true});loadTvm()}catch(e){$("tvm-err").textContent=e.message}};
 $("inf-x").onclick=()=>$("med-inf-m").hidden=true;
 /* fiche et image (quand Jellyfin s'est trompé de film) */
 let IDT=null;

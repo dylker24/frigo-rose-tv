@@ -1570,6 +1570,41 @@ def tn_programming(cid):
     return {"name": (r.get("name") or "").strip(), "number": r.get("number"), "lineup": items, "raw": r.get("lineup") or []}
 
 
+# ---------- « Reprendre au début » sur la télé : le programme en cours, lu depuis Jellyfin ----------
+def tv_startover(num):
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    try:
+        n = float(num)
+    except (TypeError, ValueError):
+        raise RuntimeError("chaîne inconnue")
+    ch = next((c for c in (tn("/api/channels") or []) if c.get("number") is not None and abs(float(c["number"]) - n) < 0.01), None)
+    if not ch:
+        raise RuntimeError("chaîne inconnue")
+    pr = tn_programming(ch["id"])
+    items = [x for x in pr["lineup"] if (x.get("duration") or 0) > 0]
+    total = sum(x["duration"] for x in items)
+    if not total:
+        raise RuntimeError("chaîne vide")
+    now = time.time() * 1000
+    off = (now - float(ch.get("startTime") or 0)) % total
+    cur = items[-1]
+    for x in items:
+        if off < x["duration"]:
+            cur = x
+            break
+        off -= x["duration"]
+    if cur.get("type") != "content" or not cur.get("ext"):
+        raise RuntimeError("Ce programme ne peut pas être repris au début")
+    jid = str(cur["ext"]).replace("-", "")
+    q = urlencode({"MediaSourceId": jid, "api_key": conf["jellyfin_key"], "VideoCodec": "h264", "AudioCodec": "aac",
+                   "TranscodingMaxAudioChannels": 2, "MaxStreamingBitrate": 8000000, "MaxWidth": 1920, "SegmentContainer": "ts",
+                   "MinSegments": 1, "BreakOnNonKeyFrames": "true", "DeviceId": "frigo-rose-tv", "PlaySessionId": uuid.uuid4().hex})
+    port = urlparse(_fast(conf["jellyfin_url"])).port or 8096
+    return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "port": port, "title": cur.get("title") or "",
+            "start": int(now - off), "dur": int(cur["duration"]), "elapsed": int(off)}
+
+
 def tn_backup(cid, raw):
     f = os.path.join(BACKUPS, "%s-%d.json" % (cid, int(time.time() * 1000)))
     with open(f, "w", encoding="utf-8") as fh:
@@ -2971,6 +3006,12 @@ class H(BaseHTTPRequestHandler):
             if os.path.exists(ic):
                 with open(ic, "rb") as f:
                     return self.send(200, f.read(), "image/png")
+        if u.path == "/tv/startover":
+            cors = {"Access-Control-Allow-Origin": "*"}
+            try:
+                return self.send(200, tv_startover((parse_qs(u.query).get("num") or [""])[0]), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
         if u.path.startswith("/api/") and not self.authed():
             return self.need_auth()
         if u.path.startswith("/api/tn/"):
@@ -3029,6 +3070,11 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/tvmsg" and self.authed():
+            try:
+                return self.send(200, {"message": fb("/config/message")})
+            except Exception:
+                return self.send(200, {"message": None})
         if u.path == "/api/debug":
             return self.send(200, {"log": BGLOG, "never": sorted(_never), "scan": {k: int(time.time() - v) for k, v in _scan_t.items()}})
         if u.path == "/api/pc":
@@ -3221,6 +3267,19 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"ok": True})
         if u.path == "/api/away":
             return self.send(200, away_set(bool(b.get("on"))))
+        if u.path == "/api/tvmsg":
+            try:
+                if b.get("clear"):
+                    fb("/config/message", "PUT", {"text": "", "at": int(time.time() * 1000)})
+                    return self.send(200, {"ok": True})
+                t = str(b.get("text") or "").strip()[:220]
+                if not t:
+                    return self.send(400, {"error": "Écris ton message"})
+                now = int(time.time() * 1000)
+                fb("/config/message", "PUT", {"text": t, "from": str(b.get("from") or "").strip()[:30], "at": now, "until": now + 24 * 3600 * 1000})
+                return self.send(200, {"ok": True})
+            except Exception:
+                return self.send(400, {"error": "Impossible d'envoyer le message (pas d'internet ?)"})
         if u.path == "/api/autostart":
             try:
                 return self.send(200, {"on": autostart_set(bool(b.get("on")))})
