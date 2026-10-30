@@ -97,6 +97,15 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 @keyframes spin{to{transform:rotate(360deg)}}
 .infg{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin:8px 0}.infg b{color:var(--mute);font-weight:500}
 .warnbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(247,194,102,.1);border:1px solid rgba(247,194,102,.35);color:var(--warn);font-size:14px}
+.idbox{display:flex;gap:14px;align-items:center;margin-top:14px;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line,rgba(255,255,255,.1))}
+.idbox img,.idbox .noimg{width:64px;height:96px;border-radius:8px;object-fit:cover;flex:none;background:#222}
+.idbox .noimg{display:grid;place-items:center;font-size:11px;color:var(--mute);text-align:center}
+.idbox .t{flex:1;min-width:0;font-size:14px}.idbox .t b{display:block;font-size:15px}.idbox .t span{color:var(--mute)}
+.idres{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px;margin-top:12px}
+.idres button{all:unset;cursor:pointer;border-radius:10px;padding:6px;background:rgba(255,255,255,.04);border:1px solid transparent;font-size:13px;line-height:1.3}
+.idres button:hover,.idres button:focus{border-color:var(--pri,#ff3d7f)}
+.idres img,.idres .noimg{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:7px;background:#222;display:block;margin-bottom:6px}
+.idres small{color:var(--mute)}
 .okbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(61,214,140,.1);border:1px solid rgba(61,214,140,.35);color:var(--ok);font-size:14px}
 .it .ib2{border:0;background:var(--s3);color:var(--mute);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;margin-left:8px}.it .ib2:hover{color:var(--ink)}
 .mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(224,36,94,.08);font-size:13px}
@@ -545,6 +554,16 @@ html,body{overflow-x:hidden}
     <div class="acts"><button class="btn pri" id="inf-conv" hidden>Convertir en MP4 léger</button><button class="btn" id="inf-x">Fermer</button></div>
   </div>
 </div>
+<div class="modal" id="med-id-m" hidden>
+  <div class="card" style="width:min(720px,100%)">
+    <h1 style="font-size:20px">Trouver la bonne fiche</h1>
+    <p class="sub" style="margin-bottom:8px">Tape le vrai titre, choisis la bonne affiche : le titre, le résumé et l'image seront corrigés partout, télé comprise.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="id-q" autocomplete="off" style="flex:1;min-width:180px" placeholder="Titre"><input class="inp" id="id-y" style="width:90px" placeholder="Année" inputmode="numeric"><button class="btn pri" id="id-go">Chercher</button></div>
+    <div style="overflow:auto;flex:1"><div class="idres" id="id-res"></div></div>
+    <div class="err" id="id-err"></div>
+    <div class="acts"><button class="btn" id="id-x">Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="med-tr-m" hidden>
   <div class="card">
     <h1 style="font-size:20px">Corbeille</h1>
@@ -988,8 +1007,28 @@ async function medInfo(path){$("inf-conv").textContent="Convertir en MP4 léger"
   $("inf-t").textContent=INF.name;
   $("inf-body").innerHTML='<div class="infg"><b>Durée</b><span>'+fmtD(INF.duration)+'</span><b>Taille</b><span>'+size(INF.size)+' · '+Math.round(INF.bitrate/1e5)/10+' Mb/s</span><b>Format</b><span>'+esc(INF.container)+'</span><b>Vidéo</b><span>'+esc((v.codec||"?").toUpperCase())+' · '+(v.w||"?")+'×'+(v.h||"?")+(v.fps?' · '+v.fps+' im/s':'')+(v.interlaced?' · entrelacée':'')+'</span><b>Son</b><span>'+esc(A)+'</span></div>'+
     (INF.heavy.length?'<div class="warnbox"><b>Lourd à lire pour Tunarr</b> : '+esc(INF.heavy.join(", "))+'. La chaîne met plus de temps à démarrer quand ce fichier passe. En le convertissant en MP4 H.264, il démarrera vite.</div>':'<div class="okbox">Parfait pour Tunarr : ce fichier démarre vite.</div>');
-  $("inf-conv").hidden=!INF.heavy.length}
+  $("inf-conv").hidden=!INF.heavy.length;loadIdent(path)}
 $("inf-x").onclick=()=>$("med-inf-m").hidden=true;
+/* fiche et image (quand Jellyfin s'est trompé de film) */
+let IDT=null;
+async function loadIdent(path){
+  const box=document.createElement("div");box.className="idbox";box.innerHTML='<div class="noimg">…</div><div class="t"><span>Je regarde la fiche…</span></div>';$("inf-body").append(box);
+  try{IDT=await api("/api/media/ident?path="+encodeURIComponent(path))}catch(e){box.querySelector(".t").innerHTML='<span>'+esc(e.message)+'</span>';return}
+  const img=IDT.img?'<img src="/api/media/jfimg?id='+encodeURIComponent(IDT.id)+'&t='+Date.now()+'" alt="">':'<div class="noimg">pas d\'image</div>';
+  box.innerHTML=img+'<div class="t"><b>'+esc(IDT.name)+(IDT.year?' ('+IDT.year+')':'')+'</b><span>'+esc((IDT.genres||[]).join(" · ")||(IDT.kind==="Series"?"Série":"Film"))+'</span></div><button class="btn" id="id-open">'+(IDT.img?"Pas la bonne ?":"Trouver l'image")+'</button>';
+  $("id-open").onclick=openIdent}
+function openIdent(){$("med-id-m").hidden=false;$("id-err").textContent="";$("id-res").innerHTML="";$("id-q").value=IDT.guess||IDT.name||"";$("id-y").value="";idSearch()}
+async function idSearch(){const q=$("id-q").value.trim();if(!q)return;$("id-err").textContent="";$("id-res").innerHTML='<div class="empty">Je cherche…</div>';
+  let r;try{r=(await api("/api/media/idsearch",{id:IDT.id,kind:IDT.kind,q,year:$("id-y").value})).results}catch(e){$("id-res").innerHTML="";$("id-err").textContent=e.message;return}
+  $("id-res").innerHTML="";if(!r.length){$("id-res").innerHTML='<div class="empty">Rien trouvé. Essaie le titre original (en anglais) ou retire l\'année.</div>';return}
+  for(const x of r){const b=document.createElement("button");b.innerHTML=(x.ImageUrl?'<img loading="lazy" src="'+esc(x.ImageUrl)+'" alt="">':'<div class="noimg"></div>')+'<b>'+esc(x.Name||"?")+'</b><br><small>'+esc(String(x.ProductionYear||""))+'</small>';
+    b.title=x.Overview||"";b.onclick=()=>idApply(x);$("id-res").append(b)}}
+async function idApply(x){if(!confirm("C'est bien « "+x.Name+(x.ProductionYear?" ("+x.ProductionYear+")":"")+" » ?"))return;
+  $("id-res").innerHTML='<div class="empty">Je corrige…</div>';
+  try{await api("/api/media/idapply",{id:IDT.id,result:x,lib:IDT.lib})}catch(e){$("id-res").innerHTML="";$("id-err").textContent=e.message;return}
+  $("med-id-m").hidden=true;$("med-inf-m").hidden=true;alertMsg("Fiche corrigée · la bonne image arrive sur la télé d'ici 1 à 2 minutes")}
+$("id-go").onclick=idSearch;$("id-q").onkeydown=e=>{if(e.key==="Enter")idSearch()};$("id-y").onkeydown=e=>{if(e.key==="Enter")idSearch()};$("id-x").onclick=()=>$("med-id-m").hidden=true;
+
 const convOne=async()=>{if(!INF)return;if(!confirm("Convertir « "+INF.name+" » en MP4 léger ?\nL'original ira dans la corbeille de Studio (récupérable), et la version MP4 le remplacera sur la chaîne."))return;
   try{await api("/api/media/convert",{paths:[INF.path]});$("med-inf-m").hidden=true;alertMsg("Conversion lancée · suis-la dans la file d'attente")}catch(e){$("inf-err").textContent=e.message}};
 $("med-heavy").onclick=async()=>{$("med-inf-m").hidden=false;$("inf-err").textContent="";$("inf-conv").hidden=true;$("inf-t").textContent="Vérification de « "+MED.cur+" »";$("inf-body").innerHTML='<div class="empty">J\'analyse chaque vidéo… (quelques secondes)</div>';

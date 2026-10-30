@@ -1089,7 +1089,7 @@ function smallImg(url,w,front){
   const pr=(async()=>{
     const hit=await imgGet(k);
     if(hit&&hit.miss&&Date.now()-hit.t<36e5&&hit.t>(+LS.get("frtv_imgreset","0"))){IMG.bad.add(url);return ""}
-    let b=hit&&hit.b&&Date.now()-hit.t<14*864e5?hit.b:null;
+    let b=hit&&hit.b&&Date.now()-hit.t<14*864e5&&hit.t>(+LS.get("frtv_imgreset","0"))?hit.b:null;
     if(!b){b=await queued(()=>shrink(url,w),front);imgPut({k,b,t:Date.now()})}
     const src=URL.createObjectURL(b);IMG.ready.set(k,src);return src;
   })().catch(e=>{
@@ -1827,6 +1827,8 @@ function startFirebase(){
       updateNewsBadge();if(screen==="home")renderHome();
     },()=>{});
     fdb.ref("frigorosetv/studio").on("value",s=>{PCST=s.val()||null;checkPc()},()=>{});
+    /* Studio a corrigé l'image d'un film : on oublie les images gardées et on les recharge */
+    fdb.ref("frigorosetv/config/imgreset").on("value",s=>{const v=+s.val()||0;if(v<=(+LS.get("frtv_imgreset","0")))return;LS.set("frtv_imgreset",String(v));IMG.bad.clear();IMG.ready.clear();if(screen==="home")renderHome()},()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
     syncChannels();publishProfiles();
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}

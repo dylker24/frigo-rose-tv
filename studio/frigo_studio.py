@@ -2080,6 +2080,102 @@ def media_convert(paths):
     return ids
 
 
+# ---------- fiche et image d'un film (quand Jellyfin s'est trompé de film) ----------
+def _jf_raw(path, timeout=15):
+    req = urllib.request.Request(_fast(conf["jellyfin_url"]) + path, headers={"X-Emby-Token": conf["jellyfin_key"]})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read(), r.headers.get("Content-Type") or "image/jpeg"
+
+
+def _jf_items(q):
+    try:
+        return (jf("/Items?" + q, timeout=25) or {}).get("Items") or []
+    except urllib.error.HTTPError:
+        users = jf("/Users") or []
+        u = next((x for x in users if (x.get("Policy") or {}).get("IsAdministrator")), users[0] if users else None)
+        if not u:
+            return []
+        return (jf("/Users/%s/Items?%s" % (u["Id"], q), timeout=25) or {}).get("Items") or []
+
+
+def _norm_p(p):
+    return os.path.normcase(os.path.normpath(p or ""))
+
+
+def jf_find(path):
+    """L'élément Jellyfin qui correspond à un fichier (et sa médiathèque)."""
+    _need_key()
+    _check_inside(path)
+    np = _norm_p(path)
+    for l in jf_libraries()["libs"]:
+        lp = _norm_p(l["path"])
+        if not np.startswith(lp.rstrip("\\/") + os.sep) or not l.get("item"):
+            continue
+        q = "ParentId=%s&Recursive=true&IsFolder=false&Fields=Path,ProductionYear,ProviderIds,Overview,Genres&EnableUserData=false&Limit=200000" % quote(l["item"])
+        for x in _jf_items(q):
+            if _norm_p(x.get("Path")) == np:
+                return x, l
+    return None, None
+
+
+def _ident_target(x):
+    if x.get("Type") == "Episode" and x.get("SeriesId"):
+        try:
+            s = jf("/Items/%s" % x["SeriesId"]) or {}
+        except Exception:
+            s = {}
+        if not s.get("Id"):
+            r = _jf_items("Ids=%s&Fields=ProductionYear,Overview,Genres" % x["SeriesId"])
+            s = r[0] if r else {"Id": x["SeriesId"], "Name": x.get("SeriesName")}
+        return s, "Series"
+    return x, "Movie"
+
+
+def media_ident(path):
+    x, l = jf_find(path)
+    if not x:
+        raise RuntimeError("Jellyfin ne connaît pas encore ce fichier (attends 1-2 min qu'il le voie)")
+    t, kind = _ident_target(x)
+    name = os.path.splitext(os.path.basename(path))[0]
+    guess = re.sub(r"[._]+", " ", name)
+    guess = re.sub(r"\b(19|20)\d\d\b.*$", "", guess).strip() or guess
+    return {"id": t.get("Id"), "kind": kind, "name": t.get("Name") or "", "year": t.get("ProductionYear") or "",
+            "overview": (t.get("Overview") or "")[:300], "genres": (t.get("Genres") or [])[:3],
+            "img": bool((t.get("ImageTags") or {}).get("Primary")), "guess": (t.get("SeriesName") or guess) if kind == "Series" else guess,
+            "lib": l.get("item")}
+
+
+def media_idsearch(item, kind, q, year):
+    _need_key()
+    info = {"Name": q.strip()}
+    if str(year).strip().isdigit():
+        info["Year"] = int(year)
+    r = jf("/Items/RemoteSearch/%s" % ("Series" if kind == "Series" else "Movie"), "POST",
+           {"SearchInfo": info, "ItemId": item, "IncludeDisabledProviders": False}, timeout=40) or []
+    return r[:16]
+
+
+def media_idapply(item, result, lib):
+    _need_key()
+    if not item or not isinstance(result, dict) or not result.get("ProviderIds"):
+        raise RuntimeError("Choisis un film dans la liste")
+    jf("/Items/RemoteSearch/Apply/%s?ReplaceAllImages=true" % quote(item), "POST", result, timeout=60)
+
+    def later():
+        try:
+            time.sleep(25)
+            key = str(lib or "").replace("-", "").lower()
+            for t in tn_libraries_all():
+                if str(t.get("external") or "").replace("-", "").lower() == key:
+                    tn_scan_lib(t["id"], every=0)
+            time.sleep(30)
+            fb("/config/imgreset", "PUT", int(time.time() * 1000))
+        except Exception:
+            bglog("fiche %s : %s" % (item, _trace()))
+    threading.Thread(target=later, daemon=True).start()
+    return True
+
+
 def media_search(q):
     k = _fz(q)
     if len(k) < 2:
@@ -2914,6 +3010,17 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"results": media_search(a("q"))})
                 if u.path == "/api/media/info":
                     return self.send(200, media_info(a("path")))
+                if u.path == "/api/media/ident":
+                    return self.send(200, media_ident(a("path")))
+                if u.path == "/api/media/jfimg":
+                    _need_key()
+                    if not re.fullmatch(r"[0-9a-fA-F-]{20,40}", a("id")):
+                        return self.send(400, {"error": "id"})
+                    try:
+                        data, ct = _jf_raw("/Items/%s/Images/Primary?maxWidth=360&quality=85" % a("id"))
+                    except urllib.error.HTTPError:
+                        return self.send(404, {"error": "pas d'image"})
+                    return self.send(200, data, ct)
                 if u.path == "/api/media/heavy":
                     return self.send(200, media_heavy(a("path")))
                 if u.path == "/api/media/pending":
@@ -3134,6 +3241,10 @@ class H(BaseHTTPRequestHandler):
         if u.path.startswith("/api/media/"):
             try:
                 act = u.path[len("/api/media/"):]
+                if act == "idsearch":
+                    return self.send(200, {"results": media_idsearch(b.get("id") or "", b.get("kind") or "", b.get("q") or "", b.get("year") or "")})
+                if act == "idapply":
+                    return self.send(200, {"ok": media_idapply(b.get("id") or "", b.get("result"), b.get("lib") or "")})
                 if act == "rename":
                     return self.send(200, {"path": media_rename(b.get("path") or "", b.get("name") or "")})
                 if act == "move":
