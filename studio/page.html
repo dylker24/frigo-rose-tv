@@ -71,6 +71,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .rposter{width:40px;height:60px;border-radius:7px;object-fit:cover;flex:none}
 .rnote{font-size:13px;color:var(--fg,#ddd);opacity:.85;margin-top:4px;white-space:pre-line}
 .rlink{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#ff6b95;text-decoration:none}.rlink img{width:72px;height:40px;border-radius:6px;object-fit:cover}
+.modal .card{max-height:calc(100vh - 32px);overflow:auto}
+.drv{display:flex;flex-direction:column;gap:6px}.drv button{display:flex;align-items:center;gap:12px;text-align:left;background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer}
+.drv button.on{border-color:#fff;background:var(--s3,#2a2a30)}.drv b{font-size:15px}.drv small{color:var(--mute);font-size:12.5px;display:block}.drv .bar{height:5px;border-radius:9px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:5px}.drv .bar i{display:block;height:100%;background:#3dd68c}.drv .bar i.low{background:#f7c266}
 .away{margin:16px 0 6px;border:1px solid var(--line);border-radius:14px;background:var(--s2);padding:16px}
 .away.on{border-color:rgba(61,214,140,.45);background:linear-gradient(180deg,rgba(61,214,140,.08),var(--s2))}
 .away-h{display:flex;align-items:center;gap:14px}
@@ -538,6 +541,7 @@ html,body{overflow-x:hidden}
     <label class="l">Nom</label><input class="inp" id="mn-name" placeholder="Ex : Western TV" autocomplete="off">
     <label class="l">Type</label><div class="seg" id="mn-kind"><button data-k="videos" class="on">Séries / vidéos</button><button data-k="films">Films</button></div>
     <div class="hint" id="mn-kind-h">Garde le nom des fichiers tel quel (comme tes autres chaînes de séries).</div>
+    <label class="l">Où ranger les vidéos</label><div class="drv" id="mn-drv"><div class="hint">Je regarde les disques…</div></div>
     <label class="chk"><input type="checkbox" id="mn-ch" checked> Créer aussi la chaîne sur la télé</label>
     <div id="mn-num-w"><label class="l">Numéro de chaîne</label><input class="inp" id="mn-num" inputmode="numeric" placeholder="Le premier libre" style="max-width:180px"></div>
     <div class="err" id="mn-err"></div>
@@ -1033,10 +1037,18 @@ let mnKind="videos";
 document.querySelectorAll("#mn-kind button").forEach(b=>b.onclick=()=>{mnKind=b.dataset.k;document.querySelectorAll("#mn-kind button").forEach(x=>x.classList.toggle("on",x===b));
   $("mn-kind-h").textContent=mnKind==="films"?"Jellyfin cherche l'affiche et les infos de chaque film.":"Garde le nom des fichiers tel quel (comme tes autres chaînes de séries)."});
 $("mn-ch").onchange=()=>$("mn-num-w").hidden=!$("mn-ch").checked;
-$("med-new").onclick=()=>{$("mn-name").value="";$("mn-num").value="";$("mn-err").textContent="";$("med-new-m").hidden=false;setTimeout(()=>$("mn-name").focus(),50)};
+let MNDRV="";
+async function loadDrives(){const box=$("mn-drv");box.innerHTML='<div class="hint">Je regarde les disques…</div>';MNDRV="";
+  let r;try{r=await api("/api/media/drives")}catch(e){box.innerHTML="";return}
+  box.innerHTML="";(r.drives||[]).forEach(d=>{const b=document.createElement("button");b.type="button";b.className=d.current?"on":"";if(d.current)MNDRV=d.drive;
+    const used=d.total?Math.round((1-d.free/d.total)*100):0;const gb=x=>x>=1e12?(x/1e12).toFixed(1).replace(".",",")+" To":Math.round(x/1e9)+" Go";
+    b.innerHTML='<div style="flex:1"><b>'+esc(d.drive)+(d.current?" · là où sont tes chaînes":" · autre disque")+'</b><small>'+gb(d.free)+' libres sur '+gb(d.total)+'</small><div class="bar"><i class="'+(used>85?"low":"")+'" style="width:'+used+'%"></i></div></div>';
+    b.onclick=()=>{MNDRV=d.drive;box.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("mn-drv-h").hidden=d.current};box.append(b)});
+  const h=document.createElement("div");h.className="hint";h.id="mn-drv-h";h.hidden=true;h.textContent="Le disque doit rester branché sur le PC : s'il est débranché, cette chaîne ne peut plus rien passer.";box.append(h)}
+$("med-new").onclick=()=>{$("mn-name").value="";$("mn-num").value="";$("mn-err").textContent="";$("med-new-m").hidden=false;loadDrives();setTimeout(()=>$("mn-name").focus(),50)};
 $("mn-x").onclick=()=>$("med-new-m").hidden=true;
 $("mn-go").onclick=async()=>{const name=$("mn-name").value.trim();if(!name){$("mn-err").textContent="Donne un nom";return}$("mn-go").disabled=true;$("mn-err").textContent="";
-  try{const r=await api("/api/media/newlib",{name,kind:mnKind,channel:$("mn-ch").checked,number:$("mn-num").value.trim()});$("med-new-m").hidden=true;
+  try{const r=await api("/api/media/newlib",{name,kind:mnKind,channel:$("mn-ch").checked,number:$("mn-num").value.trim(),drive:MNDRV});$("med-new-m").hidden=true;
     alertMsg("« "+r.name+" » créée"+(r.channel?" avec la chaîne n°"+r.channel.number:"")+" · ajoute des vidéos dedans");CH.list=null;await loadMed();medOpen(r.name)}catch(e){$("mn-err").textContent=e.message}$("mn-go").disabled=false};
 
 

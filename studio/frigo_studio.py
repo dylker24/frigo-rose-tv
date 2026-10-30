@@ -2448,7 +2448,34 @@ def tn_create_channel(name, number=None):
     return {"id": ch["id"], "name": name, "number": number}
 
 
-def media_newlib(name, kind, make_channel=True, number=None):
+def media_drives():
+    """Les disques du PC (et un disque dur branché) où on peut ranger une médiathèque."""
+    libs = jf_libraries()["libs"]
+    base = os.path.dirname(os.path.abspath(libs[0]["path"])) if libs else ""
+    cur = os.path.splitdrive(base)[0].upper() if WIN else "/"
+    out = []
+    parts = []
+    try:
+        parts = [x.mountpoint for x in psutil.disk_partitions(all=False)] if (psutil and WIN) else []
+    except Exception:
+        parts = []
+    if WIN and not parts:
+        parts = ["%s:\\" % c for c in string.ascii_uppercase if os.path.exists("%s:\\" % c)]
+    if not WIN and not parts:
+        parts = ["/"]
+    for m in parts:
+        try:
+            u = shutil.disk_usage(m)
+        except Exception:
+            continue
+        d = os.path.splitdrive(m)[0].upper() if WIN else m
+        if (WIN and d in ("A:", "B:")) or u.total < 8e9:
+            continue
+        out.append({"drive": d or m, "path": m, "free": u.free, "total": u.total, "current": (d == cur) if WIN else m == "/"})
+    return {"drives": out, "folder": os.path.basename(base) or "TV 2424"}
+
+
+def media_newlib(name, kind, make_channel=True, number=None, drive=""):
     _need_key()
     name = re.sub(r"\s+", " ", (name or "").strip())
     if not name:
@@ -2459,6 +2486,12 @@ def media_newlib(name, kind, make_channel=True, number=None):
     if any(same_name(l["name"], name) for l in libs):
         raise RuntimeError("Tu as déjà une médiathèque « %s »" % name)
     base = os.path.dirname(os.path.abspath(libs[0]["path"])) if libs else os.path.join(os.path.expanduser("~"), "Videos")
+    if drive:
+        dv = next((d for d in media_drives()["drives"] if d["drive"].upper() == str(drive).upper()), None)
+        if not dv:
+            raise RuntimeError("Ce disque n'est pas branché")
+        if not dv["current"]:
+            base = os.path.join(dv["path"], os.path.basename(base) or "TV 2424")
     folder = os.path.join(base, safe_name(name))
     os.makedirs(folder, exist_ok=True)
     jf("/Library/VirtualFolders?" + urlencode({"name": name, "collectionType": JF_TYPES.get(kind, "homevideos"), "paths": folder, "refreshLibrary": "true"}),
@@ -3062,6 +3095,8 @@ class H(BaseHTTPRequestHandler):
                     except urllib.error.HTTPError:
                         return self.send(404, {"error": "pas d'image"})
                     return self.send(200, data, ct)
+                if u.path == "/api/media/drives":
+                    return self.send(200, media_drives())
                 if u.path == "/api/media/heavy":
                     return self.send(200, media_heavy(a("path")))
                 if u.path == "/api/media/pending":
@@ -3320,7 +3355,7 @@ class H(BaseHTTPRequestHandler):
                 if act == "empty":
                     return self.send(200, {"n": trash_empty(set(b["ids"]) if b.get("ids") else None)})
                 if act == "newlib":
-                    return self.send(200, media_newlib(b.get("name") or "", b.get("kind") or "videos", b.get("channel", True) is not False, int(b["number"]) if str(b.get("number") or "").isdigit() else None))
+                    return self.send(200, media_newlib(b.get("name") or "", b.get("kind") or "videos", b.get("channel", True) is not False, int(b["number"]) if str(b.get("number") or "").isdigit() else None, b.get("drive") or ""))
                 if act == "renamelib":
                     return self.send(200, {"name": media_renamelib(b.get("name") or "", b.get("new") or "")})
                 if act == "removelib":
