@@ -453,10 +453,12 @@ async function wikiFind(v,k){
   const j=await fetch(u).then(r=>r.json());
   let items=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index).map(p=>({title:p.title,desc:p.description||"",img:p.thumbnail&&p.thumbnail.source||"",en:p.langlinks&&p.langlinks[0]&&p.langlinks[0]["*"]||""}));
   items=items.filter(x=>OKDESC[k].test(x.desc)&&!/^Liste|^Saison|^Personnages|homonymie/i.test(x.title)).slice(0,8);
-  const need=items.filter(x=>!x.img&&x.en);
+  // l'affiche vient de préférence de la version anglaise (la française n'a souvent que le logo du titre)
+  items.forEach(x=>{if(/logo|\.svg/i.test(decodeURIComponent(x.img)))x.img=""});
+  const need=items.filter(x=>x.en);
   if(need.length){try{const j2=await fetch("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&titles="+encodeURIComponent(need.map(x=>x.en).join("|"))+"&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=any").then(r=>r.json());
     const by={};Object.values((j2.query&&j2.query.pages)||{}).forEach(p=>{if(p.thumbnail)by[p.title]=p.thumbnail.source});
-    ((j2.query&&j2.query.normalized)||[]).forEach(n=>{if(by[n.to])by[n.from]=by[n.to]});need.forEach(x=>{x.img=by[x.en]||""})}catch(e){}}
+    ((j2.query&&j2.query.normalized)||[]).forEach(n=>{if(by[n.to])by[n.from]=by[n.to]});need.forEach(x=>{const e=by[x.en]||"";if(e&&!/logo|\.svg/i.test(decodeURIComponent(e)))x.img=e})}catch(e){}}
   items.forEach(x=>{const y=/((?:19|20)\d\d)\)\s*$/.exec(x.title)||/sortie?s? (?:en |le .{0,20}?)((?:19|20)\d\d)/i.exec(x.desc)||/\b((?:19|20)\d\d)\b/.exec(x.desc);x.year=y?y[1]:"";x.clean=x.title.replace(/\s*\((film|série|série télévisée|téléfilm|film d'animation)?[^)]*\)\s*$/i,"").trim()||x.title;x.img=x.img.replace(/\?utm_[^#]*$/,"")});
   return items;
 }
@@ -472,13 +474,14 @@ async function backfill(){
   if(bfOn||!db)return;bfOn=true;
   try{
     for(const r of reqs){
-      if(!["film","serie",undefined,""].includes(r.type)||r.poster||r.posterTried||BF.has(r.id)||!r.title)continue;
+      const redo=!r.posterV&&(r.posterTried||/logo|\.svg/i.test(decodeURIComponent(r.poster||"")));
+      if(!["film","serie",undefined,""].includes(r.type)||(r.poster&&!redo)||(r.posterTried&&!redo)||BF.has(r.id)||!r.title)continue;
       BF.add(r.id);const k=r.type==="serie"?"serie":"film";
       try{
         const t=r.title.replace(/\b(1|2|3)\s+et\s+(2|3)\b/i,"").replace(/\(.*?\)/g,"").trim()||r.title;
         const items=await wikiFind(t,k);const want=nk(t);
         const best=items.find(x=>x.img&&(nk(x.clean)===want||nk(x.clean).startsWith(want)||want.startsWith(nk(x.clean))))||null;
-        const up=best?{poster:best.img}:{posterTried:true};if(best&&best.year&&!r.year)up.year=best.year;
+        const up=best?{poster:best.img,posterV:2,posterTried:null}:{posterTried:true,posterV:2,poster:/logo|\.svg/i.test(decodeURIComponent(r.poster||""))?null:(r.poster||null)};if(best&&best.year&&!r.year)up.year=best.year;
         await ref("requests/"+r.id).update(up);
       }catch(e){}
       await new Promise(x=>setTimeout(x,350));
@@ -513,7 +516,7 @@ $("f").onsubmit=async e=>{
   try{
     if(picked&&picked.dupOf){await ref("requests/"+picked.dupOf+"/fans/"+me).set(true);freshId=picked.dupOf;closeSheet();celebrate("Noté, toi aussi !","On le saura dans la régie.");return}
     const body={who,title:"",type:kind,status:"attente",createdAt:Date.now(),channel:"",source:""};
-    if(picked){body.title=picked.title;if(picked.poster)body.poster=picked.poster;if(picked.year)body.year=picked.year;if(picked.desc)body.desc=picked.desc.slice(0,160)}
+    if(picked){body.title=picked.title;body.posterV=2;if(picked.poster)body.poster=picked.poster;if(picked.year)body.year=picked.year;if(picked.desc)body.desc=picked.desc.slice(0,160)}
     else if(kind==="chaine")body.title=$("cname").value.trim();
     else if(kind==="video"){const l=cleanUrl($("vlink").value);body.link=l;body.title=(vinfo&&vinfo.url===l&&vinfo.title)||"Vidéo "+siteOf(l);if(vinfo&&vinfo.thumb)body.thumb=vinfo.thumb;if($("wch").value)body.want=$("wch").value}
     if(note)body.note=note;
