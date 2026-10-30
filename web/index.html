@@ -1728,23 +1728,37 @@ function newsWhen(p,now){
 }
 function newsAgo(at,now){const h=(now-at)/36e5;if(h<1)return "à l'instant";if(h<24&&new Date(at).getDate()===new Date(now).getDate())return "aujourd'hui";if(h<48)return "hier";return "il y a "+Math.floor(h/24)+" jours"}
 function newsItems(now){
-  // Nouveautés : une carte par programme ajouté (7 derniers jours), sans doublon, avec son prochain passage
+  // Nouveautés : une carte par film, une seule carte par série (« Friends · 6 nouveaux épisodes »), 7 derniers jours, sans doublon
   if(!NEWS||!channels.length)return [];
-  const seen=(profile&&profile.newsSeen)||0,out=[],done=new Set();
+  const seen=(profile&&profile.newsSeen)||0,out=[],done=new Set(),groups={};
   const same=(a,b)=>a===b||(b.length>5&&(a.includes(b)||b.includes(a)));
+  const showOf=t=>{const m=/^(.+?) · S\d+ · Ép\. \d+/.exec(t)||/^(.+?) · Ép\. \d+/.exec(t);return m?m[1]:""};
   for(const n of NEWS){
     if(n.at<now-7*864e5)continue;
     const i=channels.findIndex(c=>norm(c.name)===norm(n.channel));if(i<0)continue;const ch=channels[i],list=progs[ch.id]||[];
-    for(const raw of (n.titles||[]).slice(0,8)){
+    for(const raw of (n.titles||[]).slice(0,30)){
       const title=cleanTitle(raw),k=norm(title);if(!k||done.has(k))continue;done.add(k);
-      let p=list.find(q=>q.stop>now&&same(norm(q.title),k))||null;
+      const next=list.find(q=>q.stop>now&&same(norm(q.title),k))||null;
+      const show=showOf(title);
+      if(show){ // épisode : regroupé avec les autres épisodes de la série
+        const gk=ch.id+"|"+norm(show);let g=groups[gk];
+        if(!g){g=groups[gk]={i,ch,show,eps:0,next:null,at:n.at,n,anyNew:false,past:null};out.push(g)}
+        g.eps++;g.anyNew=g.anyNew||n.at>seen;if(next&&(!g.next||next.start<g.next.start))g.next=next;
+        if(!g.past)g.past=list.find(q=>same(norm(q.title),k))||null;
+        continue;
+      }
+      let p=next;
       if(!p){const past=list.find(q=>same(norm(q.title),k));p={title,sub:"",desc:past?past.desc:"",icon:past?past.icon:"",cat:past?past.cat:"",start:now,stop:now+1,synthetic:true}}
-      const when=newsWhen(p,now);
-      out.push({i,ch,p,kind:!p.synthetic&&p.start<=now?"now":"next",news:n,isNew:n.at>seen,nt:title,when,ago:newsAgo(n.at,now),sub:ch.name+" · "+when});
-      if(out.length>=12)return out;
+      out.push({i,ch,p,kind:!p.synthetic&&p.start<=now?"now":"next",news:n,isNew:n.at>seen,nt:title,when:newsWhen(p,now),ago:newsAgo(n.at,now),sub:ch.name+" · "+newsWhen(p,now)});
     }
   }
-  return out;
+  return out.slice(0,12).map(x=>{
+    if(!x.show)return x;
+    const p=x.next||{title:x.show,sub:"",desc:x.past?x.past.desc:"",icon:x.past?x.past.icon:"",cat:x.past?x.past.cat:"",start:now,stop:now+1,synthetic:true};
+    const nt=x.eps>1?x.show+" · "+x.eps+" nouveaux épisodes":(x.next?x.next.title:x.show+" · nouvel épisode");
+    const when=x.next?"prochain "+newsWhen(x.next,now):"bientôt";
+    return {i:x.i,ch:x.ch,p,kind:x.next&&x.next.start<=now?"now":"next",news:x.n,isNew:x.anyNew,nt,when,ago:newsAgo(x.at,now),sub:x.ch.name+" · "+when};
+  });
 }
 function updateNewsBadge(){
   const t=document.querySelector('.tab[data-v="home"]');if(!t)return;
