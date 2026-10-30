@@ -641,7 +641,13 @@ def do_convert(j):
     notes = ffmpeg_convert(j, src, dst)
     if notes is None:
         return
-    if j.get("delete"):
+    if j.get("trash_src") and not same:
+        # Médiathèque : l'original part à la corbeille de Studio (récupérable), la version MP4 prend sa place sur la chaîne
+        try:
+            media_trash([src])
+        except Exception:
+            pass
+    elif j.get("delete") or (j.get("trash_src") and same):
         if same:
             os.replace(dst, src)
             dst = src
@@ -2006,6 +2012,74 @@ def media_ls(path):
     return {"path": path, "root": root, "crumbs": crumbs, "dirs": dirs, "files": files}
 
 
+_info_cache = {}
+
+
+def media_info(path):
+    """Ce qu'il y a dans un fichier vidéo, et s'il est lourd à lire pour Tunarr (démarrage lent)."""
+    _check_inside(path)
+    st = os.stat(path)
+    k = (path, st.st_mtime, st.st_size)
+    if k in _info_cache:
+        return _info_cache[k]
+    info = probe(path)
+    fmt = info.get("format") or {}
+    v = next((x for x in info.get("streams", []) if x.get("codec_type") == "video" and not (x.get("disposition") or {}).get("attached_pic")), {}) or {}
+    auds = [x for x in info.get("streams", []) if x.get("codec_type") == "audio"]
+    dur = float(fmt.get("duration") or 0)
+    br = int(fmt.get("bit_rate") or 0) or (int(st.st_size * 8 / dur) if dur else 0)
+    fr = v.get("avg_frame_rate") or v.get("r_frame_rate") or "0/1"
+    try:
+        a, b_ = fr.split("/")
+        fps = round(float(a) / float(b_), 2) if float(b_) else 0
+    except Exception:
+        fps = 0
+    fo = (v.get("field_order") or "progressive").lower()
+    vc = (v.get("codec_name") or "?").lower()
+    heavy = []
+    if vc not in ("h264",):
+        heavy.append({"hevc": "vidéo HEVC (H.265)", "mpeg4": "vieux format XviD/DivX", "mpeg2video": "format MPEG-2 (DVD)", "av1": "vidéo AV1", "vc1": "format VC-1", "msmpeg4v3": "vieux format DivX 3", "vp9": "vidéo VP9"}.get(vc, "vidéo " + vc.upper()))
+    if (v.get("height") or 0) > 1100:
+        heavy.append("image en %dp (plus que la Full HD)" % v.get("height"))
+    if fo not in ("progressive", "unknown"):
+        heavy.append("image entrelacée")
+    if br > 14_000_000:
+        heavy.append("très gros débit (%d Mb/s)" % round(br / 1e6))
+    if (v.get("pix_fmt") or "").endswith(("10le", "10be")):
+        heavy.append("couleurs 10 bits")
+    out = {"path": path, "name": os.path.basename(path), "size": st.st_size, "duration": dur, "bitrate": br, "container": (fmt.get("format_name") or "").split(",")[0],
+           "video": {"codec": vc, "w": v.get("width"), "h": v.get("height"), "fps": fps, "interlaced": fo not in ("progressive", "unknown"), "pix": v.get("pix_fmt")},
+           "audio": [{"codec": x.get("codec_name"), "ch": x.get("channels"), "lang": (x.get("tags") or {}).get("language", "")} for x in auds],
+           "heavy": heavy, "ok_mp4": path.lower().endswith(".mp4") and vc == "h264" and not heavy}
+    _info_cache[k] = out
+    return out
+
+
+def media_heavy(folder):
+    """Les vidéos d'un dossier qui ralentissent le démarrage de la chaîne."""
+    _check_inside(folder)
+    res = []
+    from concurrent.futures import ThreadPoolExecutor
+    files = [os.path.join(d, f) for d, dirs, fs in os.walk(folder) for f in fs if os.path.splitext(f)[1].lower() in VIDEO_EXT and TRASH_DIR not in d]
+    def safe(f):
+        try:
+            return media_info(f)
+        except Exception:
+            return None
+    with ThreadPoolExecutor(4) as ex:
+        res = [x for x in ex.map(safe, files) if x]
+    heavy = [x for x in res if x["heavy"]]
+    return {"total": len(res), "heavy": [{"path": x["path"], "name": x["name"], "why": x["heavy"]} for x in heavy]}
+
+
+def media_convert(paths):
+    ids = []
+    for pth in paths:
+        _check_inside(pth)
+        ids.append(new_job("conv", src=pth, dest=os.path.dirname(pth), delete=False, trash_src=True, sync=True, title=os.path.basename(pth))["id"])
+    return ids
+
+
 def media_search(q):
     k = _fz(q)
     if len(k) < 2:
@@ -2838,6 +2912,10 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, media_ls(a("path")))
                 if u.path == "/api/media/search":
                     return self.send(200, {"results": media_search(a("q"))})
+                if u.path == "/api/media/info":
+                    return self.send(200, media_info(a("path")))
+                if u.path == "/api/media/heavy":
+                    return self.send(200, media_heavy(a("path")))
                 if u.path == "/api/media/pending":
                     return self.send(200, {"libs": media_pending()})
                 if u.path == "/api/media/trash":
@@ -3081,6 +3159,8 @@ class H(BaseHTTPRequestHandler):
                 if act == "scan":
                     media_scan(b.get("name") or "", bool(b.get("fill")))
                     return self.send(200, {"ok": True})
+                if act == "convert":
+                    return self.send(200, {"ids": media_convert(b.get("paths") or [])})
                 if act == "mkchannel":
                     name = b.get("name") or ""
                     ch = tn_create_channel(name, int(b["number"]) if str(b.get("number") or "").isdigit() else None)

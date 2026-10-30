@@ -95,6 +95,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .syncb i{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin 1s linear infinite;flex:none}
 .syncb .done i{animation:none;border:0;width:auto;height:auto}.syncb .done i:before{content:"✓"}
 @keyframes spin{to{transform:rotate(360deg)}}
+.infg{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin:8px 0}.infg b{color:var(--mute);font-weight:500}
+.warnbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(247,194,102,.1);border:1px solid rgba(247,194,102,.35);color:var(--warn);font-size:14px}
+.okbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(61,214,140,.1);border:1px solid rgba(61,214,140,.35);color:var(--ok);font-size:14px}
+.it .ib2{border:0;background:var(--s3);color:var(--mute);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;margin-left:8px}.it .ib2:hover{color:var(--ink)}
 .mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(224,36,94,.08);font-size:13px}
 .mbar span{margin-right:auto;font-weight:600}
 .it .ren{margin-left:6px}
@@ -189,7 +193,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .login .card{width:min(380px,100%);text-align:center}
 .pin{font-size:30px;letter-spacing:.5em;text-align:center;padding:14px}
 @media(max-width:700px){
-  body{font-size:15px}.top{position:static}.brand span{display:none}.tabs{width:100%;overflow-x:auto}.tabs button{flex:1;padding:9px 8px;font-size:14px}
+  body{font-size:15px}.top{position:static}.brand span{display:none}.tabs{width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;mask-image:linear-gradient(90deg,#000 88%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent)}.tabs::-webkit-scrollbar{display:none}.tabs button{flex:none;padding:9px 12px;font-size:14px;scroll-snap-align:start}
+  .fb-bar{flex-wrap:wrap}.fb-bar .crumbs{flex-basis:100%}.chset{gap:10px}.chlogo{width:64px;height:40px}.hsum .btn{margin-left:0}
   .status{display:none}.card{padding:16px}h1{font-size:21px}.big{flex-direction:column}.big .btn{width:100%}.row>*{min-width:100%}
   .yt{grid-template-columns:1fr 1fr;gap:10px}.yv .tx b{font-size:13px}.yv .btn{padding:9px;margin:8px}
   .phone{display:none!important}
@@ -390,7 +395,7 @@ html,body{overflow-x:hidden}
         <button class="btn sm ghost" id="med-back">‹ Toutes les médiathèques</button>
         <h1 id="med-title" style="margin-top:10px"></h1>
         <p class="sub" id="med-sub"></p>
-        <div class="acts" style="margin-top:0"><button class="btn" id="med-scan">Analyser</button><button class="btn" id="med-ren-lib">Renommer</button><button class="btn" id="med-mkch" hidden>Créer sa chaîne</button><button class="btn" id="med-trash-b2">Corbeille</button><button class="btn ghost" id="med-rm-lib">Retirer de Jellyfin</button></div>
+        <div class="acts" style="margin-top:0"><button class="btn" id="med-scan">Analyser</button><button class="btn" id="med-ren-lib">Renommer</button><button class="btn" id="med-mkch" hidden>Créer sa chaîne</button><button class="btn" id="med-heavy">Vérifier les fichiers</button><button class="btn" id="med-trash-b2">Corbeille</button><button class="btn ghost" id="med-rm-lib">Retirer de Jellyfin</button></div>
         <div class="hint" id="med-msg"></div><div class="err" id="med-err2"></div>
         <div class="fb" style="margin-top:14px">
           <div class="fb-bar"><div class="crumbs" id="med-crumbs"></div><button class="btn sm ghost" id="med-mkdir">Nouveau dossier</button><button class="btn sm ghost" id="med-up">Ajouter des vidéos ici</button></div>
@@ -532,6 +537,14 @@ html,body{overflow-x:hidden}
     <div class="acts"><button class="btn pri" id="pd-all" hidden>Tout régler</button><button class="btn" id="pd-x">Fermer</button></div>
   </div>
 </div>
+<div class="modal" id="med-inf-m" hidden>
+  <div class="card" style="width:min(640px,100%)">
+    <h1 style="font-size:20px" id="inf-t">Infos</h1>
+    <div style="overflow:auto;flex:1" id="inf-body"></div>
+    <div class="err" id="inf-err"></div>
+    <div class="acts"><button class="btn pri" id="inf-conv" hidden>Convertir en MP4 léger</button><button class="btn" id="inf-x">Fermer</button></div>
+  </div>
+</div>
 <div class="modal" id="med-tr-m" hidden>
   <div class="card">
     <h1 style="font-size:20px">Corbeille</h1>
@@ -580,7 +593,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 
 /* onglets */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
-function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);if(b.dataset.v===v&&b.scrollIntoView)try{b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}catch(e){}});
   $("v-ch").hidden=v!=="ch";if(v==="ch")loadChannels();$("v-med").hidden=v!=="med";if(v==="med")loadMed();
   $("v-up").hidden=v!=="dl";$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
   $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
@@ -915,6 +928,7 @@ function renderMedLs(focus){const d=MED.data,L=$("med-files");L.innerHTML="";
     const cb=r.querySelector("input");cb.checked=MED.sel.has(x.path);r.classList.toggle("sel",cb.checked);
     cb.onclick=e=>{e.stopPropagation();cb.checked?MED.sel.add(x.path):MED.sel.delete(x.path);r.classList.toggle("sel",cb.checked);medBar()};
     r.onclick=()=>{if(isDir)medLs(x.path);else cb.click()};
+    if(!isDir){const ib=document.createElement("button");ib.className="ib2";ib.textContent="Infos";ib.onclick=e=>{e.stopPropagation();medInfo(x.path)};r.append(ib)}
     if(focus&&x.path===focus){r.classList.add("sel");setTimeout(()=>r.scrollIntoView({block:"center"}),50)}
     L.append(r)};
   d.dirs.forEach(x=>item(x,true));d.files.forEach(x=>item(x,false));
@@ -964,6 +978,28 @@ $("mn-go").onclick=async()=>{const name=$("mn-name").value.trim();if(!name){$("m
   try{const r=await api("/api/media/newlib",{name,kind:mnKind,channel:$("mn-ch").checked,number:$("mn-num").value.trim()});$("med-new-m").hidden=true;
     alertMsg("« "+r.name+" » créée"+(r.channel?" avec la chaîne n°"+r.channel.number:"")+" · ajoute des vidéos dedans");CH.list=null;await loadMed();medOpen(r.name)}catch(e){$("mn-err").textContent=e.message}$("mn-go").disabled=false};
 
+
+/* infos d'un fichier + fichiers lourds (démarrage lent de la chaîne) */
+let INF=null;
+const fmtD=s=>{s=Math.round(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+" h "+String(m).padStart(2,"0"):m+" min"};
+async function medInfo(path){$("inf-conv").textContent="Convertir en MP4 léger";$("inf-conv").onclick=convOne;$("med-inf-m").hidden=false;$("inf-err").textContent="";$("inf-conv").hidden=true;$("inf-t").textContent="Infos";$("inf-body").innerHTML='<div class="empty">Analyse…</div>';
+  try{INF=await api("/api/media/info?path="+encodeURIComponent(path))}catch(e){$("inf-body").innerHTML="";$("inf-err").textContent=e.message;return}
+  const v=INF.video||{},A=(INF.audio||[]).map(a=>(a.codec||"?").toUpperCase()+(a.ch?" "+(a.ch===1?"mono":a.ch===2?"stéréo":a.ch===6?"5.1":a.ch+" canaux"):"")+(a.lang?" ("+a.lang+")":"")).join(" · ")||"aucun";
+  $("inf-t").textContent=INF.name;
+  $("inf-body").innerHTML='<div class="infg"><b>Durée</b><span>'+fmtD(INF.duration)+'</span><b>Taille</b><span>'+size(INF.size)+' · '+Math.round(INF.bitrate/1e5)/10+' Mb/s</span><b>Format</b><span>'+esc(INF.container)+'</span><b>Vidéo</b><span>'+esc((v.codec||"?").toUpperCase())+' · '+(v.w||"?")+'×'+(v.h||"?")+(v.fps?' · '+v.fps+' im/s':'')+(v.interlaced?' · entrelacée':'')+'</span><b>Son</b><span>'+esc(A)+'</span></div>'+
+    (INF.heavy.length?'<div class="warnbox"><b>Lourd à lire pour Tunarr</b> : '+esc(INF.heavy.join(", "))+'. La chaîne met plus de temps à démarrer quand ce fichier passe. En le convertissant en MP4 H.264, il démarrera vite.</div>':'<div class="okbox">Parfait pour Tunarr : ce fichier démarre vite.</div>');
+  $("inf-conv").hidden=!INF.heavy.length}
+$("inf-x").onclick=()=>$("med-inf-m").hidden=true;
+const convOne=async()=>{if(!INF)return;if(!confirm("Convertir « "+INF.name+" » en MP4 léger ?\nL'original ira dans la corbeille de Studio (récupérable), et la version MP4 le remplacera sur la chaîne."))return;
+  try{await api("/api/media/convert",{paths:[INF.path]});$("med-inf-m").hidden=true;alertMsg("Conversion lancée · suis-la dans la file d'attente")}catch(e){$("inf-err").textContent=e.message}};
+$("med-heavy").onclick=async()=>{$("med-inf-m").hidden=false;$("inf-err").textContent="";$("inf-conv").hidden=true;$("inf-t").textContent="Vérification de « "+MED.cur+" »";$("inf-body").innerHTML='<div class="empty">J\'analyse chaque vidéo… (quelques secondes)</div>';
+  let r;try{r=await api("/api/media/heavy?path="+encodeURIComponent(MED.path))}catch(e){$("inf-body").innerHTML="";$("inf-err").textContent=e.message;return}
+  if(!r.heavy.length){$("inf-body").innerHTML='<div class="okbox">Les '+r.total+' vidéos sont parfaites pour Tunarr : la chaîne démarre vite.</div>';return}
+  $("inf-body").innerHTML='<div class="warnbox"><b>'+r.heavy.length+' vidéo'+(r.heavy.length>1?'s':'')+' sur '+r.total+'</b> ralenti'+(r.heavy.length>1?'ssent':'t')+' le démarrage de la chaîne. Les convertir en MP4 H.264 règle ça (les originaux vont dans la corbeille de Studio).</div><div class="fb" style="margin-top:10px"><div class="fb-list" id="inf-list"></div></div>';
+  const L=$("inf-list");r.heavy.forEach(x=>{const it=row(IC.vid,x.name,x.why.join(", "));L.append(it)});
+  INF={heavyList:r.heavy.map(x=>x.path)};$("inf-conv").hidden=false;$("inf-conv").textContent="Convertir les "+r.heavy.length+" vidéos";
+  $("inf-conv").onclick=async()=>{if(!confirm("Convertir "+r.heavy.length+" vidéo"+(r.heavy.length>1?"s":"")+" en MP4 léger ?\nÇa utilise la carte graphique et prend un moment. Les originaux vont dans la corbeille de Studio."))return;
+    try{await api("/api/media/convert",{paths:INF.heavyList});$("med-inf-m").hidden=true;alertMsg(r.heavy.length+" conversion"+(r.heavy.length>1?"s":"")+" lancée"+(r.heavy.length>1?"s":"")+" · suis-les dans la file d'attente")}catch(e){$("inf-err").textContent=e.message}}};
 /* pas encore sur les chaînes */
 let PD=null;
 async function loadPending(render){try{PD=(await api("/api/media/pending")).libs}catch(e){PD=null;if(render)$("pd-err").textContent=e.message;return}
