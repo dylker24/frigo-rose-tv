@@ -2019,7 +2019,7 @@ function onTvMsg(m){
 
 /* Mouchard : les erreurs de la télé sont envoyées (pour réparer à distance) */
 const DBG=[];
-function dbgPush(m){try{DBG.push(new Date().toTimeString().slice(0,8)+" "+String(m).slice(0,300));if(DBG.length>25)DBG.shift();clearTimeout(dbgPush.t);dbgPush.t=setTimeout(dbgSend,1500)}catch(e){}}
+function dbgPush(m){try{DBG.push(new Date().toTimeString().slice(0,8)+" "+String(m).slice(0,300));if(DBG.length>80)DBG.shift();clearTimeout(dbgPush.t);dbgPush.t=setTimeout(dbgSend,1500)}catch(e){}}
 function dbgSend(){try{if(!fdb||demo)return;fdb.ref("frigorosetv/debug/"+DEVICE_ID).set({at:Date.now(),ua:navigator.userAgent.slice(-80),dev:deviceLabel(),screen,profiles:profiles.map(p=>p.name+"#"+p.id),profile:profile?profile.name:"",pIdx:typeof pIdx!=="undefined"?pIdx:null,log:DBG.slice()}).catch(()=>{})}catch(e){}}
 window.addEventListener("error",e=>dbgPush("ERR "+(e.message||"")+" @"+(e.lineno||"")+":"+(e.colno||"")));
 window.addEventListener("unhandledrejection",e=>dbgPush("REJ "+(e.reason&&e.reason.message||e.reason)));
