@@ -224,7 +224,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .chc .hl i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--faint)}
 .chc .hl.ok i{background:var(--ok)}.chc .hl.warn i{background:var(--warn)}.chc .hl.bad i{background:var(--bad)}
 .chc .hl.warn span{color:var(--warn)}.chc .hl.bad span{color:var(--bad)}
-.chc .hl .btn{margin-left:auto;padding:5px 10px;font-size:12px}
+.chc .hl .btn{margin-left:auto;padding:5px 10px;font-size:12px}.chc .hl .btn+.btn{margin-left:6px}
+.btn.danger{background:rgba(255,107,107,.14);color:var(--bad)}.btn.danger:hover{background:rgba(255,107,107,.24)}
 .hsum{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--s2)}
 .hsum .p{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--mute);margin-right:10px}.hsum .p b{color:var(--ink);font-size:16px}
 .hsum .p i{width:9px;height:9px;border-radius:50%}
@@ -1049,6 +1050,9 @@ function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=fals
     const h=H[c.id];
     if(h&&!h.error){const hl=document.createElement("div");hl.className="hl "+h.level;hl.innerHTML="<i></i><span></span>";
       hl.querySelector("span").textContent=loopTxt(h)+(h.dupes?" · "+h.dupes+" doublon"+(h.dupes>1?"s":""):"");
+      if(h.ghosts){hl.classList.add("bad");const g=btn("Retirer "+h.ghosts+" introuvable"+(h.ghosts>1?"s":""),async e=>{e.stopPropagation();if(!confirm("Retirer de « "+c.name+" » :\n"+(h.ghost_titles||[]).join("\n")+"\n\nCes fichiers n'existent plus, la chaîne afficherait une erreur à leur passage."))return;
+          e.target.disabled=true;try{const r=await api("/api/tn/ghosts",{channel:c.id});alertMsg(r.msg)}catch(er){$("ch-err").textContent=er.message}await loadChannels(true)});
+        g.classList.add("danger");g.title=(h.ghost_titles||[]).join(", ");hl.append(g)}
       if(h.missing){const f=btn("Compléter +"+h.missing,async e=>{e.stopPropagation();if(await fillChannel(c.id,e.target))await loadChannels(true)});
         f.title=h.missing+" programme"+(h.missing>1?"s":"")+" de « "+h.lib+" » ("+hm(h.missing_dur)+") pas encore sur la chaîne";hl.append(f)}
       b.append(hl)}
@@ -1057,8 +1061,11 @@ function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=fals
   const hs=Object.values(H),S2=$("ch-hsum");S2.hidden=!hs.length;
   if(hs.length){const n=l=>hs.filter(h=>h.level===l).length,miss=hs.filter(h=>h.missing),nm=miss.reduce((a,h)=>a+h.missing,0);
     const pill=(c,v,t)=>'<span class="p"><i style="background:'+c+'"></i><b>'+v+'</b> '+t+'</span>';
-    S2.innerHTML=pill("var(--ok)",n("ok"),"au top")+pill("var(--warn)",n("warn"),"repassent chaque jour")+pill("var(--bad)",n("bad"),"tournent en boucle (moins de 6 h)")+
+    const gh=hs.filter(h=>h.ghosts),ng=gh.reduce((a,h)=>a+h.ghosts,0);
+    S2.innerHTML=(ng?pill("var(--bad)",ng,"programme"+(ng>1?"s":"")+" introuvable"+(ng>1?"s":"")+" (fichier supprimé)"):"")+pill("var(--ok)",n("ok"),"au top")+pill("var(--warn)",n("warn"),"repassent chaque jour")+pill("var(--bad)",n("bad"),"tournent en boucle (moins de 6 h)")+
       (nm?pill("var(--accent)",nm,"programme"+(nm>1?"s":"")+" attendent dans tes médiathèques"):"");
+    if(ng){const cl=btn("Retirer les introuvables",async e=>{if(!confirm("Retirer "+ng+" programme"+(ng>1?"s":"")+" dont le fichier n'existe plus, sur "+gh.length+" chaîne"+(gh.length>1?"s":"")+" ?\n\n"+gh.map(h=>h.name+" : "+(h.ghost_titles||[]).join(", ")).join("\n")))return;e.target.disabled=true;let t=0;
+      for(const h of gh){e.target.textContent=h.name+"…";try{t+=(await api("/api/tn/ghosts",{channel:h.id})).removed}catch(er){$("ch-err").textContent=h.name+" : "+er.message}}alertMsg(t+" programme"+(t>1?"s":"")+" introuvable"+(t>1?"s":"")+" retiré"+(t>1?"s":""));await loadChannels(true)});cl.classList.add("danger");S2.append(cl)}
     if(nm){const all=btn("Tout compléter",async e=>{if(!confirm("Ajouter les "+nm+" programmes en attente à la fin de leur chaîne ("+miss.length+" chaîne"+(miss.length>1?"s":"")+") ?"))return;e.target.disabled=true;let t=0;
       for(const h of miss){e.target.textContent=h.name+"…";t+=await fillChannel(h.id)||0}alertMsg(t+" programme"+(t>1?"s":"")+" ajouté"+(t>1?"s":"")+" sur "+miss.length+" chaîne"+(miss.length>1?"s":""));await loadChannels(true)});all.classList.add("pri");S2.append(all)}}}
 async function openChannel(id){CH.cur=id;$("ch-list-v").hidden=true;$("ch-one-v").hidden=false;$("ch-msg").textContent="";$("ch-err2").textContent="";$("ch-filter").value="";

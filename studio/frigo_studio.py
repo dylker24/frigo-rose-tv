@@ -1560,7 +1560,7 @@ def tn_programming(cid):
         pg = (progs.get(it.get("id")) or {}).get("program") or {}
         title = pg.get("title") or {"flex": "Pause (écran de chaîne)", "redirect": "Renvoi vers « %s »" % it.get("channelName", ""), "custom": "Programme personnalisé"}.get(t, "Programme")
         items.append({"i": i, "type": t, "id": it.get("id"), "title": title, "duration": it.get("duration") or it.get("durationMs") or 0,
-                      "lib": pg.get("libraryId") or "", "state": pg.get("state") or ""})
+                      "lib": pg.get("libraryId") or "", "state": pg.get("state") or "", "ext": _ext_of(pg, it) if pg else ""})
     return {"name": (r.get("name") or "").strip(), "number": r.get("number"), "lineup": items, "raw": r.get("lineup") or []}
 
 
@@ -1681,6 +1681,47 @@ def _ep_order(p):
     return (_nat(p.get("show") or ""), p.get("season") or 0, p.get("episode") or 0, _nat(p.get("title")))
 
 
+def channel_ghosts(pr):
+    """Les programmes d'une chaîne dont le fichier n'existe plus (Jellyfin ne les a plus) : Tunarr afficherait une erreur."""
+    out = []
+    by_lib = {}
+    for x in pr["lineup"]:
+        if x.get("type") == "content" and x.get("id") and x.get("lib"):
+            by_lib.setdefault(x["lib"], []).append(x)
+    for lib, items in by_lib.items():
+        if lib not in _libext:
+            try:
+                for l in tn_libraries_all():
+                    _libext[l["id"]] = str(l.get("external") or "")
+            except Exception:
+                pass
+        par = _libext.get(lib, "")
+        c = _jfids.get(par)
+        ids = c[1] if c and time.time() - c[0] < 5 else jf_item_ids(par, True)
+        if not ids:  # Jellyfin ne répond pas : on ne devine rien
+            continue
+        for x in items:
+            if (x.get("ext") and x["ext"] not in ids) or x.get("state") not in ("", "ok"):
+                out.append(x)
+    return out
+
+
+def remove_ghosts(cid):
+    pr = tn_programming(cid)
+    g = channel_ghosts(pr)
+    ids = {x["id"] for x in g}
+    if not ids:
+        return 0, []
+    # sécurité : si presque toute la chaîne semble disparue, c'est sûrement Jellyfin qui répond mal
+    content = [x for x in pr["lineup"] if x.get("type") == "content"]
+    if len(ids) > max(3, len(content) * 0.6):
+        raise RuntimeError("Trop de programmes semblent disparus (%d) : je préfère ne rien toucher. Vérifie que Jellyfin voit bien la médiathèque." % len(ids))
+    tn_backup(cid, pr["raw"])
+    keep = [x for x in pr["raw"] if x.get("id") not in ids]
+    tn_save(cid, keep)
+    return len(pr["raw"]) - len(keep), sorted({x["title"] for x in g})
+
+
 def channel_health(fresh=False):
     """Pour chaque chaîne : combien de temps avant de repasser la même chose, doublons, et ce qui attend dans sa médiathèque."""
     if _health["data"] and not fresh and time.time() - _health["t"] < 60:
@@ -1699,6 +1740,11 @@ def channel_health(fresh=False):
             for x in content:
                 uniq.setdefault(x["id"], x["duration"] or 0)
             h.update(loop=total, unique=sum(uniq.values()), count=len(content), uniq_count=len(uniq), dupes=len(content) - len(uniq))
+            try:
+                gh = channel_ghosts(pr)
+                h.update(ghosts=len(gh), ghost_titles=sorted({x["title"] for x in gh})[:6])
+            except Exception:
+                pass
             lib = next((l for l in libs if same_name(l["name"], c["name"])), None)
             if lib:
                 lp = tn_library_programs(lib["id"])
@@ -2959,6 +3005,13 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
             return self.send(404, {"error": "introuvable"})
+        if u.path == "/api/tn/ghosts":
+            try:
+                n, titles = remove_ghosts(b.get("channel") or "")
+                _health["data"] = None
+                return self.send(200, {"removed": n, "titles": titles, "msg": ("%d programme%s introuvable%s retiré%s : %s" % (n, "s" if n > 1 else "", "s" if n > 1 else "", "s" if n > 1 else "", ", ".join(titles[:4]))) if n else "Aucun fantôme sur cette chaîne"})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/tn/fill":
             try:
                 n = channel_fill(b.get("channel") or "")
