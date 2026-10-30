@@ -1812,6 +1812,7 @@ function digit(d){
 /* ================= Écrans ================= */
 const TABS=["home","chaines","guide","search","demandes","settings"];
 function setScreen(s){
+  {const a0=document.activeElement;if(a0&&/^(INPUT|TEXTAREA)$/.test(a0.tagName)&&s!==screen)a0.blur()}
   screen=s;if(s!=="home")hidePeek();if(s!=="chaines")closeMosaic();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
   $("splash").hidden=s!=="splash";$("error").hidden=s!=="error";$("profiles").hidden=s!=="profiles";$("pedit").hidden=s!=="pedit";
   const inPanel=["home","chaines","guide","search","demandes","settings"].includes(s);
