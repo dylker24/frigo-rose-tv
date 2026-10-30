@@ -541,6 +541,13 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .hrow.tonight h2{display:flex;align-items:baseline;gap:.7rem}
 .hrow.tonight h2 small{font-size:.85rem;font-weight:600;color:var(--accent-t)}
 .hthumb .tntag{position:absolute;bottom:.55rem;left:.45rem;padding:.2rem .5rem;border-radius:.4rem;background:rgba(0,0,0,.75);color:#fff;font:800 .78rem var(--ui,inherit);letter-spacing:.04em;z-index:3;backdrop-filter:blur(4px)}
+/* mode léger (Fire Stick) */
+.lite .hbg-tint{-webkit-mask-image:none;mask-image:none;mix-blend-mode:normal;background-color:transparent!important;opacity:1;transition:none}
+.lite #hbg.deep .hbg-tint{opacity:.7}
+.lite .home .hcard.f .hthumb{box-shadow:0 0 0 .2rem #fff}
+.lite .sv-imgs .sv-i{animation:none;inset:0}
+.lite *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.lite .hcard.big .hthumb::after{background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.4) 55%,rgba(0,0,0,0) 85%)}
 </style>
 </head>
 <body>
@@ -666,6 +673,10 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
           <button class="btn" id="s-logo-reset">Logo de base</button></div>
         <small>Apparaît dans l'intro et en haut de l'appli. Un PNG sans fond rend le mieux.</small>
         <input type="file" id="s-logo-file" accept="image/*" hidden>
+      </div>
+      <div class="fld"><label>Mode léger</label>
+        <div class="logo-row"><button class="btn" id="s-lite"></button></div>
+        <small>Moins d'effets (flous, zooms, déco) pour rester fluide sur les petits appareils comme le Fire Stick. En automatique, l'appli choisit toute seule.</small>
       </div>
       <div class="fld"><label>Chargement rapide</label>
         <div class="logo-row"><button class="btn" id="s-warm"></button></div>
@@ -1204,13 +1215,17 @@ function renderHomeBg(it){
     const c=chColor(it.ch);const f=el("div","fill");
     f.style.background="radial-gradient(ellipse at 72% 30%,"+c+"aa,rgba(0,0,0,0) 62%),linear-gradient(160deg,"+c+"55,#000000 70%)";art.append(f);
     art.classList.remove("has-pic");
-    if(pu)addPic(art,it.p,1280,null,480);
+    if(pu)addPic(art,it.p,LITE?960:1280,null,480);
     else if(it.ch.logo){const im=el("img","lg");setLogo(im,it.ch.logo);im.alt="";im.onerror=()=>{im.remove();art.append(el("span","big",String(it.ch.num||"")))};plateIfNeeded(im,it.ch.logo);art.append(im)}
     else art.append(el("span","big",String(it.ch.num||"")));
   }
   art.classList.remove("off");
 }
 
+/* Mode léger : Fire Stick et petits appareils (moins d'effets coûteux, même look) */
+const LITE=(()=>{const o=LS.get("frtv_lite","");if(o==="1")return true;if(o==="0")return false;
+  const u=navigator.userAgent,c=navigator.hardwareConcurrency||8,m=navigator.deviceMemory||4;return /AFT/.test(u)||(c<=4&&m<=2)})();
+if(LITE)document.documentElement.classList.add("lite");
 /* Couleurs qui suivent le programme : on lit la couleur dominante (et vive) de l'affiche */
 const AMB=new Map();
 function ambFrom(src){
@@ -1229,7 +1244,9 @@ function ambFrom(src){
 }
 function hexToRgbArr(h){const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h||"");return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[70,70,80]}
 let ambKey="";
-function setAmb(rgb){const t=$("hbg-tint");if(!t||!rgb)return;t.style.backgroundColor="rgb("+rgb.join(",")+")";document.documentElement.style.setProperty("--amb",rgb.join(","))}
+function setAmb(rgb){const t=$("hbg-tint");if(!t||!rgb)return;const c=rgb.join(",");
+  if(LITE)t.style.backgroundImage="radial-gradient(85% 80% at 78% 18%,rgba("+c+",.42),rgba("+c+",.12) 45%,rgba(0,0,0,0) 75%)";else t.style.backgroundColor="rgb("+c+")";
+  document.documentElement.style.setProperty("--amb",c)}
 function updateAmb(it){
   if(!it)return;const url=artUrl(it.p),k=url||("ch:"+it.ch.id);if(k===ambKey)return;ambKey=k;
   const fallback=hexToRgbArr(chColor(it.ch));
@@ -1899,7 +1916,7 @@ function demKey(k){
 
 /* ================= Réglages ================= */
 let sR=0,sC=0;
-const SROWS=()=>[[$("s-theme"),$("s-fest")],[$("s-fit")],[$("s-server")],[$("s-dem")],[$("s-logo"),$("s-logo-reset")],[$("s-warm")],[$("s-refresh"),$("s-save"),$("s-demo"),$("s-prof"),$("s-quit")]];
+const SROWS=()=>[[$("s-theme"),$("s-fest")],[$("s-fit")],[$("s-server")],[$("s-dem")],[$("s-logo"),$("s-logo-reset")],[$("s-lite")],[$("s-warm")],[$("s-refresh"),$("s-save"),$("s-demo"),$("s-prof"),$("s-quit")]];
 function renderSettings(){
   if(document.activeElement!==$("s-server"))$("s-server").value=cfg.server;
   if(document.activeElement!==$("s-dem"))$("s-dem").value=cfg.demandes;
@@ -1910,6 +1927,7 @@ function renderSettings(){
   $("s-fit").textContent=fitLabel();
   const th=curTheme();$("s-theme").innerHTML='<span class="thm-dot" style="background:'+th.a+'"></span>'+th.name;
   $("s-fest").textContent="Déco : "+FESTS_LABEL[festPref()];
+  {const o=LS.get("frtv_lite","");$("s-lite").textContent=o==="1"?"Activé":o==="0"?"Désactivé":"Automatique ("+(LITE?"activé":"désactivé")+")"}
   $("s-theme-l").textContent=profile?"Thème de "+profile.name:"Thème";
   const rows=SROWS();sR=Math.min(sR,rows.length-1);
   let vis=rows[sR].filter(e=>!e.hidden);sC=Math.min(sC,vis.length-1);
@@ -1939,6 +1957,7 @@ $("s-prof").onclick=()=>{if(document.activeElement)document.activeElement.blur()
 $("s-logo").onclick=()=>$("s-logo-file").click();
 $("s-fit").onclick=()=>cycleFit();
 $("s-theme").onclick=()=>{if(!profile){toast("Choisis un profil d'abord");return}const i=THEMES.findIndex(t=>t.id===curTheme().id);profile.theme=THEMES[(i+1)%THEMES.length].id;saveProfiles();applyTheme();renderSettings()};
+$("s-lite").onclick=()=>{const o=LS.get("frtv_lite","");const n=o===""?"1":o==="1"?"0":"";LS.set("frtv_lite",n);toast("Mode léger : "+(n==="1"?"activé":n==="0"?"désactivé":"automatique")+" · relance l'appli pour l'appliquer",4500);renderSettings()};
 $("s-fest").onclick=()=>{if(!profile){toast("Choisis un profil d'abord");return}const i=FESTS_ORDER.indexOf(festPref());profile.fest=FESTS_ORDER[(i+1)%FESTS_ORDER.length];saveProfiles();applyTheme();renderSettings()};
 $("s-warm").onclick=()=>{LS.set("frtv_warm2",warmOn()?"0":"1");renderSettings();toast(warmOn()?"Chargement rapide activé":"Chargement rapide désactivé")};
 $("s-logo-file").onchange=async()=>{
@@ -2045,11 +2064,11 @@ function fxNew(k,w,h,init){
   return bat?{t:"bat",x:init?r()*w:-40,y:h*(.08+r()*.5),s:10+r()*12,vx:40+r()*55,vy:0,ph:r()*6.3,o:.45+r()*.35}
             :{t:"pk",x:r()*w,y:init?r()*h:h+30,s:9+r()*9,vy:-(10+r()*14),vx:0,ph:r()*6.3,o:.3+r()*.3};
 }
-function fxCount(k){return k==="noel"?70:k==="nouvelan"?55:k==="valentin"?22:18}
+function fxCount(k){const n=k==="noel"?70:k==="nouvelan"?55:k==="valentin"?22:18;return LITE?Math.ceil(n*.45):n}
 function heart(x,cx,cy,s){x.beginPath();x.moveTo(cx,cy+s*.35);x.bezierCurveTo(cx-s*1.1,cy-s*.35,cx-s*.45,cy-s*1.05,cx,cy-s*.45);x.bezierCurveTo(cx+s*.45,cy-s*1.05,cx+s*1.1,cy-s*.35,cx,cy+s*.35);x.fill()}
 function fxTick(ts){
   FX.raf=requestAnimationFrame(fxTick);
-  if(FX.last&&ts-FX.last<33)return; // 30 images/s suffisent
+  if(FX.last&&ts-FX.last<(LITE?50:33))return; // 30 images/s suffisent (20 en mode léger)
   const dt=FX.last?Math.min(.1,(ts-FX.last)/1000):0;FX.last=ts;
   const c=$("festfx"),W=innerWidth,H=innerHeight,dpr=Math.min(1.5,devicePixelRatio||1);
   if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
@@ -2400,7 +2419,7 @@ function saverClock(){const d=new Date();$("sv-clock").textContent=hhmm(d.getTim
 function saverShow(){
   if(!SV.list.length)return;const x=SV.list[SV.i%SV.list.length];SV.i++;
   const box=$("sv-imgs"),d=el("div","sv-i");const url=artUrl(x.p);
-  if(url)smallImg(url,1280).then(src=>{if(src)d.style.backgroundImage="url('"+src+"')";else{d.classList.add("ph");d.textContent=x.ch.num||""}});else{d.classList.add("ph");d.textContent=x.ch.num||"";d.style.background=chColor(x.ch)}
+  if(url)smallImg(url,LITE?960:1280).then(src=>{if(src)d.style.backgroundImage="url('"+src+"')";else{d.classList.add("ph");d.textContent=x.ch.num||""}});else{d.classList.add("ph");d.textContent=x.ch.num||"";d.style.background=chColor(x.ch)}
   box.append(d);requestAnimationFrame(()=>requestAnimationFrame(()=>d.classList.add("on")));
   [...box.children].slice(0,-2).forEach(o=>o.remove());setTimeout(()=>{[...box.children].slice(0,-1).forEach(o=>o.classList.remove("on"))},1700);
   const inf=document.querySelector(".sv-info");inf.classList.add("out");
