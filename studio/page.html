@@ -225,6 +225,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .chc .hl.ok i{background:var(--ok)}.chc .hl.warn i{background:var(--warn)}.chc .hl.bad i{background:var(--bad)}
 .chc .hl.warn span{color:var(--warn)}.chc .hl.bad span{color:var(--bad)}
 .chc .hl .btn{margin-left:auto;padding:5px 10px;font-size:12px}.chc .hl .btn+.btn{margin-left:6px}
+.chset{display:flex;align-items:center;gap:14px;margin:2px 0 16px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--s2);flex-wrap:wrap}
+.chlogo{width:84px;height:52px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;flex:none;font-weight:800;color:#111}
+.chlogo img{max-width:90%;max-height:85%;object-fit:contain}
+.chlogo.none{background:var(--s3);color:var(--mute)}
 .btn.danger{background:rgba(255,107,107,.14);color:var(--bad)}.btn.danger:hover{background:rgba(255,107,107,.24)}
 .hsum{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--s2)}
 .hsum .p{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--mute);margin-right:10px}.hsum .p b{color:var(--ink);font-size:16px}
@@ -359,6 +363,9 @@ html,body{overflow-x:hidden}
         <button class="btn sm ghost" id="ch-back">‹ Toutes les chaînes</button>
         <h1 id="ch-title" style="margin-top:10px"></h1>
         <p class="sub" id="ch-sub"></p>
+        <div class="chset"><div class="chlogo" id="ch-logo"></div>
+          <div class="acts" style="margin:0"><button class="btn sm" id="ch-logo-b">Changer le logo</button><button class="btn sm ghost" id="ch-logo-x">Retirer le logo</button><button class="btn sm" id="ch-ren">Renommer</button><button class="btn sm" id="ch-num">Changer le numéro</button><button class="btn sm danger" id="ch-del">Supprimer la chaîne</button></div>
+          <input type="file" id="ch-logo-f" accept="image/*" hidden></div>
         <div class="acts" style="margin-top:0"><button class="btn pri" id="ch-add">＋ Ajouter du contenu</button><button class="btn" id="ch-shuffle">Mélanger</button><button class="btn" id="ch-dedupe">Retirer les doublons</button><button class="btn" id="ch-fill" hidden></button><button class="btn ghost" id="ch-undo">↶ Annuler la dernière modif</button></div>
         <div class="hint" id="ch-msg"></div><div class="err" id="ch-err2"></div>
         <input class="inp" id="ch-filter" placeholder="Chercher dans la programmation…" style="margin-top:14px" autocomplete="off">
@@ -1068,7 +1075,7 @@ function renderChannels(){if(CH.cur)return;loadNews();$("ch-list-v").hidden=fals
       for(const h of gh){e.target.textContent=h.name+"…";try{t+=(await api("/api/tn/ghosts",{channel:h.id})).removed}catch(er){$("ch-err").textContent=h.name+" : "+er.message}}alertMsg(t+" programme"+(t>1?"s":"")+" introuvable"+(t>1?"s":"")+" retiré"+(t>1?"s":""));await loadChannels(true)});cl.classList.add("danger");S2.append(cl)}
     if(nm){const all=btn("Tout compléter",async e=>{if(!confirm("Ajouter les "+nm+" programmes en attente à la fin de leur chaîne ("+miss.length+" chaîne"+(miss.length>1?"s":"")+") ?"))return;e.target.disabled=true;let t=0;
       for(const h of miss){e.target.textContent=h.name+"…";t+=await fillChannel(h.id)||0}alertMsg(t+" programme"+(t>1?"s":"")+" ajouté"+(t>1?"s":"")+" sur "+miss.length+" chaîne"+(miss.length>1?"s":""));await loadChannels(true)});all.classList.add("pri");S2.append(all)}}}
-async function openChannel(id){CH.cur=id;$("ch-list-v").hidden=true;$("ch-one-v").hidden=false;$("ch-msg").textContent="";$("ch-err2").textContent="";$("ch-filter").value="";
+async function openChannel(id){CH.cur=id;setTimeout(renderChSet,0);$("ch-list-v").hidden=true;$("ch-one-v").hidden=false;$("ch-msg").textContent="";$("ch-err2").textContent="";$("ch-filter").value="";
   $("ch-lineup").innerHTML='<div class="qempty">Chargement…</div>';await loadProg()}
 async function loadProg(){try{CH.prog=await api("/api/tn/channel?id="+encodeURIComponent(CH.cur));$("ch-err2").textContent=""}catch(e){$("ch-err2").textContent=e.message;return}renderProg()}
 function renderProg(){const P=CH.prog;if(!P)return;const tot=P.lineup.reduce((a,x)=>a+(x.duration||0),0);
@@ -1089,6 +1096,26 @@ $("ch-shuffle").onclick=()=>{if(confirm("Mélanger toute la programmation de la 
 $("ch-dedupe").onclick=()=>edit("dedupe");
 $("ch-undo").onclick=()=>edit("undo");
 $("ch-fill").onclick=async e=>{if(await fillChannel(CH.cur,e.target)){await loadHealth(true);await loadProg()}e.target.disabled=false};
+
+/* réglages de la chaîne ouverte : logo, nom, numéro, suppression */
+function chInfo(){return (CH.list||[]).find(c=>c.id===CH.cur)||{}}
+function renderChSet(){const c=chInfo(),b=$("ch-logo");b.textContent="";b.classList.toggle("none",!c.icon);
+  if(c.icon){const im=document.createElement("img");im.src=c.icon;im.alt="";im.onerror=()=>{b.classList.add("none");b.textContent=c.number||""};b.append(im)}else b.textContent=c.number||"";$("ch-logo-x").hidden=!c.icon}
+async function chSet(body,okMsg){try{const r=await api("/api/tn/set",{channel:CH.cur,...body});alertMsg(r.msg||okMsg||"C'est fait");await loadChannels(true);if(CH.cur){await loadProg();renderChSet()}return r}catch(e){$("ch-err2").textContent=e.message;return null}}
+$("ch-logo-b").onclick=()=>$("ch-logo-f").click();
+$("ch-logo-f").onchange=async()=>{const f=$("ch-logo-f").files[0];$("ch-logo-f").value="";if(!f)return;$("ch-logo-b").disabled=true;$("ch-logo-b").textContent="Envoi…";
+  try{const r=await fetch("/api/tn/logo?channel="+encodeURIComponent(CH.cur)+"&name="+encodeURIComponent(f.name),{method:"PUT",body:f});const j=await r.json();if(!r.ok)throw new Error(j.error||"Erreur");alertMsg("Logo changé · la télé l'affiche au prochain lancement");await loadChannels(true);renderChSet()}catch(e){$("ch-err2").textContent=e.message}
+  $("ch-logo-b").disabled=false;$("ch-logo-b").textContent="Changer le logo"};
+$("ch-logo-x").onclick=async()=>{if(confirm("Retirer le logo de la chaîne ?"))await chSet({logo_reset:true})};
+$("ch-ren").onclick=async()=>{const c=chInfo(),old=c.name||"";const n=prompt("Nouveau nom de la chaîne",old);if(!n||n.trim()===old)return;
+  // la médiathèque du même nom reste liée à la chaîne si on la renomme pareil
+  let lib=null;try{lib=((await api("/api/tn/libs")).libs||[]).find(l=>sameName(l.name,old))}catch(e){}
+  const r=await chSet({name:n.trim()});if(!r)return;
+  if(lib&&!sameName(lib.name,n)&&confirm("Renommer aussi la médiathèque « "+lib.name+" » en « "+n.trim()+" » ?\n(sinon Studio ne saura plus qu'elles vont ensemble)")){try{await api("/api/media/renamelib",{name:lib.name,new:n.trim()});alertMsg("Chaîne et médiathèque renommées")}catch(e){$("ch-err2").textContent=e.message}}};
+$("ch-num").onclick=async()=>{const c=chInfo();const n=prompt("Nouveau numéro pour « "+c.name+" »",c.number||"");if(!n||+n===c.number)return;await chSet({number:+n})};
+$("ch-del").onclick=async()=>{const c=chInfo();if(!confirm("Supprimer la chaîne « "+c.name+" » (n°"+c.number+") ?\nLes vidéos restent dans la médiathèque, seule la chaîne disparaît de la télé."))return;
+  if(prompt("Pour confirmer, tape le numéro de la chaîne ("+c.number+")")!==String(c.number))return;
+  try{const r=await api("/api/tn/set",{channel:CH.cur,delete:true});alertMsg(r.msg);CH.cur=null;CH.prog=null;loadChannels(true)}catch(e){$("ch-err2").textContent=e.message}};
 /* ajout de contenu */
 let ADD={progs:[],sel:new Set(),order:"end"};
 $("ch-add").onclick=async()=>{$("add-m").hidden=false;$("add-err").textContent="";ADD.sel.clear();$("add-q").value="";$("add-t").textContent="Ajouter sur n°"+CH.prog.number+" · "+CH.prog.name;

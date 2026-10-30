@@ -1722,6 +1722,93 @@ def remove_ghosts(cid):
     return len(pr["raw"]) - len(keep), sorted({x["title"] for x in g})
 
 
+# ---------------------------------------------------------------- réglages d'une chaîne (nom, numéro, logo, suppression) sans Tunarr
+_CH_KEYS = ["disableFillerOverlay", "duration", "fillerCollections", "fillerRepeatCooldown", "groupTitle", "guideFlexTitle", "guideMinimumDuration", "icon", "id",
+            "name", "number", "offline", "startTime", "stealth", "watermark", "onDemand", "streamMode", "transcodeConfigId", "subtitlesEnabled", "subtitlePreferences"]
+
+
+def tn_channel_put(cid, **changes):
+    c = tn("/api/channels/%s" % quote(cid, safe="")) or {}
+    if not c.get("id"):
+        raise RuntimeError("Chaîne introuvable")
+    body = {k: c[k] for k in _CH_KEYS if c.get(k) is not None}
+    for k, v in changes.items():
+        if k == "icon_path":
+            body["icon"] = dict(body.get("icon") or {"width": 0, "duration": 0, "position": "bottom-right"}, path=v)
+        else:
+            body[k] = v
+    tn("/api/channels/%s" % quote(cid, safe=""), "PUT", body, timeout=30)
+    _health["data"] = None
+    return body
+
+
+def channel_rename(cid, name):
+    name = re.sub(r"\s+", " ", (name or "").strip())
+    if not name:
+        raise RuntimeError("Donne un nom")
+    tn_channel_put(cid, name=name)
+    return name
+
+
+def channel_renumber(cid, number):
+    try:
+        number = int(number)
+    except (TypeError, ValueError):
+        raise RuntimeError("Le numéro doit être un nombre")
+    if not 1 <= number <= 9999:
+        raise RuntimeError("Numéro entre 1 et 9999")
+    other = next((c for c in tn("/api/channels") or [] if c.get("number") == number and c.get("id") != cid), None)
+    if other:
+        raise RuntimeError("Le n°%d est déjà pris par « %s »" % (number, other.get("name")))
+    tn_channel_put(cid, number=number)
+    return number
+
+
+def channel_logo(cid, data, filename="logo.png"):
+    """Envoie l'image à Tunarr (comme son écran de chaîne) et la pose comme logo."""
+    if len(data) < 100:
+        raise RuntimeError("Image vide")
+    if len(data) > 8 * 1024 * 1024:
+        raise RuntimeError("Image trop lourde (8 Mo maximum)")
+    ext = os.path.splitext(filename)[1].lower() or ".png"
+    ctype = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml"}.get(ext, "image/png")
+    bnd = "----frs" + secrets.token_hex(8)
+    body = ("--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\nContent-Type: %s\r\n\r\n" % (bnd, "logo" + ext, ctype)).encode() + data + ("\r\n--%s--\r\n" % bnd).encode()
+    req = urllib.request.Request(_fast(conf.get("tunarr_url", "http://localhost:8000")) + "/api/upload/image", data=body, method="POST",
+                                 headers={"Content-Type": "multipart/form-data; boundary=" + bnd})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError("Tunarr a refusé l'image (%d)" % e.code)
+    url = res.get("fileUrl") or ""
+    if not url:
+        raise RuntimeError("Tunarr n'a pas renvoyé d'adresse pour l'image")
+    # les télés doivent pouvoir la charger : adresse Tailscale du PC, pas « localhost »
+    path = urlparse(url).path if url.startswith("http") else ("/" + url.lstrip("/"))
+    port = urlparse(conf.get("tunarr_url", "http://localhost:8000")).port or 8000
+    host = tailscale_ip() or urlparse(conf.get("tunarr_url", "http://localhost:8000")).hostname or "localhost"
+    full = "http://%s:%d%s" % (host, port, path)
+    tn_channel_put(cid, icon_path=full)
+    return full
+
+
+def channel_delete(cid):
+    c = tn("/api/channels/%s" % quote(cid, safe="")) or {}
+    if not c.get("id"):
+        raise RuntimeError("Chaîne introuvable")
+    # on garde une copie de la programmation au cas où
+    try:
+        tn_backup(cid, tn_programming(cid)["raw"])
+        with open(os.path.join(BACKUPS, "%s-reglages.json" % cid), "w", encoding="utf-8") as f:
+            json.dump(c, f, ensure_ascii=False)
+    except Exception:
+        pass
+    tn("/api/channels/%s" % quote(cid, safe=""), "DELETE", timeout=30)
+    _health["data"] = None
+    return c.get("name")
+
+
 def channel_health(fresh=False):
     """Pour chaque chaîne : combien de temps avant de repasser la même chose, doublons, et ce qui attend dans sa médiathèque."""
     if _health["data"] and not fresh and time.time() - _health["t"] < 60:
@@ -2797,6 +2884,15 @@ class H(BaseHTTPRequestHandler):
         if not self.authed():
             return self.need_auth()
         u = urlparse(self.path)
+        if u.path == "/api/tn/logo":
+            q = parse_qs(u.query)
+            n = int(self.headers.get("Content-Length") or 0)
+            data = self.rfile.read(n) if n else b""
+            try:
+                url = channel_logo((q.get("channel") or [""])[0], data, (q.get("name") or ["logo.png"])[0])
+                return self.send(200, {"icon": url, "msg": "Logo changé"})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path != "/api/upload":
             return self.send(404, {"error": "introuvable"})
         q = parse_qs(u.query)
@@ -3005,6 +3101,21 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
             return self.send(404, {"error": "introuvable"})
+        if u.path == "/api/tn/set":
+            try:
+                cid = b.get("channel") or ""
+                if "name" in b:
+                    return self.send(200, {"name": channel_rename(cid, b["name"]), "msg": "Chaîne renommée"})
+                if "number" in b:
+                    return self.send(200, {"number": channel_renumber(cid, b["number"]), "msg": "Numéro changé"})
+                if b.get("delete"):
+                    return self.send(200, {"msg": "« %s » supprimée" % channel_delete(cid)})
+                if b.get("logo_reset"):
+                    tn_channel_put(cid, icon_path="")
+                    return self.send(200, {"msg": "Logo retiré"})
+                return self.send(400, {"error": "Rien à changer"})
+            except Exception as e:
+                return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/tn/ghosts":
             try:
                 n, titles = remove_ghosts(b.get("channel") or "")
