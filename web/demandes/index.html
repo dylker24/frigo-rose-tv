@@ -447,22 +447,43 @@ $("sq").oninput=()=>{clearTimeout(sT);picked=null;$("pick").hidden=true;$("dup")
   $("manual").hidden=!v;$("manual").textContent=v?"Je ne trouve pas : envoyer « "+v+" » tel quel":"";
   if(v.length<2){$("res").textContent="";$("sload").hidden=true;return}sT=setTimeout(()=>search(v),380)};
 const OKDESC={film:/film|long[- ]m[ée]trage|dessin anim|animation|com[ée]die|documentaire|t[ée]l[ée]film/i,serie:/s[ée]rie|feuilleton|sitcom|[ée]mission|dessin anim|anime|programme/i};
+/* Cherche les affiches d'un titre (film ou série) */
+async function wikiFind(v,k){
+  const u="https://fr.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=14&gsrsearch="+encodeURIComponent(v+" "+(k==="serie"?"série":"film"))+"&prop=pageimages|description|langlinks&piprop=thumbnail&pithumbsize=400&pilicense=any&lllang=en&lllimit=50";
+  const j=await fetch(u).then(r=>r.json());
+  let items=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index).map(p=>({title:p.title,desc:p.description||"",img:p.thumbnail&&p.thumbnail.source||"",en:p.langlinks&&p.langlinks[0]&&p.langlinks[0]["*"]||""}));
+  items=items.filter(x=>OKDESC[k].test(x.desc)&&!/^Liste|^Saison|^Personnages|homonymie/i.test(x.title)).slice(0,8);
+  const need=items.filter(x=>!x.img&&x.en);
+  if(need.length){try{const j2=await fetch("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&titles="+encodeURIComponent(need.map(x=>x.en).join("|"))+"&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=any").then(r=>r.json());
+    const by={};Object.values((j2.query&&j2.query.pages)||{}).forEach(p=>{if(p.thumbnail)by[p.title]=p.thumbnail.source});
+    ((j2.query&&j2.query.normalized)||[]).forEach(n=>{if(by[n.to])by[n.from]=by[n.to]});need.forEach(x=>{x.img=by[x.en]||""})}catch(e){}}
+  items.forEach(x=>{const y=/((?:19|20)\d\d)\)\s*$/.exec(x.title)||/sortie?s? (?:en |le .{0,20}?)((?:19|20)\d\d)/i.exec(x.desc)||/\b((?:19|20)\d\d)\b/.exec(x.desc);x.year=y?y[1]:"";x.clean=x.title.replace(/\s*\((film|série|série télévisée|téléfilm|film d'animation)?[^)]*\)\s*$/i,"").trim()||x.title;x.img=x.img.replace(/\?utm_[^#]*$/,"")});
+  return items;
+}
 async function search(v){
   const my=++sN;$("sload").hidden=false;
-  try{
-    const u="https://fr.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=14&gsrsearch="+encodeURIComponent(v+" "+(kind==="serie"?"série":"film"))+"&prop=pageimages|description|langlinks&piprop=thumbnail&pithumbsize=400&pilicense=any&lllang=en&lllimit=50";
-    const j=await fetch(u).then(r=>r.json());if(my!==sN)return;
-    let items=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index).map(p=>({title:p.title,desc:p.description||"",img:p.thumbnail&&p.thumbnail.source||"",en:p.langlinks&&p.langlinks[0]&&p.langlinks[0]["*"]||""}));
-    items=items.filter(x=>OKDESC[kind].test(x.desc)&&!/^Liste|^Saison|^Personnages|homonymie/i.test(x.title)).slice(0,8);
-    const need=items.filter(x=>!x.img&&x.en);
-    if(need.length){try{const j2=await fetch("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&titles="+encodeURIComponent(need.map(x=>x.en).join("|"))+"&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=any").then(r=>r.json());
-      const by={};Object.values((j2.query&&j2.query.pages)||{}).forEach(p=>{if(p.thumbnail)by[p.title]=p.thumbnail.source});
-      ((j2.query&&j2.query.normalized)||[]).forEach(n=>{if(by[n.to])by[n.from]=by[n.to]});need.forEach(x=>{x.img=by[x.en]||""})}catch(e){}}
-    if(my!==sN)return;
-    items.forEach(x=>{const y=/((?:19|20)\d\d)\)\s*$/.exec(x.title)||/sortie?s? (?:en |le .{0,20}?)((?:19|20)\d\d)/i.exec(x.desc)||/\b((?:19|20)\d\d)\b/.exec(x.desc);x.year=y?y[1]:"";x.clean=x.title.replace(/\s*\((film|série|série télévisée|téléfilm|film d'animation)?[^)]*\)\s*$/i,"").trim()||x.title;x.img=x.img.replace(/\?utm_[^#]*$/,"")});
-    renderRes(items);
-  }catch(e){if(my===sN){$("res").textContent="";$("res").append(el("div","loading","Pas de connexion aux affiches, tu peux quand même envoyer le titre."))}}
+  try{const items=await wikiFind(v,kind);if(my!==sN)return;renderRes(items)}
+  catch(e){if(my===sN){$("res").textContent="";$("res").append(el("div","loading","Pas de connexion aux affiches, tu peux quand même envoyer le titre."))}}
   if(my===sN)$("sload").hidden=true;
+}
+/* Les anciennes demandes reçoivent leur affiche toute seule (une fois pour toutes, pour tout le monde) */
+const BF=new Set();let bfOn=false;
+async function backfill(){
+  if(bfOn||!db)return;bfOn=true;
+  try{
+    for(const r of reqs){
+      if(!["film","serie",undefined,""].includes(r.type)||r.poster||r.posterTried||BF.has(r.id)||!r.title)continue;
+      BF.add(r.id);const k=r.type==="serie"?"serie":"film";
+      try{
+        const t=r.title.replace(/\b(1|2|3)\s+et\s+(2|3)\b/i,"").replace(/\(.*?\)/g,"").trim()||r.title;
+        const items=await wikiFind(t,k);const want=nk(t);
+        const best=items.find(x=>x.img&&(nk(x.clean)===want||nk(x.clean).startsWith(want)||want.startsWith(nk(x.clean))))||null;
+        const up=best?{poster:best.img}:{posterTried:true};if(best&&best.year&&!r.year)up.year=best.year;
+        await ref("requests/"+r.id).update(up);
+      }catch(e){}
+      await new Promise(x=>setTimeout(x,350));
+    }
+  }finally{bfOn=false}
 }
 function renderRes(items){
   const box=$("res");box.textContent="";
@@ -520,7 +541,7 @@ function start(){if(who){$("scr-who").hidden=true;$("scr-main").hidden=false;ren
 try{
   firebase.initializeApp(FBC);db=firebase.database();
   db.ref(".info/connected").on("value",s=>{const ok=s.val()===true;$("sync").classList.toggle("ok",ok);$("sync").lastChild.textContent=ok?"synchronisé":"hors ligne";check()});
-  ref("requests").on("value",s=>{const v=s.val()||{};reqs=Object.keys(v).map(k=>({id:k,...v[k]})).filter(r=>r&&r.title).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));loaded=true;renderAll()});
+  ref("requests").on("value",s=>{const v=s.val()||{};reqs=Object.keys(v).map(k=>({id:k,...v[k]})).filter(r=>r&&r.title).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));loaded=true;renderAll();setTimeout(backfill,1500)});
   ref("channels").on("value",s=>{const v=s.val()||{};chans=Object.keys(v).map(k=>({id:k,...v[k]})).filter(c=>c&&c.name);renderAll()});
   let pubP={},syncP={};
   const mergeP=()=>{const m={};const hasSync=Object.values(syncP).some(p=>p&&p.name);/* les profils en ligne font foi ; l'ancienne liste ne sert que s'il n'y en a pas */Object.values(hasSync?{}:pubP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...p}});Object.values(syncP).forEach(p=>{if(p&&p.name)m[nk(p.name)]={...(m[nk(p.name)]||{}),name:p.name,av:p.av,pic:p.pic,img:p.img}});profs=m;if(!$("scr-who").hidden)renderWho();else renderAll()};
