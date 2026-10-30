@@ -508,6 +508,32 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .nov strong{font:800 1.35rem/1.12 var(--display,inherit);color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.5)}
 .nov .nw{font-size:.8rem;font-weight:600;color:#EDEDED}
 .hcard.big b{font-weight:500;color:var(--mute)}
+/* couleurs qui suivent le programme */
+.hbg-tint{position:absolute;inset:0;pointer-events:none;background-color:rgb(60,60,70);opacity:.42;transition:background-color 1.1s ease,opacity .6s;
+  -webkit-mask-image:radial-gradient(90% 85% at 78% 18%,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 78%);mask-image:radial-gradient(90% 85% at 78% 18%,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 78%);mix-blend-mode:screen}
+#hbg.deep .hbg-tint{opacity:.3}
+.home .hcard.f .hthumb{box-shadow:0 0 0 .2rem #fff,0 .6rem 2.2rem rgba(var(--amb,0,0,0),.55)}
+/* économiseur d'écran */
+.saver{position:fixed;inset:0;z-index:70;background:#000;overflow:hidden;cursor:none}
+.sv-imgs{position:absolute;inset:0}
+.sv-imgs .sv-i{position:absolute;inset:-4%;background-size:cover;background-position:center;opacity:0;transition:opacity 1.6s ease;animation:kb 16s linear forwards}
+.sv-imgs .sv-i.on{opacity:1}
+.sv-imgs .sv-i.ph{display:grid;place-items:center;font:800 18rem/1 var(--display);color:rgba(255,255,255,.12)}
+@keyframes kb{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.14) translate(-2%,-1.5%)}}
+.sv-shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.35) 38%,rgba(0,0,0,0) 60%),linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 25%)}
+.sv-clock{position:absolute;top:2.4rem;right:3rem;font:800 4.2rem/1 var(--display);color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.5)}
+.sv-date{position:absolute;top:7rem;right:3.1rem;font-size:1.15rem;font-weight:600;color:rgba(255,255,255,.8)}
+.sv-info{position:absolute;left:3rem;right:30%;bottom:3.4rem;transition:opacity .8s}
+.sv-info.out{opacity:0}
+.sv-kick{font:700 .95rem var(--ui,inherit);letter-spacing:.12em;text-transform:uppercase;color:var(--accent-t);margin-bottom:.5rem;display:flex;align-items:center;gap:.6rem}
+.sv-kick img{height:1.9rem;max-width:6rem;object-fit:contain;border-radius:.35rem;background:#fff;padding:.15rem .3rem}
+.sv-title{font:800 3.1rem/1.05 var(--display);color:#fff;text-shadow:0 2px 20px rgba(0,0,0,.6)}
+.sv-sub{margin-top:.6rem;font-size:1.15rem;color:rgba(255,255,255,.82)}
+.sv-hint{position:absolute;right:3rem;bottom:3.6rem;font-size:.9rem;color:rgba(255,255,255,.45)}
+/* ce soir */
+.hrow.tonight h2{display:flex;align-items:baseline;gap:.7rem}
+.hrow.tonight h2 small{font-size:.85rem;font-weight:600;color:var(--accent-t)}
+.hthumb .tntag{position:absolute;bottom:.55rem;left:.45rem;padding:.2rem .5rem;border-radius:.4rem;background:rgba(0,0,0,.75);color:#fff;font:800 .78rem var(--ui,inherit);letter-spacing:.04em;z-index:3;backdrop-filter:blur(4px)}
 </style>
 </head>
 <body>
@@ -544,7 +570,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 <div class="toast" id="toast" hidden></div>
 
 <div class="panel" id="panel" hidden>
-  <div class="hbg" id="hbg" hidden><div class="hbg-art" id="hbg-art"></div><div class="hbg-shade"></div></div>
+  <div class="hbg" id="hbg" hidden><div class="hbg-art" id="hbg-art"></div><div class="hbg-shade"></div><div class="hbg-tint" id="hbg-tint"></div></div>
   <canvas id="festfx" hidden></canvas>
   <div class="topbar">
     <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/></svg></span>Frigo Rosé TV</div>
@@ -651,6 +677,10 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
   <div class="hints" id="hints"></div>
 </div>
 
+<div class="saver" id="saver" hidden><div class="sv-imgs" id="sv-imgs"></div><div class="sv-shade"></div>
+  <div class="sv-clock tnum" id="sv-clock"></div><div class="sv-date" id="sv-date"></div>
+  <div class="sv-info"><div class="sv-kick" id="sv-kick"></div><div class="sv-title" id="sv-title"></div><div class="sv-sub" id="sv-sub"></div></div>
+  <div class="sv-hint">Appuie sur une touche pour revenir</div></div>
 <div class="full" id="splash">
   <div class="iglow"></div>
   <div class="istage">
@@ -1126,6 +1156,7 @@ function homeRows(){
   next.sort((a,b)=>a.p.start-b.p.start);
   const rows=[];const fav=nowRow.filter(x=>isFav(x.ch));
   const nw=newsItems(now);
+  const tn=tonightItems(now);if(tn.length)rows.push({id:"tonight",title:"Ce soir sur Frigo Rosé TV",hint:"vers 21h",list:tn,live:false,tonight:true});
   const rec=recents().map(id=>nowRow.find(x=>x.ch.id===id)).filter(Boolean);
   if(rec.length)rows.push({id:"rec",title:"Reprendre",list:rec,live:true});
   if(fav.length)rows.push({id:"fav",title:"Tes chaînes favorites",list:fav,live:true});
@@ -1133,6 +1164,19 @@ function homeRows(){
   if(nw.length)rows.push({id:"news",title:"Nouveau sur Frigo Rosé TV",list:nw,live:false,news:true});
   if(next.length)rows.push({id:"next",title:"À suivre",list:next.slice(0,14),live:false});
   return {rows,nowRow};
+}
+/* Ce soir : ce qui passe vers 21h sur chaque chaîne (affiché de 15h à 21h30) */
+function tonightItems(now){
+  const d=new Date(now),h=d.getHours()+d.getMinutes()/60;if(h<15||h>21.5)return [];
+  const t=new Date(now);t.setHours(21,0,0,0);const T=t.getTime(),out=[];
+  channels.forEach((ch,i)=>{const list=progs[ch.id]||[];
+    // le programme qui commence entre 20h40 et 21h40, sinon celui qui couvre 21h
+    let p=list.find(q=>q.start>=T-20*MIN&&q.start<=T+40*MIN)||list.find(q=>q.start<=T&&q.stop>T);
+    if(!p||p.stop-p.start<20*MIN)return;
+    out.push({i,ch,p,kind:p.start<=now?"now":"next",tonight:true});
+  });
+  // les films et les programmes longs d'abord, ce sont les vrais « programmes de la soirée »
+  return out.sort((a,b)=>(b.p.stop-b.p.start>=75*MIN)-(a.p.stop-a.p.start>=75*MIN)||a.p.start-b.p.start).slice(0,14);
 }
 function homeFocus(){
   if(!channels.length)return null;
@@ -1143,6 +1187,7 @@ function homeFocus(){
 function openHome(){hRow=0;hBtn=0;heroI=Math.max(0,cur);hCol={now:heroI};zone="content";setScreen("home")}
 function renderHomeBg(it){
   if(!it)return;
+  updateAmb(it);
   const art=$("hbg-art");
   const showVideo=!demo&&videoOk&&it.i===cur&&it.kind==="now";
   if(showVideo){art.classList.add("off");return}
@@ -1157,6 +1202,32 @@ function renderHomeBg(it){
     else art.append(el("span","big",String(it.ch.num||"")));
   }
   art.classList.remove("off");
+}
+
+/* Couleurs qui suivent le programme : on lit la couleur dominante (et vive) de l'affiche */
+const AMB=new Map();
+function ambFrom(src){
+  if(AMB.has(src))return AMB.get(src);
+  const pr=new Promise(res=>{const im=new Image();im.onload=()=>{try{
+      const c=document.createElement("canvas"),w=32,h=18;c.width=w;c.height=h;const x=c.getContext("2d");x.drawImage(im,0,0,w,h);
+      const d=x.getImageData(0,0,w,h).data;let R=0,G=0,B=0,W=0;
+      for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b),sat=mx?(mx-mn)/mx:0,lum=(mx+mn)/510;
+        const wt=Math.pow(sat,2)*(1-Math.abs(lum-.55)*1.6)+.02;if(wt<=0)continue;R+=r*wt;G+=g*wt;B+=b*wt;W+=wt}
+      if(!W)return res(null);let r=R/W,g=G/W,b=B/W;
+      // on remonte la saturation et la lumière pour une teinte franche mais pas criarde
+      const mx=Math.max(r,g,b)||1,k=210/mx;r=Math.min(255,r*k);g=Math.min(255,g*k);b=Math.min(255,b*k);
+      res([Math.round(r),Math.round(g),Math.round(b)]);
+    }catch(e){res(null)}};im.onerror=()=>res(null);im.src=src});
+  AMB.set(src,pr);return pr;
+}
+function hexToRgbArr(h){const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h||"");return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[70,70,80]}
+let ambKey="";
+function setAmb(rgb){const t=$("hbg-tint");if(!t||!rgb)return;t.style.backgroundColor="rgb("+rgb.join(",")+")";document.documentElement.style.setProperty("--amb",rgb.join(","))}
+function updateAmb(it){
+  if(!it)return;const url=artUrl(it.p),k=url||("ch:"+it.ch.id);if(k===ambKey)return;ambKey=k;
+  const fallback=hexToRgbArr(chColor(it.ch));
+  if(!url||IMG.bad.has(url)){setAmb(fallback);return}
+  smallImg(url,480).then(src=>src?ambFrom(src):null).then(rgb=>{if(ambKey===k)setAmb(rgb||fallback)}).catch(()=>{if(ambKey===k)setAmb(fallback)});
 }
 let rowsSig="",bgT=null;
 let newsSeenT=null;
@@ -1196,7 +1267,7 @@ function renderHome(light){
   const box=$("h-rows");box.textContent="";
   rows.forEach((row,ri)=>{
     const r=ri+1,list=row.list;
-    const sec=el("div","hrow");if(hRow>=2&&ri<hRow-2)sec.hidden=true;sec.append(el("h2",null,row.title));
+    const sec=el("div","hrow"+(row.tonight?" tonight":""));if(hRow>=2&&ri<hRow-2)sec.hidden=true;const h2=el("h2",null,row.title);if(row.hint)h2.append(el("small",null,row.hint));sec.append(h2);
     const view=el("div","hview"),tr=el("div","htrack");
     list.forEach((x,j)=>{
       const big=row.news&&j===0;
@@ -1208,6 +1279,7 @@ function renderHome(light){
       if(row.live){const pg=el("div","pg");const i2=el("i");i2.style.width=Math.max(0,Math.min(100,(now-x.p.start)/(x.p.stop-x.p.start)*100))+"%";pg.append(i2);th.append(pg)}
       if(big){const ov=el("div","nov");ov.append(el("span","nk","Nouveau · arrivé "+x.ago),el("strong",null,x.nt),el("span","nw",x.when.charAt(0).toUpperCase()+x.when.slice(1)+" sur "+x.ch.name));th.append(ov)}
       else if(row.news&&x.isNew)th.append(el("span","newtag","NOUVEAU"));
+      if(row.tonight)th.append(el("span","tntag",x.p.start<=now?"EN CE MOMENT":hhmm(x.p.start)));
       if(big)c.append(th,el("b",null,x.p.desc?x.p.desc.slice(0,90)+(x.p.desc.length>90?"…":""):"Ajouté "+x.ago+" sur "+x.ch.name),el("small",null,x.p.cat||"\u00a0"));
       else if(row.news)c.append(th,el("b",null,x.nt),el("small",null,x.sub));else
       c.append(th,el("b",null,x.p.title),el("small",null,row.live?x.ch.name+" · encore "+dur(x.p.stop-now):hhmm(x.p.start)+" · "+x.ch.name));
@@ -2300,9 +2372,42 @@ function longOkTarget(){
   return null;
 }
 function runOk(){if(screen==="chaines")chKey("ok");else if(screen==="guide")guideKey("ok");else if(screen==="home")homeKey("ok");else if(screen==="live"&&mgOpen)mgKey("ok")}
+
+/* Économiseur d'écran : 5 min sans toucher la télécommande sur l'accueil (ou les menus) */
+const SV={on:false,t:null,i:0,list:[],tick:null};
+function saverItems(){
+  const now=Date.now(),out=[];
+  channels.forEach((ch,i)=>{const p=progAt(ch,now);if(!p.synthetic)out.push({i,ch,p,live:true});const n=progAfter(ch,p);if(n&&!n.synthetic&&artUrl(n))out.push({i,ch,p:n,live:false})});
+  const withArt=out.filter(x=>artUrl(x.p)&&!IMG.bad.has(artUrl(x.p)));
+  const pick=(withArt.length>=3?withArt:out);
+  for(let k=pick.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[pick[k],pick[j]]=[pick[j],pick[k]]}
+  return pick.slice(0,30);
+}
+function saverClock(){const d=new Date();$("sv-clock").textContent=hhmm(d.getTime());const t=d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});$("sv-date").textContent=t.charAt(0).toUpperCase()+t.slice(1)}
+function saverShow(){
+  if(!SV.list.length)return;const x=SV.list[SV.i%SV.list.length];SV.i++;
+  const box=$("sv-imgs"),d=el("div","sv-i");const url=artUrl(x.p);
+  if(url)smallImg(url,1280).then(src=>{if(src)d.style.backgroundImage="url('"+src+"')";else{d.classList.add("ph");d.textContent=x.ch.num||""}});else{d.classList.add("ph");d.textContent=x.ch.num||"";d.style.background=chColor(x.ch)}
+  box.append(d);requestAnimationFrame(()=>requestAnimationFrame(()=>d.classList.add("on")));
+  [...box.children].slice(0,-2).forEach(o=>o.remove());setTimeout(()=>{[...box.children].slice(0,-1).forEach(o=>o.classList.remove("on"))},1700);
+  const inf=document.querySelector(".sv-info");inf.classList.add("out");
+  setTimeout(()=>{const kk=$("sv-kick");kk.textContent="";if(x.ch.logo){const im=el("img");setLogo(im,x.ch.logo);im.alt="";im.onerror=()=>im.remove();kk.append(im)}
+    kk.append(el("span",null,(x.live?"En ce moment":"À "+hhmm(x.p.start))+" · n°"+(x.ch.num||x.i+1)+" · "+x.ch.name));
+    $("sv-title").textContent=x.p.title+(x.p.sub?" · "+x.p.sub:"");$("sv-sub").textContent=x.live?"Encore "+dur(x.p.stop-Date.now()):hhmm(x.p.start)+" – "+hhmm(x.p.stop);inf.classList.remove("out")},700);
+}
+function saverOpen(){
+  if(SV.on||demo&&!channels.length)return;SV.list=saverItems();if(!SV.list.length)return;
+  SV.on=true;SV.i=0;$("sv-imgs").textContent="";$("saver").hidden=false;saverClock();saverShow();
+  SV.tick=setInterval(()=>{saverClock()},15000);SV.rot=setInterval(saverShow,9000);
+  if(video&&screen!=="live")try{video.muted=true}catch(e){}
+}
+function saverClose(){if(!SV.on)return;SV.on=false;$("saver").hidden=true;clearInterval(SV.tick);clearInterval(SV.rot);$("sv-imgs").textContent="";lastKey=Date.now()}
+setInterval(()=>{if(!SV.on&&["home","chaines","guide"].includes(screen)&&Date.now()-lastKey>(+LS.get("frtv_saver_ms","300000")))saverOpen()},5000);
+["pointerdown","pointermove","touchstart","wheel"].forEach(ev=>document.addEventListener(ev,()=>{if(SV.on&&ev!=="pointermove")saverClose();lastKey=Date.now()},{passive:true,capture:true}));
 window.addEventListener("blur",()=>{clearTimeout(okT);okT=null;okLong=false});
 document.addEventListener("keyup",e=>{if(keyName(e)!=="ok"||!okT)return;clearTimeout(okT);okT=null;if(okLong){okLong=false;return}runOk()});
 document.addEventListener("keydown",e=>{
+  if(SV.on){e.preventDefault();e.stopImmediatePropagation();saverClose();return}  // une touche réveille la télé, sans rien faire d'autre
   if(keyName(e)==="ok"&&!(document.activeElement&&document.activeElement.tagName==="INPUT")&&longOkTarget()){
     e.preventDefault();lastKey=Date.now();if(e.repeat||okT)return;okLong=false;
     okT=setTimeout(()=>{okLong=true;toggleFav(longOkTarget());setTimeout(()=>{if(okLong){okT=null;okLong=false}},2500)},650);return;
