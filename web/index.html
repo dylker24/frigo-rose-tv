@@ -1963,6 +1963,7 @@ function startFirebase(){
     fdb.ref("frigorosetv/config/demandesUrl2").on("value",s=>{autoDem2=String(s.val()||"");if(screen==="demandes")renderDemandes()},()=>{});
     fdb.ref("frigorosetv/config/demandesUrl").on("value",s=>{autoDem=String(s.val()||"");if(screen==="demandes")renderDemandes();if(screen==="settings")renderSettings()});
     syncChannels();publishProfiles();startProfSync();
+    setTimeout(dbgSend,3000);
     fdb.ref("frigorosetv/stats").on("value",s=>{TOPS=s.val()||{};if(screen==="home")renderHome()},()=>{});
     fdb.ref("frigorosetv/config/message").on("value",s=>{try{onTvMsg(s.val())}catch(e){}},()=>{});
   }catch(e){reqs=null;if(screen==="demandes")renderDemandes()}
@@ -2015,6 +2016,15 @@ function onTvMsg(m){
   if(["splash","profiles","pedit"].includes(screen)){setTimeout(()=>onTvMsg(m),4000);return}
   showTvMsg(m);
 }
+
+/* Mouchard : les erreurs de la télé sont envoyées (pour réparer à distance) */
+const DBG=[];
+function dbgPush(m){try{DBG.push(new Date().toTimeString().slice(0,8)+" "+String(m).slice(0,300));if(DBG.length>25)DBG.shift();clearTimeout(dbgPush.t);dbgPush.t=setTimeout(dbgSend,1500)}catch(e){}}
+function dbgSend(){try{if(!fdb||demo)return;fdb.ref("frigorosetv/debug/"+DEVICE_ID).set({at:Date.now(),ua:navigator.userAgent.slice(-80),dev:deviceLabel(),screen,profiles:profiles.map(p=>p.name+"#"+p.id),profile:profile?profile.name:"",pIdx:typeof pIdx!=="undefined"?pIdx:null,log:DBG.slice()}).catch(()=>{})}catch(e){}}
+window.addEventListener("error",e=>dbgPush("ERR "+(e.message||"")+" @"+(e.lineno||"")+":"+(e.colno||"")));
+window.addEventListener("unhandledrejection",e=>dbgPush("REJ "+(e.reason&&e.reason.message||e.reason)));
+document.addEventListener("keydown",e=>{if(screen==="profiles"||screen==="pedit")dbgPush("key "+e.key+"/"+e.keyCode+" scr="+screen+" pIdx="+pIdx+" n="+profiles.length+" act="+(document.activeElement&&document.activeElement.tagName))},true);
+document.addEventListener("click",e=>{if(screen==="profiles"||screen==="pedit")dbgPush("click "+(e.target.className||e.target.tagName)+" scr="+screen)},true);
 /* Profils en ligne : les mêmes sur toutes les télés (chez toi, chez tes beaux-parents…)
    et gardés même si on réinstalle l'appli. Firebase : frigorosetv/profsync/<id> */
 const PSIG={};let profSyncOn=false,profPushT=null;
@@ -2377,6 +2387,7 @@ function renderProfiles(){
 }
 $("p-manage").onclick=()=>{managing=!managing;pIdx=managing?0:-1;renderProfiles()};
 function profOk(){
+  dbgPush("profOk pIdx="+pIdx+" n="+profiles.length+" managing="+managing);
   if(pIdx===-1){$("p-manage").click();return}
   if(pIdx===profiles.length){openEdit(null,false);return}
   if(managing){openEdit(profiles[pIdx],false);return}
