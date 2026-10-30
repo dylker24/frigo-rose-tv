@@ -229,7 +229,8 @@ body.mosaic .chtile .hthumb::after{content:"";position:absolute;right:.6rem;top:
 .dlist{display:flex;flex-direction:column;gap:.5rem}
 .dreq{height:4.6rem;display:flex;align-items:center;gap:1rem;padding:0 1.1rem;border-radius:1rem;background:var(--s1)}
 .dreq.f{background:var(--s2);box-shadow:0 0 0 .18rem #fff}
-.av.pic{overflow:hidden;background:none!important}.av.pic img,.av.pic svg{width:100%;height:100%;object-fit:cover;display:block}
+.av.pic{overflow:hidden;background:none!important}
+.av.post{border-radius:.45rem!important;width:2.4rem!important;height:3.6rem!important;flex:none}.av.pic img,.av.pic svg{width:100%;height:100%;object-fit:cover;display:block}
 .av{width:2.75rem;height:2.75rem;flex:none;border-radius:50%;display:grid;place-items:center;font:600 1.05rem var(--display);color:#fff}
 .dreq .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:.15rem}
 .dreq .tx b{font-size:1.2rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -725,11 +726,11 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
     <div class="dleft">
       <span class="kick">Demandes de la famille</span>
       <h1>Qu'est-ce qu'on regarde ?</h1>
-      <p>Fais ta demande depuis ton téléphone, elle arrive direct sur la télé.</p>
-      <div class="qr"><div class="qrbox" id="qrbox"></div><div><b>Scanne avec ton téléphone</b><span id="qr-t">Film ou série, ton prénom, et c'est envoyé.</span></div></div>
+      <p>Un film, une série, une idée de chaîne ou une vidéo : demande-le depuis ton téléphone.</p>
+      <div class="qr"><div class="qrbox" id="qrbox"></div><div><b>Scanne avec ton téléphone</b><span id="qr-t">Choisis ton profil, l'affiche, et c'est envoyé.</span></div></div>
     </div>
     <div class="dright">
-      <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Les demandes</h2><span class="tnum" style="color:var(--mute);font-weight:600" id="d-count"></span></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>En préparation et à l'antenne</h2><span class="tnum" style="color:var(--mute);font-weight:600" id="d-count"></span></div>
       <div class="dlist" id="d-list"></div>
     </div>
   </section>
@@ -1947,7 +1948,7 @@ function startFirebase(){
       // Une nouvelle demande arrive pendant qu'on regarde : petit message à l'écran
       if(seenReq){const nw=reqs.filter(r=>!seenReq.has(r.id)&&(r.createdAt||0)>bootT);if(nw.length&&!["splash","profiles","pedit","error"].includes(screen))toast("🍿 Nouvelle demande de "+(nw[0].who||"quelqu'un")+" : "+(nw[0].title||"sans titre"),5000)}
       seenReq=new Set(reqs.map(r=>r.id));
-      updateDemBadge();if(screen==="demandes")renderDemandes();
+      updateDemBadge();if(screen==="demandes")renderDemandes();if(profile&&!["splash","profiles","pedit"].includes(screen))try{reqNews()}catch(e){}
     },()=>{reqs=null;if(screen==="demandes")renderDemandes()});
     fdb.ref("frigorosetv/channels").on("value",s=>{regieCh=s.val()||{};if(screen==="demandes")renderDemandes()});
     fdb.ref("frigorosetv/news").orderByChild("at").startAt(Date.now()-14*864e5).on("value",s=>{
@@ -2028,7 +2029,7 @@ document.addEventListener("click",e=>{if(screen==="profiles"||screen==="pedit")d
 /* Profils en ligne : les mêmes sur toutes les télés (chez toi, chez tes beaux-parents…)
    et gardés même si on réinstalle l'appli. Firebase : frigorosetv/profsync/<id> */
 const PSIG={};let profSyncOn=false,profPushT=null;
-function profCloud(p){const o={id:p.id,name:p.name,av:p.av||0,up:p.up||0};if(p.pic)o.pic=p.pic;if(p.img)o.img=p.img;if(p.fest)o.fest=p.fest;if(Array.isArray(p.favs))o.favs=p.favs.slice(0,200);if(Array.isArray(p.recent))o.recent=p.recent.slice(0,12);return o}
+function profCloud(p){const o={id:p.id,name:p.name,av:p.av||0,up:p.up||0};if(p.pic)o.pic=p.pic;if(p.img)o.img=p.img;if(p.fest)o.fest=p.fest;if(Array.isArray(p.favs))o.favs=p.favs.slice(0,200);if(Array.isArray(p.recent))o.recent=p.recent.slice(0,12);if(p.reqSeen)o.reqSeen=p.reqSeen;return o}
 function profSig(p){const o=profCloud(p);delete o.up;return JSON.stringify(o)}
 function pushCloudProfiles(){
   clearTimeout(profPushT);profPushT=setTimeout(()=>{
@@ -2154,18 +2155,22 @@ function renderDemandes(){
   }
   const list=$("d-list");list.textContent="";
   if(reqs===null){const e=el("div","empty");e.append(el("b",null,"Demandes indisponibles"),document.createTextNode("La connexion à la base des demandes n'a pas marché."));list.append(e);$("d-count").textContent="";return}
-  const open=reqs.filter(r=>!r.status||r.status==="attente"||r.status==="cours");
-  $("d-count").textContent=reqs.length?open.length+" en cours":"";
-  if(!reqs.length){const e=el("div","empty");e.append(el("b",null,"Aucune demande pour l'instant"),document.createTextNode("Scanne le QR code pour faire la première."));list.append(e);return}
-  const show=reqs.slice(0,6);dRow=Math.max(0,Math.min(dRow,show.length-1));
+  // sur la télé : seulement ce qui avance (en préparation) et ce qui vient d'arriver (à l'antenne)
+  const vis=reqs.filter(r=>r.status==="cours"||r.status==="ajoute").sort((a,b)=>(a.status==="cours"?0:1)-(b.status==="cours"?0:1)||((b.liveAt||b.createdAt||0)-(a.liveAt||a.createdAt||0)));
+  const nc=vis.filter(r=>r.status==="cours").length;
+  $("d-count").textContent=nc?nc+" en préparation":"";
+  if(!vis.length){const e=el("div","empty");e.append(el("b",null,"Rien en préparation pour l'instant"),document.createTextNode("Scanne le QR code pour demander quelque chose."));list.append(e);return}
+  const show=vis.slice(0,6);dRow=Math.max(0,Math.min(dRow,show.length-1));
   show.forEach((r,i)=>{
     const s=ST[r.status]?r.status:"attente";
     const row=el("div","dreq"+(i===dRow&&zone==="content"?" f":""));
     const av=el("div","av",(r.who||"?").trim().charAt(0).toUpperCase()||"?");av.style.background=AV[hash((r.who||"").toLowerCase())%AV.length];
     {const pf=profileByName(r.who);if(pf){av.textContent="";av.classList.add("pic");av.innerHTML=avatarHTML(pf)}}
+    if(r.poster){av.textContent="";av.classList.add("pic","post");const im=el("img");im.src=r.poster;im.alt="";im.onerror=()=>{av.classList.remove("post");im.remove();av.textContent=(r.who||"?").charAt(0).toUpperCase()};av.append(im)}
     const tx=el("div","tx");tx.append(el("b",null,r.title||"Sans titre"));
     let meta=({serie:"Série",chaine:"Idée de chaîne",video:"Vidéo"}[r.type]||"Film")+" · "+(r.who||"Quelqu'un");
     const rc=regieCh[r.channel];if(s==="ajoute"&&rc)meta+=" · sur "+rc.name+(rc.number?", n°"+rc.number:"");
+    {const nf=Object.keys(r.fans||{}).filter(k=>r.fans[k]).length;if(nf)meta+=" · ♥ "+nf+" aussi"}
     tx.append(el("span",null,meta));
     row.append(av,tx,el("span","chip "+s,ST[s]));
     row.onclick=()=>{dRow=i;demKey("ok")};
@@ -2410,10 +2415,19 @@ function hello(cb){
   h.classList.remove("out");h.hidden=false;
   setTimeout(()=>{h.classList.add("out");cb();setTimeout(()=>{h.hidden=true;h.classList.remove("out")},380)},1350);
 }
+/* Ta demande est arrivée sur la télé : on le dit quand tu choisis ton profil */
+function reqNews(){
+  if(!profile||!Array.isArray(reqs))return;const me=norm(profile.name).replace(/ /g,""),seen=profile.reqSeen||0;
+  const mine=reqs.filter(r=>r.status==="ajoute"&&(r.liveAt||0)>seen&&(norm(r.who).replace(/ /g,"")===me||Object.keys(r.fans||{}).includes(me)));
+  if(!mine.length)return;
+  const r=mine[0],c=regieCh[r.channel];
+  setTimeout(()=>toast("🎉 Ta demande « "+r.title+" » est arrivée"+(c?" sur "+c.name+(c.number?" (n°"+c.number+")":""):"")+(mine.length>1?" · et "+(mine.length-1)+" autre"+(mine.length>2?"s":""):""),7000),2600);
+  profile.reqSeen=Date.now();saveProfiles();
+}
 function chooseProfile(i){
   profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();publishProfiles();
   $("profiles").classList.add("leave");
-  setTimeout(()=>{$("profiles").classList.remove("leave");hello(proceed)},420);
+  setTimeout(()=>{$("profiles").classList.remove("leave");hello(proceed);try{reqNews()}catch(e){}},420);
 }
 
 function openEdit(p,first){
