@@ -1025,7 +1025,7 @@ async function idSearch(){const q=$("id-q").value.trim();if(!q)return;$("id-err"
     b.title=x.Overview||"";b.onclick=()=>idApply(x);$("id-res").append(b)}}
 async function idApply(x){if(!confirm("C'est bien « "+x.Name+(x.ProductionYear?" ("+x.ProductionYear+")":"")+" » ?"))return;
   $("id-res").innerHTML='<div class="empty">Je corrige…</div>';
-  try{await api("/api/media/idapply",{id:IDT.id,result:x,lib:IDT.lib})}catch(e){$("id-res").innerHTML="";$("id-err").textContent=e.message;return}
+  try{await api("/api/media/idapply",{id:IDT.id,result:x,lib:IDT.lib,keep:IDT.img&&confirm("Garder ton image actuelle ?\nOK = garder ton image · Annuler = prendre l'affiche officielle")})}catch(e){$("id-res").innerHTML="";$("id-err").textContent=e.message;return}
   $("med-id-m").hidden=true;$("med-inf-m").hidden=true;alertMsg("Fiche corrigée · la bonne image arrive sur la télé d'ici 1 à 2 minutes")}
 $("id-go").onclick=idSearch;$("id-q").onkeydown=e=>{if(e.key==="Enter")idSearch()};$("id-y").onkeydown=e=>{if(e.key==="Enter")idSearch()};$("id-x").onclick=()=>$("med-id-m").hidden=true;
 

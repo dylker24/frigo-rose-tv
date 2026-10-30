@@ -2155,11 +2155,11 @@ def media_idsearch(item, kind, q, year):
     return r[:16]
 
 
-def media_idapply(item, result, lib):
+def media_idapply(item, result, lib, keep=False):
     _need_key()
     if not item or not isinstance(result, dict) or not result.get("ProviderIds"):
         raise RuntimeError("Choisis un film dans la liste")
-    jf("/Items/RemoteSearch/Apply/%s?ReplaceAllImages=true" % quote(item), "POST", result, timeout=60)
+    jf("/Items/RemoteSearch/Apply/%s?ReplaceAllImages=%s" % (quote(item), "false" if keep else "true"), "POST", result, timeout=60)
 
     def later():
         try:
@@ -3244,7 +3244,7 @@ class H(BaseHTTPRequestHandler):
                 if act == "idsearch":
                     return self.send(200, {"results": media_idsearch(b.get("id") or "", b.get("kind") or "", b.get("q") or "", b.get("year") or "")})
                 if act == "idapply":
-                    return self.send(200, {"ok": media_idapply(b.get("id") or "", b.get("result"), b.get("lib") or "")})
+                    return self.send(200, {"ok": media_idapply(b.get("id") or "", b.get("result"), b.get("lib") or "", bool(b.get("keep")))})
                 if act == "rename":
                     return self.send(200, {"path": media_rename(b.get("path") or "", b.get("name") or "")})
                 if act == "move":
