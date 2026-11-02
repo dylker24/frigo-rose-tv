@@ -1215,10 +1215,12 @@ async function startOver(){
   try{const ac=new AbortController();const tt=setTimeout(()=>ac.abort(),9000);
     const res=await fetch(base+"/tv/startover?num="+encodeURIComponent(ch.num||cur+1),{signal:ac.signal});clearTimeout(tt);
     r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
-  catch(e){toast(r&&r.error?r.error:"Pour reprendre au début, Frigo Rosé Studio doit être ouvert sur le PC",5000);return}
+  catch(e){try{dbgPush("début : studio "+(r&&r.error||e.message))}catch(x){}toast(r&&r.error?r.error:"Pour reprendre au début, Frigo Rosé Studio doit être ouvert sur le PC",5000);return}
   if(channels[cur]!==ch)return;
   let host="";try{host=new URL(cfg.server).hostname}catch(e){}
-  playVod(ch,{url:"http://"+host+":"+(r.port||8096)+r.path,title:r.title,dur:r.dur,start:r.start});
+  const url=r.proxy?base+r.proxy:"http://"+host+":"+(r.port||8096)+r.path;
+  try{dbgPush("début : "+(r.proxy?"via Studio":"direct")+" "+r.title)}catch(e){}
+  playVod(ch,{url,title:r.title,dur:r.dur,start:r.start});
 }
 function playVod(ch,so){
   stopVideo();SO={ch,...so};videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent="On reprend au début…";
@@ -1227,7 +1229,7 @@ function playVod(ch,so){
     hls=new Hls({enableWorker:true,maxBufferLength:30,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:8,fragLoadingMaxRetry:8});
     const mine=hls;
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{video.currentTime=0;video.play().catch(()=>{})});
-    hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal||hls!==mine)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return}toast("La reprise au début n'a pas marché, retour au direct",4500);backToLive()});
+    hls.on(Hls.Events.ERROR,(e,d)=>{try{dbgPush("début erreur "+d.type+" "+d.details+(d.response?" "+d.response.code:"")+(d.fatal?" FATALE":""))}catch(x){}if(!d.fatal||hls!==mine)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return}toast("La reprise au début n'a pas marché, retour au direct",4500);backToLive()});
     hls.loadSource(so.url);hls.attachMedia(video);
     loadDog=setTimeout(()=>{if(hls===mine&&!videoOk){toast("La reprise au début met trop de temps, retour au direct",4500);backToLive()}},45000);
   }else{video.src=so.url;video.play().catch(()=>{})}

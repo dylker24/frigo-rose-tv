@@ -1824,11 +1824,11 @@ def tv_startover(num):
     if cur.get("type") != "content" or not cur.get("ext"):
         raise RuntimeError("Ce programme ne peut pas être repris au début")
     jid = str(cur["ext"]).replace("-", "")
-    q = urlencode({"MediaSourceId": jid, "api_key": conf["jellyfin_key"], "VideoCodec": "h264", "AudioCodec": "aac",
+    q = urlencode({"MediaSourceId": jid, "VideoCodec": "h264", "AudioCodec": "aac",
                    "TranscodingMaxAudioChannels": 2, "MaxStreamingBitrate": 8000000, "MaxWidth": 1920, "SegmentContainer": "ts",
                    "MinSegments": 1, "BreakOnNonKeyFrames": "true", "DeviceId": "frigo-rose-tv", "PlaySessionId": uuid.uuid4().hex})
     port = urlparse(_fast(conf["jellyfin_url"])).port or 8096
-    return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "port": port, "title": cur.get("title") or "",
+    return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "proxy": "/tv/jf/Videos/%s/master.m3u8?%s" % (jid, q), "port": port, "title": cur.get("title") or "",
             "start": int(now - off), "dur": int(cur["duration"]), "elapsed": int(off)}
 
 
@@ -3199,6 +3199,39 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    def jf_proxy(self, u):
+        path = u.path[len("/tv/jf"):]
+        if ".." in path or not re.fullmatch(r"/Videos/[0-9a-fA-F-]{20,40}/[\w./-]+", path):
+            return self.send(400, {"error": "chemin"})
+        url = _fast(conf["jellyfin_url"]) + quote(path, safe="/._-") + ("?" + u.query if u.query else "")
+        req = urllib.request.Request(url, headers={"X-Emby-Token": conf["jellyfin_key"], "Authorization": 'MediaBrowser Client="Frigo Rose TV", Device="TV", DeviceId="frigo-rose-tv", Version="%s", Token="%s"' % (VERSION, conf["jellyfin_key"])})
+        try:
+            r = urllib.request.urlopen(req, timeout=90)
+        except urllib.error.HTTPError as e:
+            return self.send(e.code, {"error": "Jellyfin %d" % e.code}, headers={"Access-Control-Allow-Origin": "*"})
+        except Exception:
+            return self.send(502, {"error": "Jellyfin injoignable"}, headers={"Access-Control-Allow-Origin": "*"})
+        with r:
+            ct = r.headers.get("Content-Type") or "application/octet-stream"
+            n = r.headers.get("Content-Length")
+            if n is None or "mpegurl" in ct.lower() or path.endswith(".m3u8"):
+                b = r.read()
+                return self.send(200, b, ct, headers={"Access-Control-Allow-Origin": "*"})
+            self.send_response(200)
+            self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", n)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except OSError:
+                    break
+
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
         try:
@@ -3266,6 +3299,9 @@ class H(BaseHTTPRequestHandler):
             if os.path.exists(ic):
                 with open(ic, "rb") as f:
                     return self.send(200, f.read(), "image/png")
+        if u.path.startswith("/tv/jf/Videos/"):
+            # la vidéo de Jellyfin passe par Studio (Jellyfin refuse souvent les appareils Tailscale, et la clé reste sur le PC)
+            return self.jf_proxy(u)
         if u.path == "/tv/startover":
             cors = {"Access-Control-Allow-Origin": "*"}
             try:
