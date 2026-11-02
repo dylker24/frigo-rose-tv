@@ -425,7 +425,7 @@ html,body{overflow-x:hidden}
         <div class="hint" id="med-msg"></div><div class="err" id="med-err2"></div>
         <div class="fb" style="margin-top:14px">
           <div class="fb-bar"><div class="crumbs" id="med-crumbs"></div><button class="btn sm ghost" id="med-mkdir">Nouveau dossier</button><button class="btn sm ghost" id="med-up">Ajouter des vidéos ici</button></div>
-          <div class="mbar" id="med-bar" hidden><span id="med-n"></span><button class="btn sm" id="med-ren">Renommer</button><button class="btn sm" id="med-mv">Déplacer…</button><button class="btn sm" id="med-del">Corbeille</button><button class="btn sm ghost" id="med-none">Décocher</button></div>
+          <div class="mbar" id="med-bar" hidden><span id="med-n"></span><button class="btn sm" id="med-ren">Renommer</button><button class="btn sm" id="med-mv">Déplacer…</button><button class="btn sm" id="med-merge" hidden>Assembler en une vidéo</button><button class="btn sm" id="med-del">Corbeille</button><button class="btn sm ghost" id="med-none">Décocher</button></div>
           <div class="fb-list" id="med-files" style="max-height:62vh"></div>
         </div>
         <input type="file" id="med-file" accept="video/*" multiple hidden>
@@ -1002,7 +1002,7 @@ function renderMedLs(focus){const d=MED.data,L=$("med-files");L.innerHTML="";
     L.append(r)};
   d.dirs.forEach(x=>item(x,true));d.files.forEach(x=>item(x,false));
   if(!d.dirs.length&&!d.files.length)L.insertAdjacentHTML("beforeend",'<div class="empty">Dossier vide · ajoute des vidéos avec le bouton au-dessus</div>');medBar()}
-function medBar(){const n=MED.sel.size;$("med-bar").hidden=!n;$("med-n").textContent=n+" sélectionné"+(n>1?"s":"");$("med-ren").hidden=n!==1}
+function medBar(){const n=MED.sel.size;$("med-bar").hidden=!n;$("med-n").textContent=n+" sélectionné"+(n>1?"s":"");$("med-ren").hidden=n!==1;$("med-merge").hidden=n<2}
 $("med-none").onclick=()=>{MED.sel.clear();renderMedLs()};
 $("med-back").onclick=()=>{MED.cur=null;MED.path=null;loadMed()};
 const medMsg=m=>{$("med-msg").textContent=m;alertMsg(m)};
@@ -1075,6 +1075,13 @@ $("tvm-send").onclick=async()=>{const t=$("tvm-t").value.trim();$("tvm-err").tex
   const from=$("tvm-from").value.trim();try{localStorage.setItem("frs_tvm_from",from)}catch(e){}
   try{await api("/api/tvmsg",{text:t,from});$("tvm-t").value="";alertMsg("Message envoyé · il s'affiche sur les télés allumées, et sur les autres à leur prochaine ouverture (pendant 24 h)");loadTvm()}catch(e){$("tvm-err").textContent=e.message}};
 $("tvm-clear").onclick=async()=>{try{await api("/api/tvmsg",{clear:true});loadTvm()}catch(e){$("tvm-err").textContent=e.message}};
+
+/* Assembler un téléfilm en plusieurs parties en une seule vidéo */
+$("med-merge").onclick=async()=>{const paths=[...MED.sel];if(paths.length<2)return;
+  let def="";try{def=(await api("/api/media/mergename",{paths})).name}catch(e){}
+  const name=prompt("Assembler ces "+paths.length+" parties en une seule vidéo (dans l'ordre des noms).\nLes parties séparées iront dans la corbeille de Studio.\n\nNom de la vidéo :",def);
+  if(name===null)return;
+  try{await api("/api/media/merge",{paths,name});MED.sel.clear();medBar();alertMsg("Assemblage lancé · suis-le dans la file d'attente, la vidéo entière remplacera les parties sur la chaîne")}catch(e){alertMsg(e.message)}};
 $("inf-x").onclick=()=>$("med-inf-m").hidden=true;
 /* fiche et image (quand Jellyfin s'est trompé de film) */
 let IDT=null;

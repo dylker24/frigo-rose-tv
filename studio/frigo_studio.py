@@ -623,7 +623,121 @@ def unique_path(p):
     return "%s (%d)%s" % (b, i, e)
 
 
+# ---------- assembler plusieurs parties (téléfilm en 2 parties…) en une seule vidéo ----------
+def _run_ff(j, cmd, dur, base, span, label):
+    j["msg"] = label
+    p = popen(cmd)
+    j["proc"] = p
+    errs = []
+    for line in p.stdout:
+        line = line.strip()
+        if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+            try:
+                t = int(line.split("=", 1)[1]) / 1e6
+                if dur > 0:
+                    j["pct"] = max(j["pct"], min(99.0, base + span * t / dur))
+            except ValueError:
+                pass
+        elif line and "=" not in line:
+            errs.append(line)
+        if j["cancel"]:
+            p.kill()
+    p.wait()
+    if j["cancel"]:
+        return False
+    if p.returncode != 0:
+        raise RuntimeError("Assemblage raté : " + (errs[-1] if errs else "erreur ffmpeg"))
+    return True
+
+
+def merge_name(paths):
+    """Un nom propre pour la vidéo assemblée : la partie commune des noms, sans « partie 1 »."""
+    names = [os.path.splitext(os.path.basename(x))[0] for x in paths]
+    pre = os.path.commonprefix(names)
+    pre = re.sub(r"[\s._\-–(]*(partie|part|pt|épisode|ep|cd|disque|disc)?[\s._\-–]*\d*\s*$", "", pre, flags=re.I).strip(" ._-–(")
+    return pre or names[0]
+
+
+def do_merge(j):
+    srcs = j["srcs"]
+    for x in srcs:
+        if not os.path.isfile(x):
+            raise RuntimeError("Fichier introuvable : %s" % os.path.basename(x))
+    folder = os.path.dirname(srcs[0])
+    j["title"] = j.get("name") or merge_name(srcs)
+    infos = [probe(x) for x in srcs]
+    durs = [float((i.get("format") or {}).get("duration") or 0) for i in infos]
+    total = sum(durs) or 1
+    vids = []
+    for i in infos:
+        v = next((x for x in i.get("streams", []) if x.get("codec_type") == "video" and not (x.get("disposition") or {}).get("attached_pic")), None)
+        if not v:
+            raise RuntimeError("Une des parties n'a pas d'image")
+        vids.append(v)
+    w, h = (vids[0].get("width") or 1280) // 2 * 2, (vids[0].get("height") or 720) // 2 * 2
+    copy_v = all(v.get("codec_name") == "h264" and (v.get("pix_fmt") or "") in ("yuv420p", "yuvj420p") and v.get("width") == vids[0].get("width") and v.get("height") == vids[0].get("height") for v in vids)
+    parts, done = [], 0.0
+    try:
+        for n, (x, info, v) in enumerate(zip(srcs, infos, vids)):
+            auds = [a for a in info.get("streams", []) if a.get("codec_type") == "audio"]
+            a = next((a for a in auds if ((a.get("tags") or {}).get("language") or "").lower() in ("fre", "fra", "fr")), auds[0] if auds else None)
+            args = ["-map", "0:%d" % v["index"]]
+            if copy_v:
+                args += ["-c:v", "copy"]
+            else:
+                args += (["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0"] if setup.get("nvenc") else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"])
+                args += ["-pix_fmt", "yuv420p", "-vf", "scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,setsar=1" % (w, h, w, h), "-r", "25" if not vids[0].get("r_frame_rate") else vids[0]["r_frame_rate"]]
+            if a:
+                args += ["-map", "0:%d" % a["index"], "-c:a", "aac", "-ac", "2", "-ar", "48000", "-b:a", "192k"]
+            tmp = os.path.join(folder, ".assemblage-%s-%d.mp4" % (j["id"], n))
+            parts.append(tmp)
+            cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-i", x] + args + ["-sn", tmp]
+            if not _run_ff(j, cmd, durs[n], 90 * done / total, 90 * durs[n] / total, "Partie %d sur %d…" % (n + 1, len(srcs))):
+                return
+            done += durs[n]
+        lst = os.path.join(folder, ".assemblage-%s.txt" % j["id"])
+        with open(lst, "w", encoding="utf-8") as f:
+            for x in parts:
+                f.write("file '%s'\n" % x.replace("'", "'\\''"))
+        parts.append(lst)
+        dst = unique_path(os.path.join(folder, safe_name(j["title"]) + ".mp4"))
+        tmp = dst + ".part.mp4"
+        cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-f", "concat", "-safe", "0", "-i", lst,
+               "-map", "0", "-c", "copy", "-movflags", "+faststart", tmp]
+        if not _run_ff(j, cmd, total, 90, 9.5, "Je colle les parties…"):
+            return
+        os.replace(tmp, dst)
+    finally:
+        for x in parts + [locals().get("tmp") or ""]:
+            if x and os.path.basename(x).startswith(".assemblage-") or (x and x.endswith(".part.mp4")):
+                try:
+                    os.remove(x)
+                except OSError:
+                    pass
+    # les parties séparées partent à la corbeille de Studio (récupérables) ; la vidéo entière prend leur place
+    try:
+        media_trash(srcs)
+    except Exception:
+        pass
+    j["out"] = [dst]
+    j["pct"] = 100
+    j["msg"] = "Terminé · %d parties assemblées en une vidéo de %s" % (len(srcs), "%d h %02d" % (total // 3600, total % 3600 // 60) if total >= 3600 else "%d min" % (total // 60))
+
+
+def media_merge(paths, name=""):
+    paths = [x for x in paths if x]
+    if len(paths) < 2:
+        raise RuntimeError("Coche au moins 2 parties")
+    for x in paths:
+        _check_inside(x)
+    paths = sorted(paths, key=lambda x: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", os.path.basename(x))])
+    nm = re.sub(r"\s+", " ", (name or "").strip()) or merge_name(paths)
+    return new_job("conv", merge=True, srcs=paths, src=paths[0], name=nm, title=nm, sync=True)["id"]
+
+
 def do_convert(j):
+    if j.get("merge"):
+        return do_merge(j)
     src = j["src"]
     if not os.path.isfile(src):
         raise RuntimeError("Fichier introuvable")
@@ -3457,6 +3571,10 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"results": media_idsearch(b.get("id") or "", b.get("kind") or "", b.get("q") or "", b.get("year") or "")})
                 if act == "idapply":
                     return self.send(200, {"ok": media_idapply(b.get("id") or "", b.get("result"), b.get("lib") or "", bool(b.get("keep")))})
+                if act == "merge":
+                    return self.send(200, {"job": media_merge(b.get("paths") or [], b.get("name") or ""), "name": merge_name(sorted(b.get("paths") or []))})
+                if act == "mergename":
+                    return self.send(200, {"name": merge_name(sorted(b.get("paths") or [], key=lambda x: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", os.path.basename(x))]))})
                 if act == "rename":
                     return self.send(200, {"path": media_rename(b.get("path") or "", b.get("name") or "")})
                 if act == "move":
