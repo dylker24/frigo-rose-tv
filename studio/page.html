@@ -571,7 +571,7 @@ html,body{overflow-x:hidden}
     <h1 style="font-size:20px" id="inf-t">Infos</h1>
     <div style="overflow:auto;flex:1" id="inf-body"></div>
     <div class="err" id="inf-err"></div>
-    <div class="acts"><button class="btn pri" id="inf-conv" hidden>Convertir en MP4 léger</button><button class="btn" id="inf-x">Fermer</button></div>
+    <div class="acts"><button class="btn pri" id="inf-conv" hidden>Convertir en MP4 léger</button><button class="btn" id="inf-night" hidden>🌙 Cette nuit</button><button class="btn" id="inf-x">Fermer</button></div>
   </div>
 </div>
 <div class="modal" id="med-id-m" hidden>
@@ -1082,6 +1082,11 @@ $("med-merge").onclick=async()=>{const paths=[...MED.sel];if(paths.length<2)retu
   const name=prompt("Assembler ces "+paths.length+" parties en une seule vidéo (dans l'ordre des noms).\nLes parties séparées iront dans la corbeille de Studio.\n\nNom de la vidéo :",def);
   if(name===null)return;
   try{await api("/api/media/merge",{paths,name});MED.sel.clear();medBar();alertMsg("Assemblage lancé · suis-le dans la file d'attente, la vidéo entière remplacera les parties sur la chaîne")}catch(e){alertMsg(e.message)}};
+
+/* Convertir cette nuit : Studio s'en occupe vers 2 h du matin, une vidéo à la fois, sans gêner les chaînes */
+new MutationObserver(()=>{$("inf-night").hidden=$("inf-conv").hidden}).observe($("inf-conv"),{attributes:true,attributeFilter:["hidden"]});
+$("inf-night").onclick=async()=>{if(!INF)return;const paths=INF.heavyList||(INF.path?[INF.path]:[]);if(!paths.length)return;
+  try{await api("/api/media/convert",{paths,night:true});$("med-inf-m").hidden=true;alertMsg("🌙 Prévu cette nuit vers 2 h : "+(paths.length>1?paths.length+" vidéos, une à la fois":"la vidéo sera convertie")+". Elles remplaceront les originales sur la chaîne au réveil.")}catch(e){$("inf-err").textContent=e.message}};
 $("inf-x").onclick=()=>$("med-inf-m").hidden=true;
 /* fiche et image (quand Jellyfin s'est trompé de film) */
 let IDT=null;

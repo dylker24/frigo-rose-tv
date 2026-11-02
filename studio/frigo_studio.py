@@ -339,6 +339,13 @@ def new_job(kind, **kw):
     return j
 
 
+
+def is_night():
+    """La nuit (2 h à 7 h par défaut) : c'est là que tournent les conversions « cette nuit », sans gêner les chaînes."""
+    h = time.localtime().tm_hour
+    a, b = int(conf.get("night_from", 2)), int(conf.get("night_to", 7))
+    return (a <= h < b) if a < b else (h >= a or h < b)
+
 def public_job(j):
     return {k: v for k, v in j.items() if k not in ("proc",)}
 
@@ -352,7 +359,9 @@ def worker(kind):
             with jobs_lock:
                 busy = sum(1 for x in jobs if x["status"] == "en cours" and x["kind"] == kind)
                 lim = 1 if kind == "dl" else max(1, min(4, int(conf.get("parallel") or 2)))
-                j = None if busy >= lim else next((x for x in jobs if x["status"] == "attente" and x["kind"] == kind), None)
+                night_busy = any(x["status"] == "en cours" and x.get("night") for x in jobs)
+                j = None if busy >= lim else next((x for x in jobs if x["status"] == "attente" and x["kind"] == kind
+                                                   and (not x.get("night") or (is_night() and not night_busy))), None)
                 if j:
                     j["status"] = "en cours"
             if not j:
@@ -2334,11 +2343,12 @@ def media_heavy(folder):
     return {"total": len(res), "heavy": [{"path": x["path"], "name": x["name"], "why": x["heavy"]} for x in heavy]}
 
 
-def media_convert(paths):
+def media_convert(paths, night=False):
     ids = []
     for pth in paths:
         _check_inside(pth)
-        ids.append(new_job("conv", src=pth, dest=os.path.dirname(pth), delete=False, trash_src=True, sync=True, title=os.path.basename(pth))["id"])
+        kw = {"night": True, "msg": "Prévue cette nuit (vers %d h), une à la fois" % int(conf.get("night_from", 2))} if night else {}
+        ids.append(new_job("conv", src=pth, dest=os.path.dirname(pth), delete=False, trash_src=True, sync=True, title=os.path.basename(pth), **kw)["id"])
     return ids
 
 
@@ -3637,7 +3647,7 @@ class H(BaseHTTPRequestHandler):
                     media_scan(b.get("name") or "", bool(b.get("fill")))
                     return self.send(200, {"ok": True})
                 if act == "convert":
-                    return self.send(200, {"ids": media_convert(b.get("paths") or [])})
+                    return self.send(200, {"ids": media_convert(b.get("paths") or [], bool(b.get("night")))})
                 if act == "mkchannel":
                     name = b.get("name") or ""
                     ch = tn_create_channel(name, int(b["number"]) if str(b.get("number") or "").isdigit() else None)
