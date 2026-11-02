@@ -641,6 +641,41 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .banner{background:rgba(22,22,26,.5);-webkit-backdrop-filter:blur(26px) saturate(1.7);backdrop-filter:blur(26px) saturate(1.7);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 1.5rem 4rem rgba(0,0,0,.45)}
 .banner .cnum{width:7.6rem}
 .lite .banner{background:rgba(10,10,12,.9)}
+
+/* ================= Pastilles vivantes ================= */
+@keyframes pulseRing{0%{box-shadow:0 0 0 0 var(--pc,rgba(255,61,127,.55))}70%{box-shadow:0 0 0 .45rem rgba(0,0,0,0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+@keyframes shine{0%{background-position:-160% 0}55%,100%{background-position:260% 0}}
+@keyframes breathe{50%{opacity:.55}}
+/* point « en direct » qui bat */
+.ondir i,.hk .dot{--pc:rgba(255,107,149,.6);animation:pulseRing 1.8s ease-out infinite}
+.ondir.late i{--pc:rgba(245,180,0,.55);background:var(--prep)}
+.sopill .so-dot{--pc:rgba(245,180,0,.6);animation:pulseRing 1.8s ease-out infinite}
+/* EN CE MOMENT / horaires sur les vignettes : verre + point rouge */
+.hthumb .tntag{display:inline-flex;align-items:center;gap:.35rem;background:rgba(12,12,16,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);border-radius:99px;padding:.22rem .6rem .22rem .5rem;font-size:.72rem}
+.hthumb .tntag::before{content:"";width:.42rem;height:.42rem;border-radius:50%;background:#ff3d57;--pc:rgba(255,61,87,.6);animation:pulseRing 1.8s ease-out infinite}
+/* NOUVEAU : dégradé qui brille */
+.hthumb .newtag,.newtag{border-radius:99px;padding:.22rem .6rem;font-size:.66rem;letter-spacing:.1em;color:#fff;
+  background:linear-gradient(100deg,#ff3d7f 0%,#ff7a45 45%,#fff3 50%,#ff7a45 55%,#ff3d7f 100%);background-size:260% 100%;animation:shine 3.2s ease-in-out infinite;
+  box-shadow:0 .3rem .9rem -.2rem rgba(255,61,127,.7)}
+/* EN COURS (chaîne regardée) */
+.onair{border-radius:99px;padding:.25rem .6rem .25rem .5rem;display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,#ff3d7f,#c2185b);box-shadow:0 .3rem .9rem -.2rem rgba(255,61,127,.7)}
+.onair::before{content:"";width:.4rem;height:.4rem;border-radius:50%;background:#fff;animation:breathe 1.4s ease-in-out infinite}
+/* numéro de chaîne : verre */
+.hthumb .n{background:rgba(12,12,16,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);border-radius:.55rem}
+.hcard.f .hthumb .n,.chtile.f .hthumb .n{background:#fff;color:#111;box-shadow:none}
+/* statuts des demandes */
+.chip{display:inline-flex;align-items:center;gap:.4rem}
+.chip::before{content:"";width:.45rem;height:.45rem;border-radius:50%;background:currentColor;opacity:.9}
+.chip.cours::before{--pc:rgba(245,180,0,.55);animation:pulseRing 1.8s ease-out infinite}
+.chip.ajoute{box-shadow:0 0 0 1px rgba(54,211,153,.35),0 .3rem 1rem -.3rem rgba(54,211,153,.6)}
+/* « Depuis le début » : barre d'avancement sous la pastille */
+.sopill{overflow:hidden}
+.sopill .so-bar{position:absolute;left:0;right:0;bottom:0;height:.18rem;background:rgba(255,255,255,.12)}
+.sopill .so-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5b400,#ffd970);transition:width 1s linear}
+/* mode léger (Fire Stick) : pastilles jolies mais fixes */
+.lite .ondir i,.lite .hk .dot,.lite .sopill .so-dot,.lite .hthumb .tntag::before,.lite .newtag,.lite .onair::before,.lite .chip.cours::before{animation:none}
+.lite .hthumb .tntag,.lite .hthumb .n{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(12,12,16,.8)}
 </style>
 </head>
 <body>
@@ -789,7 +824,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 </div>
 
 <div class="tvmsg" id="tvmsg" hidden><div class="tm-in"><div class="tm-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg></div><div class="tm-body"><div class="tm-kick" id="tm-kick">Message</div><div class="tm-text" id="tm-text"></div></div><div class="tm-ok"><span class="cap">OK</span>Fermer</div></div><div class="tm-bar" id="tm-bar"></div></div>
-<div class="sopill" id="sopill" hidden><span class="so-dot"></span><b>Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span></div>
+<div class="sopill" id="sopill" hidden><span class="so-dot"></span><b>Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span><i class="so-bar"><b id="so-bar"></b></i></div>
 <div class="hpeek" id="hpeek" hidden><div class="hp-img" id="hp-img"></div><div class="hp-body"><div class="hp-kick" id="hp-kick"></div><div class="hp-title" id="hp-title"></div><div class="hp-meta" id="hp-meta"></div><div class="hp-desc" id="hp-desc"></div></div></div>
 <div class="saver" id="saver" hidden><div class="sv-imgs" id="sv-imgs"></div><div class="sv-shade"></div>
   <div class="sv-clock tnum" id="sv-clock"></div><div class="sv-date" id="sv-date"></div>
@@ -1243,6 +1278,7 @@ function updateSoPill(){
   if(!SO)return;const t=video.currentTime||0,d=(SO.dur||0)/1000;
   const f=x=>{x=Math.max(0,Math.floor(x));const h=Math.floor(x/3600),m=Math.floor(x%3600/60),s2=x%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s2).padStart(2,"0")};
   $("so-t").textContent=d?f(t)+" / "+f(d):f(t);
+  const sb=$("so-bar");if(sb)sb.style.width=d?Math.min(100,t/d*100)+"%":"0";
 }
 setInterval(()=>{if(SO&&screen==="live")updateSoPill()},1000);
 video.addEventListener("playing",()=>{if(SO){clearTimeout(toastT);$("toast").hidden=true}});
