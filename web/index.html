@@ -1223,7 +1223,7 @@ async function startOver(){
   playVod(ch,{url,title:r.title,dur:r.dur,start:r.start});
 }
 function playVod(ch,so){
-  stopVideo();SO={ch,...so};videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent="On reprend au début…";
+  stopVideo();SO={ch,...so};try{releaseChannel(ch)}catch(e){}videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent="On reprend au début…";
   document.body.classList.add("so-on");$("sopill").hidden=false;updateSoPill();
   if(window.Hls&&Hls.isSupported()){
     hls=new Hls({enableWorker:true,maxBufferLength:30,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:8,fragLoadingMaxRetry:8});
@@ -1757,7 +1757,7 @@ function releaseChannel(ch){
   const id=chUuid(ch);if(!id||demo)return;clearTimeout(leaveT[id]);
   leaveT[id]=setTimeout(async()=>{
     try{
-      if(channels[cur]===ch&&!SO)return; // on y est revenu entre-temps
+      if(channels[cur]===ch&&!SO)return; // on y est revenu entre-temps (en mode « depuis le début », le direct n'est plus utilisé)
       const base=cfg.server.replace(/\/+$/,"");
       const all=await fetch(base+"/api/sessions",{cache:"no-store"}).then(r=>r.json());
       const ss=(all&&all[id])||[];if(!ss.length)return;
