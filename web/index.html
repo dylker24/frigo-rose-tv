@@ -1296,7 +1296,7 @@ document.addEventListener("keydown",()=>{if(AU.ctx&&AU.ctx.state==="suspended")A
 let lastLive=-1,inPreview=false;
 function tune(i,silent,preview){
   if(i<0||i>=channels.length)return;
-  if(i!==cur){const from=inPreview?lastLive:cur;if(from!==i)prev=from;cur=i;ctlMode=false;if(!preview&&profile)LS.set("frtv_last_"+profile.id,channels[i].id);if(screen==="live"&&!silent)zapEffect(channels[i]);play(channels[i])}
+  if(i!==cur){if(cur>=0&&channels[cur])releaseChannel(channels[cur]);const from=inPreview?lastLive:cur;if(from!==i)prev=from;cur=i;ctlMode=false;if(!preview&&profile)LS.set("frtv_last_"+profile.id,channels[i].id);if(screen==="live"&&!silent)zapEffect(channels[i]);play(channels[i])}
   inPreview=!!preview;if(!preview)lastLive=cur;
   if(!silent)showBanner();
 }
@@ -1735,16 +1735,40 @@ let warmT=null;const warmed={};
 function warmOn(){return LS.get("frtv_warm2","0")==="1"}
 function warmNeighbors(){
   clearTimeout(warmT);if(demo||!warmOn()||channels.length<2)return;
+  // seulement quand on est en train de zapper (2 zaps en moins d'une minute) : sinon le PC prépare des chaînes pour rien
+  if(!(zapHist.length>=2&&Date.now()-zapHist[zapHist.length-2]<60000))return;
   warmT=setTimeout(()=>{
-    if(screen!=="live"&&screen!=="home")return;
+    if(screen!=="live")return;
     [1,-1].forEach(d=>{const ch=channels[(cur+d+channels.length)%channels.length];if(!ch||!ch.url||ch===channels[cur])return;
       const n=Date.now();if(warmed[ch.id]&&n-warmed[ch.id]<40000)return;warmed[ch.id]=n;
       fetch(streamUrl(ch.url),{cache:"no-store"}).then(r=>r.text()).catch(()=>{});});
   },2500);
 }
-setInterval(()=>{if(screen==="live")warmNeighbors()},42000);
+/* (on ne garde plus les chaînes voisines allumées en permanence : chaque chaîne préparée occupe le PC) */
 
-function zap(d){if(!channels.length)return;tune((cur+d+channels.length)%channels.length)}
+
+/* Quand on quitte une chaîne, on prévient Tunarr qu'elle peut s'arrêter (si personne d'autre ne la regarde) :
+   sinon elle continue d'être préparée plusieurs minutes et le PC sature quand on zappe beaucoup. */
+const leaveT={};
+function chUuid(ch){const m=/\/stream\/channels\/([0-9a-f-]{36})/i.exec((ch&&ch.url)||"");return m?m[1]:""}
+function releaseChannel(ch){
+  const id=chUuid(ch);if(!id||demo)return;clearTimeout(leaveT[id]);
+  leaveT[id]=setTimeout(async()=>{
+    try{
+      if(channels[cur]===ch&&!SO)return; // on y est revenu entre-temps
+      const base=cfg.server.replace(/\/+$/,"");
+      const all=await fetch(base+"/api/sessions",{cache:"no-store"}).then(r=>r.json());
+      const ss=(all&&all[id])||[];if(!ss.length)return;
+      const conns=ss.reduce((a,x)=>a.concat(x.connections||[]),[]);
+      const now=Date.now(),alive=conns.filter(c=>now-(c.lastHeartbeat||0)<12000);
+      if(alive.length)return; // quelqu'un d'autre regarde encore
+      await fetch(base+"/api/channels/"+id+"/sessions",{method:"DELETE"});
+      try{dbgPush("chaîne libérée "+(ch.name||id))}catch(e){}
+    }catch(e){}
+  },15000);
+}
+const zapHist=[];
+function zap(d){zapHist.push(Date.now());if(zapHist.length>5)zapHist.shift();if(!channels.length)return;tune((cur+d+channels.length)%channels.length)}
 
 /* ================= Bandeau ================= */
 function renderBanner(){
