@@ -1160,7 +1160,7 @@ def _svc_ok(kind):
 
 
 def away_status():
-    return {"on": bool(conf.get("away")), "nosleep": bool(conf.get("away")) and WIN, "autostart": autostart_get(),
+    return {"on": bool(conf.get("away")), "nosleep": bool(conf.get("away")) and WIN, "autostart": autostart_get(), "hidden": bool(conf.get("launch_hidden")),
             "can_start": {k: bool((conf.get(k + "_cmd") or {}).get("cmdline")) for k in ("tunarr", "jellyfin")},
             "tailscale": bool(tailscale_ip()), "beat_ok": _away["beat_ok"], "beat": _away["beat"], "log": _away["log"][:12]}
 
@@ -1192,6 +1192,119 @@ def heartbeat():
     except Exception:
         _away["beat_ok"] = False
     return st
+
+
+# ---------- Jellyfin et Tunarr sans fenêtre noire ----------
+def _startup_dirs():
+    out = []
+    for env in ("APPDATA", "PROGRAMDATA"):
+        b = os.environ.get(env)
+        if b:
+            out.append(os.path.join(b, "Microsoft", "Windows", "Start Menu", "Programs", "Startup"))
+    return out
+
+
+def startup_entries():
+    """Ce qui lance Jellyfin ou Tunarr avec une fenêtre au démarrage de Windows."""
+    res = []
+    if not WIN:
+        return res
+    pat = re.compile(r"tunarr|jellyfin", re.I)
+    for d in _startup_dirs():
+        try:
+            for f in os.listdir(d):
+                if pat.search(f):
+                    res.append({"kind": "file", "where": d, "name": f})
+        except OSError:
+            pass
+    try:
+        import winreg
+        for root, rn in ((winreg.HKEY_CURRENT_USER, "HKCU"), (winreg.HKEY_LOCAL_MACHINE, "HKLM")):
+            try:
+                with winreg.OpenKey(root, RUN_KEY) as k:
+                    i = 0
+                    while True:
+                        try:
+                            n, v, _t = winreg.EnumValue(k, i)
+                        except OSError:
+                            break
+                        i += 1
+                        if pat.search(n) or pat.search(str(v)):
+                            res.append({"kind": "reg", "where": rn, "name": n, "value": str(v)})
+            except OSError:
+                pass
+    except Exception:
+        pass
+    return res
+
+
+def _kill_tree(pr):
+    try:
+        kids = pr.children(recursive=True)
+    except Exception:
+        kids = []
+    for x in kids + [pr]:
+        try:
+            x.kill()
+        except Exception:
+            pass
+
+
+def hide_services():
+    """Coupe les lancements « avec fenêtre » et relance Jellyfin et Tunarr cachés. Studio les lancera ensuite lui-même."""
+    if not WIN:
+        raise RuntimeError("Seulement sur le PC Windows")
+    done = []
+    for k in ("tunarr", "jellyfin"):
+        remember_cmd(k)
+        if not (conf.get(k + "_cmd") or {}).get("cmdline"):
+            raise RuntimeError("%s ne tourne pas : lance-le une fois, puis réessaie" % k.capitalize())
+    # 1. on range les raccourcis de démarrage (récupérables) et on note les lancements du registre
+    bak = os.path.join(DATA, "demarrage-range")
+    os.makedirs(bak, exist_ok=True)
+    saved = conf.get("run_backup") or []
+    for e in startup_entries():
+        try:
+            if e["kind"] == "file":
+                shutil.move(os.path.join(e["where"], e["name"]), unique_path(os.path.join(bak, e["name"])))
+                done.append("raccourci « %s » rangé" % e["name"])
+            else:
+                import winreg
+                root = winreg.HKEY_CURRENT_USER if e["where"] == "HKCU" else winreg.HKEY_LOCAL_MACHINE
+                with winreg.OpenKey(root, RUN_KEY, 0, winreg.KEY_SET_VALUE) as kk:
+                    winreg.DeleteValue(kk, e["name"])
+                saved.append(e)
+                done.append("lancement « %s » retiré" % e["name"])
+        except Exception:
+            pass
+    conf["run_backup"] = saved
+    conf["launch_hidden"] = True
+    save_conf(conf)
+    autostart_set(True)
+    # 2. on relance chacun sans fenêtre
+    for k in ("tunarr", "jellyfin"):
+        pr = find_proc(k)
+        if pr:
+            _kill_tree(pr)
+        time.sleep(2)
+        start_cmd(k)
+        done.append("%s relancé sans fenêtre" % k.capitalize())
+    away_log("Jellyfin et Tunarr tournent maintenant sans fenêtre")
+    return done
+
+
+def services_boot():
+    """Au démarrage de Studio : si Jellyfin ou Tunarr ne tournent pas, Studio les lance (cachés)."""
+    if not conf.get("launch_hidden"):
+        return
+    time.sleep(float(os.environ.get("FRS_BOOT_WAIT", "12")))
+    for k in ("tunarr", "jellyfin"):
+        try:
+            if not _svc_ok(k) and not find_proc(k):
+                start_cmd(k)
+                away_log("%s lancé par Studio (sans fenêtre)" % k.capitalize())
+        except Exception as e:
+            away_log("Je n'arrive pas à lancer %s (%s)" % (k.capitalize(), e))
 
 
 def away_loop():
@@ -3302,6 +3415,11 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"ok": True})
         if u.path == "/api/away":
             return self.send(200, away_set(bool(b.get("on"))))
+        if u.path == "/api/hidewin":
+            try:
+                return self.send(200, {"done": hide_services()})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/tvmsg":
             try:
                 if b.get("clear"):
@@ -3570,6 +3688,7 @@ def main():
     threading.Thread(target=watcher, daemon=True).start()
     threading.Thread(target=subs_loop, daemon=True).start()
     threading.Thread(target=away_loop, daemon=True).start()
+    threading.Thread(target=services_boot, daemon=True).start()
     threading.Thread(target=watch_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()

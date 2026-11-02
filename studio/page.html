@@ -944,7 +944,11 @@ function renderAway(){const A=PC&&PC.away;if(!A)return;$("away").classList.toggl
   h+=it(A.tailscale,A.tailscale?"Tailscale marche : tu peux ouvrir Studio de partout":"Tailscale n'est pas connecté sur le PC : sans lui, pas d'accès à distance",!A.tailscale);
   h+=it(A.beat_ok,A.beat_ok?"La télé voit que le PC est allumé (et te prévient s'il s'éteint)":"Je n'arrive pas à prévenir la télé (internet ?)",A.on&&!A.beat_ok);
   if(A.on)h+=it(false,"Pense à mettre les mises à jour Windows en pause (Paramètres → Windows Update → Suspendre)",true);
+  h+='<li class="'+(A.hidden?"y":"")+'"><i>'+(A.hidden?"✓":"·")+'</i><span>'+(A.hidden?"Jellyfin et Tunarr tournent sans fenêtre (Studio les lance)":"Jellyfin et Tunarr s'affichent dans des fenêtres noires")+'</span>'+(A.hidden?"":'<button class="btn sm" id="hidewin" style="margin-left:auto">Les cacher</button>')+'</li>';
   $("away-l").innerHTML=h;
+  if($("hidewin"))$("hidewin").onclick=async()=>{if(!confirm("Cacher Jellyfin et Tunarr ?\n\nIls vont redémarrer sans fenêtre (les chaînes coupent environ 30 secondes). Ensuite, c'est Studio qui les lance tout seul au démarrage du PC."))return;
+    $("hidewin").disabled=true;$("hidewin").textContent="Je m'en occupe…";
+    try{const r=await api("/api/hidewin",{});alertMsg("C'est fait : "+r.done.join(" · "));setTimeout(loadPc,4000)}catch(e){$("pc-err").textContent=e.message;$("hidewin").disabled=false;$("hidewin").textContent="Les cacher"}};
   const lg=$("away-log");lg.hidden=!(A.log||[]).length;lg.innerHTML=(A.log||[]).map(x=>'<div>'+new Date(x.t*1000).toLocaleString("fr-FR",{weekday:"short",hour:"2-digit",minute:"2-digit"})+' · '+esc(x.msg)+'</div>').join("")}
 $("away-sw").onclick=async()=>{if(!PC)return;const on=!(PC.away&&PC.away.on);$("away-sw").disabled=true;
   try{PC.away=await api("/api/away",{on});renderAway()}catch(e){$("pc-err").textContent=e.message}$("away-sw").disabled=false};
