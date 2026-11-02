@@ -643,23 +643,23 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 .lite .banner{background:rgba(10,10,12,.9)}
 
 /* ================= Pastilles vivantes ================= */
-@keyframes pulseRing{0%{box-shadow:0 0 0 0 var(--pc,rgba(255,61,127,.55))}70%{box-shadow:0 0 0 .45rem rgba(0,0,0,0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+@keyframes pulseRing{0%{box-shadow:0 0 0 0 var(--pc,rgba(var(--accent-rgb,224,36,94),.55))}70%{box-shadow:0 0 0 .45rem rgba(0,0,0,0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
 @keyframes shine{0%{background-position:-160% 0}55%,100%{background-position:260% 0}}
 @keyframes breathe{50%{opacity:.55}}
 /* point « en direct » qui bat */
-.ondir i,.hk .dot{--pc:rgba(255,107,149,.6);animation:pulseRing 1.8s ease-out infinite}
+.ondir i,.hk .dot{--pc:rgba(var(--accent-rgb,224,36,94),.6);animation:pulseRing 1.8s ease-out infinite}
 .ondir.late i{--pc:rgba(245,180,0,.55);background:var(--prep)}
-.sopill .so-dot{--pc:rgba(245,180,0,.6);animation:pulseRing 1.8s ease-out infinite}
+.sopill .so-dot{background:var(--accent-t);--pc:rgba(var(--accent-rgb,224,36,94),.6);animation:pulseRing 1.8s ease-out infinite}
 /* EN CE MOMENT / horaires sur les vignettes : verre + point rouge */
 .hthumb .tntag{display:inline-flex;align-items:center;gap:.35rem;background:rgba(12,12,16,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);border-radius:99px;padding:.22rem .6rem .22rem .5rem;font-size:.72rem}
-.hthumb .tntag::before{content:"";width:.42rem;height:.42rem;border-radius:50%;background:#ff3d57;--pc:rgba(255,61,87,.6);animation:pulseRing 1.8s ease-out infinite}
+.hthumb .tntag::before{content:"";width:.42rem;height:.42rem;border-radius:50%;background:var(--accent-t);--pc:rgba(var(--accent-rgb,224,36,94),.6);animation:pulseRing 1.8s ease-out infinite}
 /* NOUVEAU : dégradé qui brille */
 .hthumb .newtag,.newtag{border-radius:99px;padding:.22rem .6rem;font-size:.66rem;letter-spacing:.1em;color:#fff;
-  background:linear-gradient(100deg,#ff3d7f 0%,#ff7a45 45%,#fff3 50%,#ff7a45 55%,#ff3d7f 100%);background-size:260% 100%;animation:shine 3.2s ease-in-out infinite;
-  box-shadow:0 .3rem .9rem -.2rem rgba(255,61,127,.7)}
+  background:linear-gradient(100deg,var(--accent) 0%,var(--accent-t) 45%,#fff5 50%,var(--accent-t) 55%,var(--accent) 100%);background-size:260% 100%;animation:shine 3.2s ease-in-out infinite;
+  box-shadow:0 .3rem .9rem -.2rem rgba(var(--accent-rgb,224,36,94),.7)}
 /* EN COURS (chaîne regardée) */
-.onair{border-radius:99px;padding:.25rem .6rem .25rem .5rem;display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,#ff3d7f,#c2185b);box-shadow:0 .3rem .9rem -.2rem rgba(255,61,127,.7)}
+.onair{border-radius:99px;padding:.25rem .6rem .25rem .5rem;display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,var(--accent-t),var(--accent));box-shadow:0 .3rem .9rem -.2rem rgba(var(--accent-rgb,224,36,94),.7)}
 .onair::before{content:"";width:.4rem;height:.4rem;border-radius:50%;background:#fff;animation:breathe 1.4s ease-in-out infinite}
 /* numéro de chaîne : verre */
 .hthumb .n{background:rgba(12,12,16,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);border-radius:.55rem}
@@ -672,7 +672,7 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 /* « Depuis le début » : barre d'avancement sous la pastille */
 .sopill{overflow:hidden}
 .sopill .so-bar{position:absolute;left:0;right:0;bottom:0;height:.18rem;background:rgba(255,255,255,.12)}
-.sopill .so-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5b400,#ffd970);transition:width 1s linear}
+.sopill .so-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-t));transition:width 1s linear}
 /* mode léger (Fire Stick) : pastilles jolies mais fixes */
 .lite .ondir i,.lite .hk .dot,.lite .sopill .so-dot,.lite .hthumb .tntag::before,.lite .newtag,.lite .onair::before,.lite .chip.cours::before{animation:none}
 .lite .hthumb .tntag,.lite .hthumb .n{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(12,12,16,.8)}
