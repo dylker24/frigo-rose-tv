@@ -3505,6 +3505,11 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/watch" and self.authed():
+            try:
+                return self.send(200, {"watch": fb("/watch") or {}, "hidden": [k for k, v in (fb("/profsync") or {}).items() if isinstance(v, dict) and v.get("hidden")]})
+            except Exception as e:
+                return self.send(200, {"watch": {}, "error": str(e)})
         if u.path == "/api/tvmsg" and self.authed():
             try:
                 return self.send(200, {"message": fb("/config/message")})
