@@ -1294,7 +1294,10 @@ video.addEventListener("waiting",()=>{clearTimeout(waitT);waitT=setTimeout(()=>{
 
 /* ================= Reprendre au début (le programme en cours, lu depuis Jellyfin via Studio) ================= */
 let SO=null;
-function studioBase(){try{const u=new URL(cfg.server);return u.protocol+"//"+u.hostname+":8795"}catch(e){return ""}}
+/* Ouverte depuis Studio (iPad, navigateur) : Tunarr passe par Studio, à la même adresse */
+const VIA_STUDIO=/^https?:$/.test(location.protocol)&&/^\/tv\/?$/.test(location.pathname)&&location.port==="8795";
+const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+function studioBase(){if(VIA_STUDIO)return location.origin;try{const u=new URL(cfg.server);return u.protocol+"//"+u.hostname+":8795"}catch(e){return ""}}
 async function startOver(){
   const ch=channels[cur];
   if(demo||!ch){noVideoToast();return}
@@ -1344,6 +1347,7 @@ video.addEventListener("ended",()=>{if(SO){toast("Fin du programme · retour au 
 const AU={ctx:null,src:null,fx:null,on:false};
 function audioGraph(){
   if(AU.ctx)return true;
+  if(IOS){AU.fail=1;return false} // sur iPad, brancher le son coupe la vidéo en direct
   try{
     const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
     const ctx=new C(),src=ctx.createMediaElementSource(video);
@@ -2167,7 +2171,7 @@ function demLink(){return (cfg.demandes||autoDem2||autoDem||"").trim()}
 /* ================= Profils et « qui regarde » partagés avec Studio ================= */
 function profileByName(n){const k=norm(n);if(!k)return null;return profiles.find(p=>norm(p.name)===k)||null}
 const DEVICE_ID=(()=>{let d=LS.get("frtv_device","");if(!d){d="d"+Math.random().toString(36).slice(2,10);LS.set("frtv_device",d)}return d})();
-function deviceLabel(){const u=navigator.userAgent;return /AFT/.test(u)?"Fire Stick":/FrigoRoseTablet/.test(u)?"Tablette":/FrigoRoseTV/.test(u)?"Télé":/iPad|Tablet/.test(u)?"Tablette":/Mobile|iPhone/.test(u)?"Téléphone":"Ordinateur"}
+function deviceLabel(){const u=navigator.userAgent;if(IOS)return /iPhone/.test(u)?"iPhone":"iPad";return /AFT/.test(u)?"Fire Stick":/FrigoRoseTablet/.test(u)?"Tablette":/FrigoRoseTV/.test(u)?"Télé":/iPad|Tablet/.test(u)?"Tablette":/Mobile|iPhone/.test(u)?"Téléphone":"Ordinateur"}
 function profPublic(p){return {name:p.name,av:p.av||0,pic:p.pic||"",own:!!p.img}}
 function publishProfiles(){
   if(!fdb||demo)return;
@@ -3056,7 +3060,7 @@ if(TOUCH){
   },{passive:true});
 }
 function loadPrefs(){
-  cfg.server=LS.get("frtv_server","http://100.107.91.60:8000");cfg.demandes=LS.get("frtv_demandes","");
+  cfg.server=VIA_STUDIO?location.origin+"/tv/t":LS.get("frtv_server","http://100.107.91.60:8000");cfg.demandes=LS.get("frtv_demandes","");
   demo=LS.get("frtv_demo","0")==="1";
   fit=LS.get("frtv_fit","contain");if(!FITS.some(f=>f[0]===fit))fit="contain";applyFit();
   appLogo=LS.get("frtv_logo","");applyLogo();

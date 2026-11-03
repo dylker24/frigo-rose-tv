@@ -3194,6 +3194,64 @@ def cleanup_old_exe():
 SERVER = {"srv": None}
 
 # ---------------------------------------------------------------- serveur web local
+# ---------- Appli télé dans un navigateur (iPad…) : Studio sert l'appli et relaie Tunarr sur la même adresse ----------
+TVAPP_URL = os.environ.get("FRS_TVAPP_URL") or "https://dylker24.github.io/frigo-rose-tv/"
+_tvapp = {"t": 0, "b": None}
+
+
+def tv_app_html():
+    """La dernière version de l'appli télé (gardée 10 min, et une copie sur le disque si internet coupe)."""
+    cache = os.path.join(DATA, "tvapp.html")
+    if _tvapp["b"] and time.time() - _tvapp["t"] < 600:
+        return _tvapp["b"]
+    try:
+        b = urllib.request.urlopen(urllib.request.Request(TVAPP_URL + "?v=%d" % time.time(), headers={"Cache-Control": "no-cache"}), timeout=8).read()
+        if len(b) > 20000:
+            _tvapp.update(t=time.time(), b=b)
+            if cache:
+                try:
+                    with open(cache, "wb") as f:
+                        f.write(b)
+                except OSError:
+                    pass
+            return b
+    except Exception:
+        pass
+    if _tvapp["b"]:
+        return _tvapp["b"]
+    if cache and os.path.exists(cache):
+        with open(cache, "rb") as f:
+            _tvapp["b"] = f.read()
+        return _tvapp["b"]
+    return None
+
+
+class _NoRedir(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None
+
+
+_tun_opener = urllib.request.build_opener(_NoRedir)
+
+
+def _tun_rewrite(text, me=""):
+    """Les adresses de Tunarr dans les listes de lecture passent elles aussi par Studio."""
+    base = _fast(conf.get("tunarr_url", "http://localhost:8000")).rstrip("/")
+    out = []
+    for line in text.split("\n"):
+        l = line.strip()
+        if l.startswith(base):
+            line = me + "/tv/t" + l[len(base):]
+        elif re.match(r"https?://[^/]+:8000/", l):
+            line = me + "/tv/t/" + l.split("/", 3)[3]
+        elif l.startswith("/") and not l.startswith("/tv/t/"):
+            line = "/tv/t" + l
+        elif 'URI="/' in line:
+            line = line.replace('URI="/', 'URI="/tv/t/')
+        out.append(line)
+    return "\n".join(out)
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -3297,8 +3355,77 @@ class H(BaseHTTPRequestHandler):
     def need_auth(self):
         return self.send(401, {"error": "code", "need": "pin" if conf.get("pin_hash") else "nopin"})
 
+    def tun_proxy(self, u, method="GET"):
+        path = u.path[len("/tv/t"):]
+        if ".." in path or not re.match(r"/(api|stream|images|m3u|hls)/", path):
+            return self.send(400, {"error": "chemin"})
+        url = _fast(conf.get("tunarr_url", "http://localhost:8000")).rstrip("/") + path + ("?" + u.query if u.query else "")
+        hd = {"User-Agent": self.headers.get("User-Agent") or "FrigoRoseTV", "X-Forwarded-For": self.client_address[0]}
+        req = urllib.request.Request(url, method=method, headers=hd)
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            r = _tun_opener.open(req, timeout=60)
+        except urllib.error.HTTPError as e:
+            if e.code in (301, 302, 303, 307, 308) and e.headers.get("Location"):
+                loc = e.headers["Location"]
+                loc = _tun_rewrite(loc) if not loc.startswith("/tv/t") else loc
+                if not loc.startswith("/"):
+                    loc = "/tv/t" + path.rsplit("/", 1)[0] + "/" + loc
+                self.send_response(e.code)
+                self.send_header("Location", loc)
+                self.send_header("Content-Length", "0")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                return
+            try:
+                b = e.read()
+            except Exception:
+                b = b""
+            return self.send(e.code, b, e.headers.get("Content-Type") or "application/json", headers=cors)
+        except Exception:
+            return self.send(502, {"error": "Tunarr injoignable"}, headers=cors)
+        with r:
+            ct = r.headers.get("Content-Type") or "application/octet-stream"
+            if "mpegurl" in ct.lower() or path.endswith(".m3u8") or path.endswith(".m3u"):
+                me = "http://" + (self.headers.get("Host") or "localhost:%d" % PORT)
+                b = _tun_rewrite(r.read().decode("utf-8", "replace"), me).encode("utf-8")
+                return self.send(200, b, ct, headers=cors)
+            n = r.headers.get("Content-Length")
+            if (n is None and not path.startswith("/stream")) or (n is not None and int(n) < (1 << 20) and not path.startswith("/stream")):
+                return self.send(200, r.read(), ct, headers=cors)
+            self.send_response(200)
+            self.send_header("Content-Type", ct)
+            if n is not None:
+                self.send_header("Content-Length", n)
+            else:
+                self.close_connection = True  # flux sans fin : envoyé tel quel jusqu'à la fermeture
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except OSError:
+                    return
+
+    def do_DELETE(self):
+        u = urlparse(self.path)
+        if u.path.startswith("/tv/t/api/channels/") and u.path.endswith("/sessions"):
+            return self.tun_proxy(u, "DELETE")
+        return self.send(404, {"error": "?"})
+
     def do_GET(self):
         u = urlparse(self.path)
+        if u.path in ("/tv", "/tv/"):
+            b = tv_app_html()
+            if not b:
+                return self.send(503, "<h1>Frigo Rosé TV</h1><p>L'appli n'a pas pu être chargée, réessaie dans un instant.</p>".encode("utf-8"), "text/html; charset=utf-8")
+            return self.send(200, b, "text/html; charset=utf-8")
+        if u.path.startswith("/tv/t/"):
+            return self.tun_proxy(u)
         if u.path in ("/", "/index.html"):
             return self.send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
         if u.path == "/manifest.webmanifest":
