@@ -1503,6 +1503,44 @@ function wtFlush(){
   WT.acc={};
 }
 document.addEventListener("visibilitychange",()=>{if(document.hidden)wtFlush()});
+
+/* ================= Télécommande sur le téléphone (page /remote/) ================= */
+const RC={ref:null,cmd:null,last:"",t:0};
+function rcState(){
+  const ch=channels[cur],now=Date.now(),p=ch?progAt(ch,now):null;
+  return {device:deviceLabel(),profile:profile?profile.name:"",av:profile?profile.av||0:0,pic:profile&&profile.pic||"",screen,
+    num:ch?(ch.num||cur+1):null,channel:ch?ch.name:"",title:p&&!p.synthetic?p.title:"",start:p?p.start:0,stop:p?p.stop:0,paused:!!video.paused,so:!!SO,at:now,
+    list:channels.map((c,i)=>{const q=progAt(c,now);return {n:c.name,num:c.num||i+1,t:q&&!q.synthetic?showOf(q):""}})}
+}
+function rcPublish(){
+  if(!fdb||demo||document.hidden||!channels.length)return;
+  try{
+    if(!RC.ref){RC.ref=fdb.ref("frigorosetv/remotes/"+DEVICE_ID);if(RC.ref.onDisconnect)RC.ref.onDisconnect().remove()}
+    RC.ref.set(rcState()).catch(()=>{});RC.t=Date.now();
+    if(!RC.cmd){RC.cmd=fdb.ref("frigorosetv/rcmd/"+DEVICE_ID);RC.cmd.on("value",sn=>{const v=sn.val();if(v)rcRun(v)})}
+  }catch(e){}
+}
+function rcSoon(){clearTimeout(rcSoon.t);rcSoon.t=setTimeout(rcPublish,600)}
+video.addEventListener("playing",rcSoon);video.addEventListener("pause",rcSoon);
+setInterval(()=>{if(Date.now()-RC.t>25000)rcPublish()},5000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)rcPublish();else if(RC.ref)try{RC.ref.remove()}catch(e){}});
+const RCK={up:"ArrowUp",down:"ArrowDown",left:"ArrowLeft",right:"ArrowRight",ok:"Enter",back:"Escape",playpause:"MediaPlayPause",chup:"ChannelUp",chdown:"ChannelDown",guide:"Guide",info:"Info",rew:"MediaRewind",ffw:"MediaFastForward"};
+function rcKey(key){const o={key,bubbles:true,cancelable:true};document.dispatchEvent(new KeyboardEvent("keydown",o));document.dispatchEvent(new KeyboardEvent("keyup",o))}
+function rcRun(v){
+  if(!v||!v.id||v.id===RC.last||Date.now()-(v.at||0)>60000)return;RC.last=v.id;lastKey=Date.now();
+  try{
+    if(SV.on&&v.c!=="hello")saverClose();
+    if(v.c==="key"&&RCK[v.a])rcKey(RCK[v.a]);
+    else if(v.c==="tune"){const i=channels.findIndex((c,j)=>(c.num||j+1)==v.a);if(i>=0){if(screen!=="live")closePanel();tune(i)}}
+    else if(v.c==="home"){if(screen==="live")openHome()}
+    else if(v.c==="live"){if(screen!=="live")closePanel()}
+    else if(v.c==="surprise")surprise();
+    else if(v.c==="restart"){if(screen!=="live")closePanel();startOver()}
+    else if(v.c==="golive"){if(screen==="live")goLive()}
+    else if(v.c==="hello")toast("📱 Télécommande connectée à cette télé",3500);
+  }catch(e){}
+  rcSoon();
+}
 /* ================= Habillage des chaînes ================= */
 const ID={shown:{},t:null,on:false};
 function identsOn(){return LS.get("frtv_idents","1")!=="0"}
@@ -2101,7 +2139,7 @@ function digit(d){
 const TABS=["home","chaines","guide","search","demandes","settings"];
 function setScreen(s){
   {const a0=document.activeElement;if(a0&&/^(INPUT|TEXTAREA)$/.test(a0.tagName)&&s!==screen)a0.blur()}
-  screen=s;if(s!=="home")hidePeek();if(s!=="chaines")closeMosaic();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
+  screen=s;try{rcSoon()}catch(e){}if(s!=="home")hidePeek();if(s!=="chaines")closeMosaic();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
   $("splash").hidden=s!=="splash";$("error").hidden=s!=="error";$("profiles").hidden=s!=="profiles";$("pedit").hidden=s!=="pedit";
   const inPanel=["home","chaines","guide","search","demandes","settings"].includes(s);
   video.muted=s!=="live";
