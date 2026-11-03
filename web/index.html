@@ -2198,6 +2198,14 @@ function onTvMsg(m){
 /* Mouchard : les erreurs de la télé sont envoyées (pour réparer à distance) */
 const DBG=[];
 function dbgPush(m){try{DBG.push(new Date().toTimeString().slice(0,8)+" "+String(m).slice(0,300));if(DBG.length>80)DBG.shift();clearTimeout(dbgPush.t);dbgPush.t=setTimeout(dbgSend,1500)}catch(e){}}
+/* Mesure de réactivité (envoyée avec le mouchard) : temps entre la touche et l'image à l'écran */
+const PERF={l:[],t:null,info:0};
+document.addEventListener("keydown",()=>{const t0=performance.now(),sc=screen;requestAnimationFrame(()=>{const t1=performance.now();requestAnimationFrame(()=>{PERF.l.push([sc,Math.round(t1-t0),Math.round(performance.now()-t0)]);clearTimeout(PERF.t);PERF.t=setTimeout(perfFlush,2500);if(PERF.l.length>=15)perfFlush()})})},true);
+function perfFlush(){try{if(!PERF.l.length)return;if(!PERF.info){PERF.info=1;dbgPush("appareil "+(navigator.hardwareConcurrency||"?")+" coeurs, "+(navigator.deviceMemory||"?")+" Go, écran "+innerWidth+"x"+innerHeight+" x"+(devicePixelRatio||1)+(LITE?" LITE":"")+(video&&video.classList.contains("vivid")?" vive":"")+(AU.on?" voix":""))}
+  const by={};PERF.l.forEach(([sc,a,b])=>{(by[sc]=by[sc]||[]).push(b)});PERF.l=[];
+  Object.keys(by).forEach(sc=>{const v=by[sc].sort((x,y)=>x-y);dbgPush("réactivité "+sc+" n="+v.length+" médiane="+v[v.length>>1]+"ms max="+v[v.length-1]+"ms vidéo="+(video&&!video.paused?"oui":"non"))});
+  let n=0;const t0=performance.now();const f=()=>{n++;if(performance.now()-t0<2000)requestAnimationFrame(f);else dbgPush("images/s au repos "+Math.round(n/2))};requestAnimationFrame(f);
+}catch(e){}}
 function dbgSend(){try{if(!fdb||demo)return;fdb.ref("frigorosetv/debug/"+DEVICE_ID).set({at:Date.now(),ua:navigator.userAgent.slice(-80),dev:deviceLabel(),screen,profiles:profiles.map(p=>p.name+"#"+p.id),profile:profile?profile.name:"",pIdx:typeof pIdx!=="undefined"?pIdx:null,log:DBG.slice()}).catch(()=>{})}catch(e){}}
 window.addEventListener("error",e=>dbgPush("ERR "+(e.message||"")+" @"+(e.lineno||"")+":"+(e.colno||"")));
 window.addEventListener("unhandledrejection",e=>dbgPush("REJ "+(e.reason&&e.reason.message||e.reason)));
