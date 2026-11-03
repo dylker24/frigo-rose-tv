@@ -1541,6 +1541,7 @@ function renderHomeBg(it){
 /* Mode léger : Fire Stick et petits appareils (moins d'effets coûteux, même look) */
 const LITE=(()=>{const o=LS.get("frtv_lite","");if(o==="1")return true;if(o==="0")return false;
   const u=navigator.userAgent,c=navigator.hardwareConcurrency||8,m=navigator.deviceMemory||4;return /AFT/.test(u)||(c<=4&&m<=2)})();
+const TVAPP=/FrigoRoseTV/.test(navigator.userAgent);
 if(LITE)document.documentElement.classList.add("lite");if(/FrigoRoseTV/.test(navigator.userAgent))document.documentElement.classList.add("tvapp");
 /* Couleurs qui suivent le programme : on lit la couleur dominante (et vive) de l'affiche */
 const AMB=new Map();
@@ -1562,7 +1563,7 @@ function hexToRgbArr(h){const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.ex
 let ambKey="";
 function setAmb(rgb){const t=$("hbg-tint");if(!t||!rgb)return;const c=rgb.join(",");
   if(LITE)t.style.backgroundImage="radial-gradient(85% 80% at 78% 18%,rgba("+c+",.42),rgba("+c+",.12) 45%,rgba(0,0,0,0) 75%)";else t.style.backgroundColor="rgb("+c+")";
-  document.documentElement.style.setProperty("--amb",c)}
+  ["v-home","hpeek"].forEach(id=>{const e=$(id);if(e)e.style.setProperty("--amb",c)})} /* pas sur toute la page : sinon la télé recalcule tout à chaque flèche */
 function updateAmb(it){
   if(!it)return;const url=artUrl(it.p),k=url||("ch:"+it.ch.id);if(k===ambKey)return;ambKey=k;
   const fallback=hexToRgbArr(chColor(it.ch));
@@ -1582,7 +1583,7 @@ function renderHome(light){
   const it=homeFocus();if(!it)return;
   const live=it.kind==="now";
   const key=it.ch.id+"|"+it.p.start;const hero=$("h-hero");
-  if(key!==heroKey){heroKey=key;hero.classList.remove("swap");if(keyGap>350){void hero.offsetWidth;hero.classList.add("swap")}}
+  if(key!==heroKey){heroKey=key;hero.classList.remove("swap");if(keyGap>350&&!(TVAPP&&light)){void hero.offsetWidth;hero.classList.add("swap")}}
   const kk=$("h-kick");kk.textContent="";
   if(live)kk.append(el("span","dot"));
   if(it.ch.logo)kk.append(logoImg(it.ch.logo));
@@ -1601,7 +1602,7 @@ function renderHome(light){
   $("h-play").classList.toggle("f",zone==="content"&&hRow===0&&hBtn===0);
   $("h-guide").classList.toggle("f",zone==="content"&&hRow===0&&hBtn===1);
   // Grand fond : quand on enchaîne les flèches, on attend que ça se pose avant de changer l'image
-  clearTimeout(bgT);if(light&&keyGap<350)bgT=setTimeout(()=>{if(screen==="home")renderHomeBg(homeFocus())},320);else renderHomeBg(it);
+  clearTimeout(bgT);if(light&&(TVAPP||keyGap<350))bgT=setTimeout(()=>{if(screen==="home")renderHomeBg(homeFocus())},TVAPP?450:320);else renderHomeBg(it);
   const sig=rows.map(r=>r.id+":"+r.list.length).join("|")+"#"+zone;
   if(light&&sig===rowsSig&&homeFast(rows))return;
   rowsSig=sig;
@@ -1671,7 +1672,7 @@ $("h-play").onclick=()=>{const it=homeFocus();if(it)goChannel(it.i)};
 $("h-guide").onclick=()=>{const it=homeFocus();gRow=it?it.i:Math.max(0,cur);gT=Date.now();winStart=floor30(gT);rowOff=Math.max(0,gRow-2);openPanel("guide")};
 function schedulePreview(){
   clearTimeout(prevT);if(demo)return;
-  prevT=setTimeout(()=>{if(screen!=="home")return;const it=homeFocus();if(it&&it.kind==="now"&&it.i!==cur){tune(it.i,true,true);renderHomeBg(it)}},900);
+  prevT=setTimeout(()=>{if(screen!=="home")return;const it=homeFocus();if(it&&it.kind==="now"&&it.i!==cur){tune(it.i,true,true);renderHomeBg(it)}},TVAPP?1800:900);
 }
 function homeKey(k){
   const {rows}=homeRows();const row=hRow>0?rows[hRow-1]:null;
