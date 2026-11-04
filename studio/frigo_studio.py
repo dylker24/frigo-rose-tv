@@ -847,6 +847,38 @@ def makemkv_tool():
             pth = os.path.join(base or "", "MakeMKV", exe)
             if base and os.path.exists(pth):
                 return pth
+    # installé ailleurs : on demande à Windows où il est (liste des programmes installés)
+    if WIN:
+        try:
+            import winreg
+            spots = []
+            for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                for path in (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"):
+                    try:
+                        root = winreg.OpenKey(hive, path)
+                    except OSError:
+                        continue
+                    for i in range(winreg.QueryInfoKey(root)[0]):
+                        try:
+                            k = winreg.OpenKey(root, winreg.EnumKey(root, i))
+                            name = str(winreg.QueryValueEx(k, "DisplayName")[0])
+                        except OSError:
+                            continue
+                        if "makemkv" not in name.lower():
+                            continue
+                        for v in ("InstallLocation", "DisplayIcon", "UninstallString"):
+                            try:
+                                x = str(winreg.QueryValueEx(k, v)[0]).strip('"').split(",")[0]
+                                spots.append(x if os.path.isdir(x) else os.path.dirname(x))
+                            except OSError:
+                                pass
+            for d in [os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "MakeMKV")] + spots:
+                for exe in ("makemkvcon64.exe", "makemkvcon.exe"):
+                    pth = os.path.join(d, exe)
+                    if d and os.path.exists(pth):
+                        return pth
+        except Exception as e:
+            bglog("DVD : recherche de MakeMKV : %s" % e)
     return shutil.which("makemkvcon64") or shutil.which("makemkvcon") or ""
 
 
@@ -942,6 +974,7 @@ def do_dvd(j):
     os.makedirs(dest, exist_ok=True)
     out0 = unique_path(os.path.join(dest, name + ".mp4"))
     j["title"] = name
+    bglog("DVD : import de %s depuis %s · MakeMKV : %s" % (name, drive, makemkv_tool() or "pas trouvé"))
     if makemkv_tool():
         # MakeMKV installé : c'est lui qui lit le mieux les DVD protégés, on commence par lui
         try:
@@ -3812,7 +3845,7 @@ class H(BaseHTTPRequestHandler):
             ds = dvd_drives()
             for d in ds:
                 d["title"] = dvd_title(d["label"]) if d["disc"] else ""
-            return self.send(200, {"drives": ds})
+            return self.send(200, {"drives": ds, "makemkv": makemkv_tool()})
         if u.path == "/api/watch" and self.authed():
             try:
                 return self.send(200, {"watch": fb("/watch") or {}, "hidden": [k for k, v in (fb("/profsync") or {}).items() if isinstance(v, dict) and v.get("hidden")]})
