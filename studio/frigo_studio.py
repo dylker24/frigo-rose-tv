@@ -287,8 +287,16 @@ def plan_conversion(info):
             notes.append("image convertie en H.264")
         # largeur et hauteur paires obligatoires pour le H.264
         w, h = v.get("width") or 0, v.get("height") or 0
+        vf = []
+        if v.get("codec_name") == "mpeg2video":
+            vf.append("bwdif=mode=0:deint=interlaced")  # DVD : on enlève les lignes entrelacées
         if w % 2 or h % 2:
-            args += ["-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2"]
+            vf.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+        if vf:
+            args += ["-vf", ",".join(vf)]
+    # la version française en premier (c'est celle que lit la télé)
+    fr = lambda a: ((a.get("tags") or {}).get("language") or "").lower() in ("fre", "fra", "fr")
+    auds = sorted(auds, key=lambda a: 0 if fr(a) else 1)
     for i, a in enumerate(auds):
         args += ["-map", "0:%d" % a["index"]]
         if a.get("codec_name") in ("aac", "mp3"):
@@ -308,6 +316,8 @@ def plan_conversion(info):
             kept += 1
     if subs:
         notes.append("%d sous-titre%s gardé%s" % (kept, "s" if kept > 1 else "", "s" if kept > 1 else "") + (" (les sous-titres en image ne passent pas en MP4)" if kept < len(subs) else ""))
+    if auds:
+        args += ["-disposition:a:0", "default"] + sum((["-disposition:a:%d" % i, "0"] for i in range(1, len(auds))), [])
     args += ["-map_metadata", "0", "-map_chapters", "0", "-movflags", "+faststart"]
     return args, ", ".join(notes), not copy_v
 
@@ -829,6 +839,89 @@ def ensure_handbrake(j):
                 continue
 
 
+def makemkv_tool():
+    if os.environ.get("FRS_MAKEMKV"):
+        return os.environ["FRS_MAKEMKV"]
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), r"C:\Program Files (x86)", r"C:\Program Files"):
+        for exe in ("makemkvcon64.exe", "makemkvcon.exe"):
+            pth = os.path.join(base or "", "MakeMKV", exe)
+            if base and os.path.exists(pth):
+                return pth
+    return shutil.which("makemkvcon64") or shutil.which("makemkvcon") or ""
+
+
+def _mkv_time(t):
+    try:
+        h, m, sec = [int(x) for x in t.split(":")]
+        return h * 3600 + m * 60 + sec
+    except Exception:
+        return 0
+
+
+def dvd_makemkv(j, drive, out):
+    """Plan B pour les DVD très protégés : MakeMKV copie le film principal, puis ffmpeg le convertit en MP4."""
+    mk = makemkv_tool()
+    if not mk:
+        raise RuntimeError("Ce DVD est trop protégé pour la méthode simple. Installe MakeMKV (gratuit, makemkv.com) sur le PC puis relance l'import : Studio s'en servira tout seul")
+    j["msg"] = "Analyse du DVD avec MakeMKV…"
+    r = subprocess.run([mk, "-r", "--cache=1", "info", "disc:9999"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, creationflags=NOWIN)
+    idx = None
+    for line in r.stdout.splitlines():
+        if line.startswith("DRV:"):
+            f = line[4:].split(",")
+            if len(f) >= 7 and drive.upper().rstrip(":\\") + ":" in f[6].upper() and f[1] != "256":
+                idx = f[0]
+    if idx is None:
+        idx = "0"
+    r = subprocess.run([mk, "-r", "--minlength=3000", "info", "disc:" + idx], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600, creationflags=NOWIN)
+    titles = {}
+    for line in r.stdout.splitlines():
+        m = re.match(r'TINFO:(\d+),(\d+),\d+,"(.*)"', line)
+        if m:
+            titles.setdefault(m.group(1), {})[m.group(2)] = m.group(3)
+    if not titles:
+        low = r.stdout.lower()
+        if "evaluation period" in low or "registration key" in low:
+            raise RuntimeError("MakeMKV demande sa clé gratuite : ouvre MakeMKV, menu Aide → Enregistrer, et colle la clé bêta publiée sur makemkv.com")
+        raise RuntimeError("MakeMKV ne trouve pas le film sur ce DVD (disque rayé ?)")
+    # le film = le titre le plus long (en cas d'égalité, celui avec le plus de chapitres, comme MakeMKV le conseille)
+    best = max(titles.items(), key=lambda kv: (_mkv_time(kv[1].get("9", "")), int(kv[1].get("8", "0") or 0)))
+    tdir = out[:-4] + ".dvd-copie"
+    os.makedirs(tdir, exist_ok=True)
+    j["msg"] = "Copie du film depuis le DVD…"
+    p = subprocess.Popen([mk, "-r", "--progress=-same", "mkv", "disc:" + idx, best[0], tdir], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=NOWIN)
+    j["proc"] = p
+    for line in p.stdout:
+        if j["cancel"]:
+            p.kill()
+            break
+        m = re.match(r"PRGV:(\d+),(\d+),(\d+)", line)
+        if m and int(m.group(3)):
+            j["pct"] = min(60.0, 60 * int(m.group(2)) / int(m.group(3)))
+    p.wait()
+    mkvs = [os.path.join(tdir, f) for f in os.listdir(tdir) if f.lower().endswith(".mkv")]
+    try:
+        if j["cancel"]:
+            return
+        if not mkvs:
+            raise RuntimeError("MakeMKV n'a pas réussi à copier le film")
+        src = max(mkvs, key=os.path.getsize)
+        j["pct"] = 60
+        base = 60.0
+        sub = j  # même tâche : la conversion remplit la barre de 60 à 100 %
+        info = probe(src)
+        args, notes, _h = plan_conversion(info)
+        dur = float((info.get("format") or {}).get("duration") or 0)
+        tmp = out + ".part.mp4"
+        cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-i", src] + args + [tmp]
+        if not _run_ff(sub, cmd, dur, base, 40.0, "Conversion du film en MP4…"):
+            return
+        os.replace(tmp, out)
+    finally:
+        shutil.rmtree(tdir, ignore_errors=True)
+
+
 def dvd_eject(drive):
     if not WIN or not drive:
         return
@@ -886,16 +979,25 @@ def do_dvd(j):
         except OSError:
             pass
         return
-    if p.returncode != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) < 50 * 1024 * 1024:
+    short = False
+    if p.returncode == 0 and os.path.exists(tmp):
+        try:
+            d = float((probe(tmp).get("format") or {}).get("duration") or 0)
+            short = 0 < d < 40 * 60  # un « film » de moins de 40 min : HandBrake a pris un faux titre
+        except Exception:
+            pass
+    if short or p.returncode != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) < 50 * 1024 * 1024:
         try:
             os.remove(tmp)
         except OSError:
             pass
-        low = " ".join(errs[-40:]).lower()
-        if "no title found" in low or "no valid title" in low or not enc_seen:
-            raise RuntimeError("Impossible de lire ce DVD : il est peut-être protégé d'une façon que HandBrake ne sait pas lire, ou rayé")
-        raise RuntimeError("Import raté : " + (errs[-1] if errs else "erreur HandBrake"))
-    os.replace(tmp, out)
+        bglog("DVD : HandBrake n'a pas réussi (%s), plan B MakeMKV" % (errs[-1] if errs else "?"))
+        j["pct"] = 0
+        dvd_makemkv(j, drive, out)
+        if j["cancel"]:
+            return
+    else:
+        os.replace(tmp, out)
     j["out"] = [out]
     j["pct"] = 100
     j["msg"] = "Film importé · " + os.path.basename(out)
