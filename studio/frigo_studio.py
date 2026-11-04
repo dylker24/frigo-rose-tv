@@ -747,6 +747,28 @@ def dvd_drives():
         return [{"drive": "F:", "label": lab, "disc": bool(lab)}]
     if not WIN:
         return []
+    # Windows directement (sans PowerShell) : chaque lettre de lecteur de type CD/DVD, avec le nom du disque
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        mask = k32.GetLogicalDrives()
+        res = []
+        for i in range(26):
+            if not mask & (1 << i):
+                continue
+            root = chr(65 + i) + ":\\"
+            if k32.GetDriveTypeW(root) != 5:
+                continue
+            name = ctypes.create_unicode_buffer(261)
+            fs = ctypes.create_unicode_buffer(261)
+            old = k32.SetErrorMode(1)
+            ok = k32.GetVolumeInformationW(root, name, 261, None, None, None, fs, 261)
+            k32.SetErrorMode(old)
+            res.append({"drive": root[:2], "label": name.value if ok else "", "disc": bool(ok)})
+        if res:
+            return res
+    except Exception as e:
+        bglog("DVD : lecteurs (Windows) : %s" % e)
     try:
         out = subprocess.run(["powershell", "-NoProfile", "-Command",
                               "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=5' | ForEach-Object { $_.DeviceID + '|' + $_.VolumeName + '|' + [string]($_.Size -gt 0) }"],
@@ -764,7 +786,8 @@ def dvd_drives():
 def dvd_title(label):
     """« LES_VISITEURS_D1 » → « Les Visiteurs »."""
     t = re.sub(r"[_\.]+", " ", label or "").strip()
-    t = re.sub(r"\b(D(ISC|VD)?\s*\d|PAL|NTSC|FR|FRA|FRENCH|WS|16X9|DVD)\b", "", t, flags=re.I)
+    t = re.sub(r"\b(D(ISC|VD)?\s*\d|PAL|NTSC|FR|FRA|FRANCE|FRENCH|WS|16X9|DVD|SE|ZONE\s*2|R2)\b", "", t, flags=re.I)
+    t = re.sub(r"\b([A-Za-z]{3,})(\d{1,2})\b", r"\1 \2", t)
     t = re.sub(r"\s+", " ", t).strip()
     if t.lower() in ("", "video", "disc", "dvdvolume", "volume", "movie", "film"):
         return "Film DVD"
