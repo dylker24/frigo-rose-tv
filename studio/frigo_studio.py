@@ -940,6 +940,24 @@ def do_dvd(j):
     if not dest:
         raise RuntimeError("Choisis la médiathèque où ranger le film")
     os.makedirs(dest, exist_ok=True)
+    out0 = unique_path(os.path.join(dest, name + ".mp4"))
+    j["title"] = name
+    if makemkv_tool():
+        # MakeMKV installé : c'est lui qui lit le mieux les DVD protégés, on commence par lui
+        try:
+            dvd_makemkv(j, drive, out0)
+            if j["cancel"]:
+                return
+            if os.path.exists(out0):
+                j["out"] = [out0]
+                j["pct"] = 100
+                j["msg"] = "Film importé · " + os.path.basename(out0)
+                if j.get("eject", True):
+                    dvd_eject(drive)
+                return
+        except Exception as e:
+            bglog("DVD : MakeMKV n'a pas réussi (%s), essai avec HandBrake" % e)
+            j["pct"] = 0
     ensure_handbrake(j)
     hb = hb_tool()
     if not os.path.exists(hb) and not shutil.which(hb):
@@ -954,9 +972,13 @@ def do_dvd(j):
     j["msg"] = "Lecture du DVD…"
     p = popen(cmd)
     j["proc"] = p
-    errs, enc_seen = [], False
+    errs, enc_seen, t0 = [], False, time.time()
     for line in p.stdout:
         if j["cancel"]:
+            p.kill()
+            break
+        if not enc_seen and time.time() - t0 > 12 * 60:
+            errs.append("HandBrake bloqué sur la lecture du disque")
             p.kill()
             break
         for part in line.replace("\r", "\n").split("\n"):
