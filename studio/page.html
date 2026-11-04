@@ -62,6 +62,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .btn.ghost:hover{color:var(--ink);background:var(--s2)}
 .acts{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
 .tvm textarea{width:100%;margin-top:12px;resize:vertical;min-height:62px;font:inherit}.tvm-r{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.dvd-st{display:flex;align-items:center;gap:10px;margin:12px 0 4px;padding:12px 14px;border-radius:12px;background:var(--s2);border:1px solid var(--line);font-size:14px}
+.dvd-st .dvd-ico{font-size:20px}.dvd-st.on{border-color:rgba(54,211,153,.45)}.dvd-st b{font-weight:700}
+
 .wt-p{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .wt-p .chip{border:1px solid var(--line);background:none;color:var(--mute);border-radius:99px;padding:5px 11px;font:inherit;font-size:12.5px;cursor:pointer}
 .wt-p .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -347,6 +350,23 @@ html,body{overflow-x:hidden}
       <input type="file" id="up-file" accept="video/*" multiple hidden>
       <div class="acts"><button class="btn pri" id="up-go">Choisir des vidéos…</button></div>
       <div id="up-list"></div>
+    </div>
+
+    <!-- Importer un DVD -->
+    <div class="card" id="v-dvd" style="margin-top:20px">
+      <h1 style="font-size:20px">Importer un DVD</h1>
+      <p class="sub" style="margin-bottom:6px">Mets le film dans le lecteur du PC : Studio trouve le film principal, garde la version française, le convertit en MP4 et l'ajoute à la chaîne choisie. Compte 20 à 40 minutes par film.</p>
+      <div class="dvd-st" id="dvd-st"><span class="dvd-ico">💿</span><span id="dvd-t">Recherche du lecteur…</span></div>
+      <div id="dvd-form" hidden>
+        <div class="row">
+          <div><label class="l">Nom du film</label><input class="inp" id="dvd-name" placeholder="Ex : Les Visiteurs" autocomplete="off"></div>
+          <div><label class="l">Médiathèque</label><select class="inp" id="dvd-dest"></select></div>
+        </div>
+        <label class="l">Mettre sur la chaîne</label><select class="inp tchan" id="dvd-tchan"></select>
+        <label class="chk"><input type="checkbox" id="dvd-eject" checked> Éjecter le DVD à la fin</label>
+        <div class="err" id="dvd-err"></div>
+        <div class="acts"><button class="btn pri" id="dvd-go">Importer le film</button></div>
+      </div>
     </div>
 
     <!-- Abonnements YouTube -->
@@ -646,7 +666,7 @@ const size=n=>n>1e9?(n/1e9).toFixed(1)+" Go":n>1e6?Math.round(n/1e6)+" Mo":Math.
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 function show(v){view=v;document.querySelectorAll("#tabs button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);if(b.dataset.v===v&&b.scrollIntoView)try{b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}catch(e){}});
   $("v-ch").hidden=v!=="ch";if(v==="ch"){loadChannels();loadTvm();loadWatch()}$("v-med").hidden=v!=="med";if(v==="med")loadMed();
-  $("v-up").hidden=v!=="dl";$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
+  $("v-up").hidden=v!=="dl";$("v-dvd").hidden=v!=="dl";if(v==="dl")loadDvd();$("v-subs").hidden=v!=="dl";$("v-pc").hidden=v!=="pc";if(v==="pc")loadPc();
   $("v-dl").hidden=v!=="dl";$("v-conv").hidden=v!=="conv";$("v-auto").hidden=v!=="conv";$("v-set").hidden=v!=="set";$("v-dem").hidden=v!=="dem";
   if(v==="dem")loadDem();
   if(v==="conv"&&!fbData)browse(fbPath||"");if(v==="set")renderSet();
@@ -670,7 +690,7 @@ function bindDest(sel){let prev=sel.value;sel.onfocus=()=>{prev=sel.value};sel.o
   const p=await pickFolder(prev&&prev!=="__pick"?prev:"");if(!p){sel.value=prev;return}
   const f=S.conf.folders||[];if(!f.includes(p)&&!(S.libs||[]).some(l=>l.path===p)){f.push(p);await api("/api/config",{folders:f});S.conf.folders=f}
   destOptions(sel,["cdest","w-dest"].includes(sel.id));sel.value=p;prev=p}}
-bindDest($("dest"));bindDest($("cdest"));bindDest($("w-dest"));bindDest($("up-dest"));bindDest($("sb-dest"));
+bindDest($("dest"));bindDest($("cdest"));bindDest($("w-dest"));bindDest($("up-dest"));bindDest($("dvd-dest"));bindDest($("sb-dest"));
 $("w-dest").addEventListener("change",()=>{if($("w-dest").value!=="__pick")api("/api/watch",{watch_dest:$("w-dest").value}).then(refresh)});
 
 /* téléchargement */
@@ -1101,6 +1121,23 @@ function renderWatch(){
     c.innerHTML=h;box.append(c)});
 }
 document.querySelectorAll("#wt-per .chip").forEach(b=>b.onclick=()=>{WTP=+b.dataset.p;document.querySelectorAll("#wt-per .chip").forEach(x=>x.classList.toggle("on",x===b));renderWatch()});
+
+/* Importer un DVD */
+let DVD={drives:[],lab:"",t:null};
+async function loadDvd(){clearTimeout(DVD.t);if(view!=="dl")return;
+  try{const r=await api("/api/dvd");DVD.drives=r.drives||[]}catch(e){DVD.drives=[]}
+  const d=DVD.drives.find(x=>x.disc)||DVD.drives[0],st=$("dvd-st");
+  const busy=(S&&S.jobs||[]).some(j=>j.dvd&&["attente","en cours"].includes(j.status));
+  if(!DVD.drives.length){$("dvd-t").textContent="Aucun lecteur DVD trouvé sur ce PC · branche-le en USB";st.classList.remove("on");$("dvd-form").hidden=true}
+  else if(!d.disc){$("dvd-t").innerHTML="Lecteur <b>"+esc(d.drive)+"</b> prêt · mets un DVD dedans";st.classList.remove("on");$("dvd-form").hidden=true}
+  else{$("dvd-t").innerHTML="DVD détecté dans <b>"+esc(d.drive)+"</b>"+(d.label?" · "+esc(d.label):"")+(busy?" · import en cours":"");st.classList.add("on");$("dvd-form").hidden=false;
+    if(DVD.lab!==d.drive+d.label){DVD.lab=d.drive+d.label;$("dvd-name").value=d.title&&d.title!=="Film DVD"?d.title:""}}
+  DVD.t=setTimeout(loadDvd,6000)}
+setTimeout(loadDvd,1500);
+$("dvd-go").onclick=async()=>{const d=DVD.drives.find(x=>x.disc);$("dvd-err").textContent="";if(!d){$("dvd-err").textContent="Mets un DVD dans le lecteur";return}
+  const name=$("dvd-name").value.trim();if(!name){$("dvd-err").textContent="Écris le nom du film (il sert à trouver l'affiche)";$("dvd-name").focus();return}
+  const dest=$("dvd-dest").value;if(!dest||dest==="__pick"){$("dvd-err").textContent="Choisis la médiathèque";return}
+  try{await api("/api/media/dvd",{drive:d.drive,name,dest,tchan:$("dvd-tchan").value,eject:$("dvd-eject").checked});alertMsg("C'est parti · « "+name+" » s'importe, suis l'avancée dans la file d'attente");refresh();loadDvd()}catch(e){$("dvd-err").textContent=e.message}};
 /* Message sur les télés */
 async function loadTvm(){try{const r=await api("/api/tvmsg");const m=r.message;const on=m&&m.text&&(!m.until||Date.now()<m.until);
   $("tvm-clear").hidden=!on;$("tvm-s").textContent=on?"En ce moment : « "+m.text.slice(0,60)+(m.text.length>60?"…":"")+" »":"S'affiche en haut de l'écran, sur toutes les télés";
@@ -1340,7 +1377,7 @@ function pickChannel(){return new Promise(async res=>{if(!CH.list)await loadChan
 /* listes « Mettre sur la chaîne » des formulaires : la chaîne qui porte le nom de la médiathèque est choisie toute seule */
 function fillTchan(){document.querySelectorAll("select.tchan").forEach(sel=>{const v=sel.value,h='<option value="">Aucune (je m\'en occupe plus tard)</option>'+(CH.list||[]).map(c=>'<option value="'+esc(c.id)+'">n°'+c.number+' · '+esc(c.name)+'</option>').join("");
   if(sel.dataset.h!==h){sel.innerHTML=h;sel.dataset.h=h;sel.value=v;if(!sel.dataset.touched)autoTchan(sel)}})}
-const destFor={tchan:"dest","up-tchan":"up-dest","sb-tchan":"sb-dest"};
+const destFor={tchan:"dest","up-tchan":"up-dest","sb-tchan":"sb-dest","dvd-tchan":"dvd-dest"};
 function autoTchan(sel){const d=$(destFor[sel.id]);if(!d||!CH.list)return;const p=d.value||"";const lib=(S.libs||[]).find(l=>p&&(p===l.path||p.startsWith(l.path+"\\")||p.startsWith(l.path+"/")));
   const name=lib?lib.name:p.split(/[\\/]/).filter(Boolean).pop()||"";const c=CH.list.find(c=>sameName(c.name,name));sel.value=c?c.id:""}
 document.querySelectorAll("select.tchan").forEach(sel=>{sel.addEventListener("change",()=>{sel.dataset.touched=1});const d=$(destFor[sel.id]);if(d)d.addEventListener("change",()=>{delete sel.dataset.touched;autoTchan(sel)})});
@@ -1396,7 +1433,7 @@ async function refresh(){
   const s=S.setup;$("setup").hidden=s.ready&&!s.error;$("setup-t").textContent=s.error||s.step||"Préparation des outils…";$("setup-b").style.width=(s.pct||0)+"%";
   const st=$("status");st.className="status"+(s.error?" bad":s.ready?" ok":"");st.lastChild.textContent=s.error?"Problème":s.ready?(S.conf.has_key&&!S.jf_error?"Prêt · relié à Jellyfin":"Prêt"):"Préparation…";
   $("go-dl").disabled=!s.ready;$("phone-btn").hidden=!S.phone||S.remote;
-  destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);destOptions($("up-dest"),false);destOptions($("sb-dest"),false);renderSubs();if(CH.list)document.querySelectorAll("select.tchan").forEach(sel=>{if(!sel.dataset.touched)autoTchan(sel)});
+  destOptions($("dest"),false);destOptions($("cdest"),true);destOptions($("w-dest"),true);destOptions($("up-dest"),false);destOptions($("dvd-dest"),false);destOptions($("sb-dest"),false);renderSubs();if(CH.list)document.querySelectorAll("select.tchan").forEach(sel=>{if(!sel.dataset.touched)autoTchan(sel)});
   $("up-h").textContent=S.remote?"Envoyer des vidéos de ton téléphone":"Envoyer des vidéos de cet appareil";renderAuto();renderJobs();if(view==="set")renderSet()}
 try{quality=localStorage.getItem("frs_q")||"1080"}catch(e){}
 document.querySelectorAll("#qual button").forEach(b=>b.addEventListener("click",()=>{try{localStorage.setItem("frs_q",quality)}catch(e){}}));

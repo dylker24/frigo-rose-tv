@@ -733,6 +733,160 @@ def do_merge(j):
     j["msg"] = "Terminé · %d parties assemblées en une vidéo de %s" % (len(srcs), "%d h %02d" % (total // 3600, total % 3600 // 60) if total >= 3600 else "%d min" % (total // 60))
 
 
+
+# ---------------------------------------------------------------- Importer un DVD (film) : HandBrake trouve le film principal et le convertit en MP4
+HB_ZIP = "https://github.com/HandBrake/HandBrake/releases/download/1.8.2/HandBrakeCLI-1.8.2-win-x86_64.zip"
+DVDCSS = ["https://download.videolan.org/pub/libdvdcss/1.4.3/win64/libdvdcss-2.dll", "https://download.videolan.org/pub/libdvdcss/1.2.11/win64/libdvdcss-2.dll"]
+HB_DIR = os.path.join(BIN, "handbrake")
+
+
+def dvd_drives():
+    """Lecteurs DVD de ce PC, avec le nom du disque s'il y en a un."""
+    if os.environ.get("FRS_FAKE_DVD"):
+        lab = os.environ["FRS_FAKE_DVD"]
+        return [{"drive": "F:", "label": lab, "disc": bool(lab)}]
+    if not WIN:
+        return []
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=5' | ForEach-Object { $_.DeviceID + '|' + $_.VolumeName + '|' + [string]($_.Size -gt 0) }"],
+                             capture_output=True, text=True, timeout=15, creationflags=NOWIN).stdout
+    except Exception:
+        return []
+    res = []
+    for line in out.splitlines():
+        parts = line.strip().split("|")
+        if len(parts) >= 3 and parts[0]:
+            res.append({"drive": parts[0], "label": parts[1], "disc": parts[2].strip().lower() == "true"})
+    return res
+
+
+def dvd_title(label):
+    """« LES_VISITEURS_D1 » → « Les Visiteurs »."""
+    t = re.sub(r"[_\.]+", " ", label or "").strip()
+    t = re.sub(r"\b(D(ISC|VD)?\s*\d|PAL|NTSC|FR|FRA|FRENCH|WS|16X9|DVD)\b", "", t, flags=re.I)
+    t = re.sub(r"\s+", " ", t).strip()
+    if t.lower() in ("", "video", "disc", "dvdvolume", "volume", "movie", "film"):
+        return "Film DVD"
+    small = {"de", "du", "des", "la", "le", "les", "et", "a", "au", "aux", "en", "l", "d"}
+    w = [x.lower() for x in t.split()]
+    return " ".join(x if (i and x in small) else x[:1].upper() + x[1:] for i, x in enumerate(w)) or "Film DVD"
+
+
+def hb_tool():
+    exe = os.path.join(HB_DIR, "HandBrakeCLI.exe" if WIN else "HandBrakeCLI")
+    if not WIN and not os.path.exists(exe):
+        return shutil.which("HandBrakeCLI") or exe
+    return exe
+
+
+def ensure_handbrake(j):
+    """Une seule fois : HandBrake (en ligne de commande) et de quoi lire les DVD du commerce."""
+    if not WIN:
+        return
+    os.makedirs(HB_DIR, exist_ok=True)
+    get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "FrigoRoseStudio/" + VERSION}), timeout=120).read()
+    if not os.path.exists(os.path.join(HB_DIR, "HandBrakeCLI.exe")):
+        j["msg"] = "Préparation de l'import DVD (une seule fois)…"
+        z = zipfile.ZipFile(io.BytesIO(get(HB_ZIP)))
+        for m in z.namelist():
+            b = m.rsplit("/", 1)[-1]
+            if b.lower().endswith((".exe", ".dll")):
+                with z.open(m) as src, open(os.path.join(HB_DIR, b), "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+    if not os.path.exists(os.path.join(HB_DIR, "libdvdcss-2.dll")):
+        for u in DVDCSS:
+            try:
+                data = get(u)
+                if len(data) > 20000:
+                    with open(os.path.join(HB_DIR, "libdvdcss-2.dll"), "wb") as f:
+                        f.write(data)
+                    break
+            except Exception:
+                continue
+
+
+def dvd_eject(drive):
+    if not WIN or not drive:
+        return
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command",
+                        "(New-Object -ComObject Shell.Application).Namespace(17).ParseName('%s').InvokeVerb('Eject')" % drive.rstrip("\\")],
+                       timeout=20, creationflags=NOWIN)
+    except Exception:
+        pass
+
+
+def do_dvd(j):
+    drive = (j.get("drive") or "").rstrip("\\")
+    name = safe_name(j.get("name") or "Film DVD")
+    dest = j.get("dest") or ""
+    if not dest:
+        raise RuntimeError("Choisis la médiathèque où ranger le film")
+    os.makedirs(dest, exist_ok=True)
+    ensure_handbrake(j)
+    hb = hb_tool()
+    if not os.path.exists(hb) and not shutil.which(hb):
+        raise RuntimeError("HandBrake introuvable")
+    out = unique_path(os.path.join(dest, name + ".mp4"))
+    tmp = out[:-4] + ".dvd-en-cours.mp4"
+    enc = ["-e", "nvenc_h264", "-q", "24"] if setup.get("nvenc") else ["-e", "x264", "--encoder-preset", "veryfast", "-q", "21"]
+    cmd = [hb, "-i", (drive + "\\") if WIN else drive, "--main-feature", "-o", tmp, "-Z", "Fast 576p25", "-f", "av_mp4", "--optimize"] + enc + \
+          ["-E", "av_aac", "-B", "160", "--mixdown", "stereo", "--audio-lang-list", "fra,fre,und", "--first-audio",
+           "-s", "scan", "-F", "--subtitle-burned"]
+    j["title"] = name
+    j["msg"] = "Lecture du DVD…"
+    p = popen(cmd)
+    j["proc"] = p
+    errs, enc_seen = [], False
+    for line in p.stdout:
+        if j["cancel"]:
+            p.kill()
+            break
+        for part in line.replace("\r", "\n").split("\n"):
+            part = part.strip()
+            m = re.search(r"Encoding: task \d+ of \d+, ([\d.]+) %(?:.*ETA ([\dhms]+))?", part)
+            if m:
+                enc_seen = True
+                j["pct"] = min(99.0, float(m.group(1)))
+                eta = re.match(r"(\d+)h(\d+)m", m.group(2) or "")
+                left = "" if not eta else (("reste %d h %02d" % (int(eta.group(1)), int(eta.group(2)))) if int(eta.group(1)) else "reste %d min" % max(1, int(eta.group(2))))
+                j["msg"] = "Conversion du film… " + left
+            elif part and not part.startswith("Encoding"):
+                errs.append(part)
+                if "scanning title" in part.lower() or "scan:" in part.lower():
+                    j["msg"] = "Recherche du film sur le disque…"
+    p.wait()
+    if j["cancel"]:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return
+    if p.returncode != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) < 50 * 1024 * 1024:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        low = " ".join(errs[-40:]).lower()
+        if "no title found" in low or "no valid title" in low or not enc_seen:
+            raise RuntimeError("Impossible de lire ce DVD : il est peut-être protégé d'une façon que HandBrake ne sait pas lire, ou rayé")
+        raise RuntimeError("Import raté : " + (errs[-1] if errs else "erreur HandBrake"))
+    os.replace(tmp, out)
+    j["out"] = [out]
+    j["pct"] = 100
+    j["msg"] = "Film importé · " + os.path.basename(out)
+    if j.get("eject", True):
+        dvd_eject(drive)
+
+
+def dvd_import(drive, name, dest, tchan="", eject=True):
+    if any(x.get("dvd") and x["status"] in ("attente", "en cours") and x.get("drive") == drive for x in jobs):
+        raise RuntimeError("Ce DVD est déjà en cours d'import")
+    nm = re.sub(r"\s+", " ", (name or "").strip()) or "Film DVD"
+    return new_job("conv", dvd=True, drive=drive, name=nm, title=nm, dest=dest, tchan=tchan, eject=eject, src="")["id"]
+
+
 def media_merge(paths, name=""):
     paths = [x for x in paths if x]
     if len(paths) < 2:
@@ -747,6 +901,8 @@ def media_merge(paths, name=""):
 def do_convert(j):
     if j.get("merge"):
         return do_merge(j)
+    if j.get("dvd"):
+        return do_dvd(j)
     src = j["src"]
     if not os.path.isfile(src):
         raise RuntimeError("Fichier introuvable")
@@ -3505,6 +3661,11 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/dvd" and self.authed():
+            ds = dvd_drives()
+            for d in ds:
+                d["title"] = dvd_title(d["label"]) if d["disc"] else ""
+            return self.send(200, {"drives": ds})
         if u.path == "/api/watch" and self.authed():
             try:
                 return self.send(200, {"watch": fb("/watch") or {}, "hidden": [k for k, v in (fb("/profsync") or {}).items() if isinstance(v, dict) and v.get("hidden")]})
@@ -3749,6 +3910,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"results": media_idsearch(b.get("id") or "", b.get("kind") or "", b.get("q") or "", b.get("year") or "")})
                 if act == "idapply":
                     return self.send(200, {"ok": media_idapply(b.get("id") or "", b.get("result"), b.get("lib") or "", bool(b.get("keep")))})
+                if act == "dvd":
+                    return self.send(200, {"job": dvd_import(b.get("drive") or "", b.get("name") or "", b.get("dest") or "", b.get("tchan") or "", b.get("eject", True) is not False)})
                 if act == "merge":
                     return self.send(200, {"job": media_merge(b.get("paths") or [], b.get("name") or ""), "name": merge_name(sorted(b.get("paths") or []))})
                 if act == "mergename":
