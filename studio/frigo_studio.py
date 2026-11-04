@@ -896,7 +896,7 @@ def dvd_makemkv(j, drive, out):
     if not mk:
         raise RuntimeError("Ce DVD est trop protégé pour la méthode simple. Installe MakeMKV (gratuit, makemkv.com) sur le PC puis relance l'import : Studio s'en servira tout seul")
     j["msg"] = "Analyse du DVD avec MakeMKV (quelques minutes)…"
-    src = "dev:" + drive.upper().rstrip(":\\") + ":"  # le lecteur directement, sans faire le tour de tous les lecteurs
+    src = "disc:" + str(j.get("mkv_disc", 0))  # premier lecteur DVD (MakeMKV numérote les lecteurs à partir de 0)
     p = subprocess.Popen([mk, "-r", "--minlength=3000", "--progress=-same", "info", src], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=NOWIN)
     j["proc"] = p
