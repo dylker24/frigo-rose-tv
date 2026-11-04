@@ -1279,7 +1279,7 @@ def do_download(j):
     sub = (j.get("sub") or "").strip()
     folder = os.path.join(dest, sub) if sub else dest
     if j.get("playlist"):
-        tpl = os.path.join(folder, "%(playlist_title)s" if not sub else "", "%(playlist_index)02d - %(title)s.%(ext)s")
+        tpl = os.path.join(folder, "%(playlist_title)s" if (not sub and j.get("pl_folder", True)) else "", "%(playlist_index)02d - %(title)s.%(ext)s")
     else:
         tpl = os.path.join(folder, "%(title)s.%(ext)s")
     cmd = [tool("yt-dlp"), "--newline", "--no-colors", "--encoding", "utf-8", "--ffmpeg-location", os.path.dirname(tool("ffmpeg")),
@@ -3853,6 +3853,16 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"items": trash_list()})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/plinfo" and self.authed():
+            url = (parse_qs(u.query).get("url") or [""])[0]
+            try:
+                r = subprocess.run([tool("yt-dlp"), "--flat-playlist", "-J", "--no-warnings", "--encoding", "utf-8", "--yes-playlist", "--playlist-end", "1000", url],
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, creationflags=NOWIN, env=run_env())
+                d = json.loads(r.stdout or "{}")
+                ents = [e for e in (d.get("entries") or []) if e]
+                return self.send(200, {"title": d.get("title") or "", "count": len(ents) or d.get("playlist_count") or 0, "channel": d.get("channel") or d.get("uploader") or ""})
+            except Exception as e:
+                return self.send(400, {"error": str(e)})
         if u.path == "/api/dvd" and self.authed():
             ds = dvd_drives()
             for d in ds:
@@ -3986,7 +3996,7 @@ class H(BaseHTTPRequestHandler):
             if not dest:
                 return self.send(400, {"error": "Choisis où ranger la vidéo"})
             pl = bool(b.get("playlist")) if b.get("playlist") is not None else is_playlist(url)
-            j = new_job("dl", url=url, dest=dest, quality=b.get("quality") or "1080", sub=b.get("sub") or "", playlist=pl, thumb=bool(b.get("thumb", True)),
+            j = new_job("dl", url=url, dest=dest, quality=b.get("quality") or "1080", sub=b.get("sub") or "", playlist=pl, pl_folder=b.get("pl_folder", True) is not False, thumb=bool(b.get("thumb", True)),
                         title=(b.get("title") or url), req=(b.get("req") or "") if re.fullmatch(r"[-\w]{1,64}", b.get("req") or "") else "", req_title=b.get("req_title") or "",
                         tchan=b.get("tchan") or "")
             conf["last_dest"] = dest
