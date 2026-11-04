@@ -895,23 +895,35 @@ def dvd_makemkv(j, drive, out):
     mk = makemkv_tool()
     if not mk:
         raise RuntimeError("Ce DVD est trop protégé pour la méthode simple. Installe MakeMKV (gratuit, makemkv.com) sur le PC puis relance l'import : Studio s'en servira tout seul")
-    j["msg"] = "Analyse du DVD avec MakeMKV…"
-    r = subprocess.run([mk, "-r", "--cache=1", "info", "disc:9999"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, creationflags=NOWIN)
-    idx = None
-    for line in r.stdout.splitlines():
-        if line.startswith("DRV:"):
-            f = line[4:].split(",")
-            if len(f) >= 7 and drive.upper().rstrip(":\\") + ":" in f[6].upper() and f[1] != "256":
-                idx = f[0]
-    if idx is None:
-        idx = "0"
-    r = subprocess.run([mk, "-r", "--minlength=3000", "info", "disc:" + idx], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600, creationflags=NOWIN)
+    j["msg"] = "Analyse du DVD avec MakeMKV (quelques minutes)…"
+    src = "dev:" + drive.upper().rstrip(":\\") + ":"  # le lecteur directement, sans faire le tour de tous les lecteurs
+    p = subprocess.Popen([mk, "-r", "--minlength=3000", "--progress=-same", "info", src], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=NOWIN)
+    j["proc"] = p
+    lines, t0 = [], time.time()
+    for line in p.stdout:
+        lines.append(line.rstrip())
+        if j["cancel"] or time.time() - t0 > 25 * 60:
+            p.kill()
+            break
+        m = re.match(r"PRGV:(\d+),(\d+),(\d+)", line)
+        if m and int(m.group(3)):
+            j["msg"] = "Analyse du DVD avec MakeMKV… %d %%" % (100 * int(m.group(2)) / int(m.group(3)))
+    p.wait()
+    if j["cancel"]:
+        return
+    idx = src
+
+    class _R:
+        stdout = "\n".join(lines)
+    r = _R()
     titles = {}
     for line in r.stdout.splitlines():
         m = re.match(r'TINFO:(\d+),(\d+),\d+,"(.*)"', line)
         if m:
             titles.setdefault(m.group(1), {})[m.group(2)] = m.group(3)
     if not titles:
+        bglog("DVD : MakeMKV dit : " + " | ".join(l[4:].split(",", 3)[-1][:160] for l in lines if l.startswith("MSG:"))[-600:])
         low = r.stdout.lower()
         if "evaluation period" in low or "registration key" in low:
             raise RuntimeError("MakeMKV demande sa clé gratuite : ouvre MakeMKV, menu Aide → Enregistrer, et colle la clé bêta publiée sur makemkv.com")
@@ -921,7 +933,7 @@ def dvd_makemkv(j, drive, out):
     tdir = out[:-4] + ".dvd-copie"
     os.makedirs(tdir, exist_ok=True)
     j["msg"] = "Copie du film depuis le DVD…"
-    p = subprocess.Popen([mk, "-r", "--progress=-same", "mkv", "disc:" + idx, best[0], tdir], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    p = subprocess.Popen([mk, "-r", "--progress=-same", "mkv", idx, best[0], tdir], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=NOWIN)
     j["proc"] = p
     for line in p.stdout:
