@@ -418,6 +418,11 @@ def refresh_soon(j):
             ok = jf_refresh()
             # envoyé depuis la Médiathèque : la chaîne suit sa médiathèque (ajouts + nettoyage), avec le bandeau de suivi
             sy = {l["name"] for x in js if x.get("sync") for f in (x.get("out") or []) for l in jf_cache["libs"] if _inside(f, [l["path"]])}
+            for x in js:
+                if x.get("trash_src") and x.get("out") and x.get("status") != "erreur":
+                    for l in jf_cache["libs"]:
+                        if _inside(x["out"][0], [l["path"]]):
+                            CONV_DONE[l["name"]] = CONV_DONE.get(l["name"], 0) + 1
             if sy:
                 follow_libs(sorted(sy))
             for x in js:
@@ -3182,6 +3187,8 @@ def media_pending():
 
 # ---------------------------------------------------------------- la chaîne suit sa médiathèque
 SYNC = {}          # nom de médiathèque -> {"step", "t", "done", "msg"}
+k_retry = {}
+CONV_DONE = {}     # nom de médiathèque -> nombre de vidéos converties (l'ancienne version a disparu) depuis la dernière mise à jour de la chaîne
 _sync_lock = threading.Lock()
 
 
@@ -3233,11 +3240,34 @@ def follow_libs(names):
                 time.sleep(float(os.environ.get("FRS_SYNC_TN", "15")))
             _sync_set(name, step="Mise à jour de la chaîne…")
             a, r = sync_lib_channel(name)
+            # vidéos converties : l'ancienne version (fichier parti à la corbeille) est retirée de la chaîne, la nouvelle vient d'être ajoutée
+            k = CONV_DONE.pop(name, 0)
+            if k:
+                try:
+                    c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
+                    if c:
+                        g = channel_ghosts(tn_programming(c["id"]))
+                        if 0 < len(g) <= k + 2:
+                            r, titles = remove_ghosts(c["id"])
+                            bglog("conversion : %d ancienne(s) version(s) retirée(s) de %s : %s" % (r, name, ", ".join(titles[:5])))
+                        elif g:
+                            bglog("conversion : %d fantôme(s) sur %s pour %d conversion(s), je ne touche à rien" % (len(g), name, k))
+                        elif not k_retry.get(name):
+                            # Jellyfin n'a pas encore vu disparaître l'ancien fichier : on revient voir dans 3 min
+                            k_retry[name] = 1
+                            CONV_DONE[name] = CONV_DONE.get(name, 0) + k
+                            t = threading.Timer(180, follow_libs, args=([name],))
+                            t.daemon = True
+                            t.start()
+                        else:
+                            k_retry.pop(name, None)
+                except Exception as e:
+                    bglog("conversion : nettoyage de %s : %s" % (name, e))
             parts = []
             if a:
                 parts.append("%d ajouté%s" % (a, "s" if a > 1 else ""))
             if r:
-                parts.append("%d retiré%s" % (r, "s" if r > 1 else ""))
+                parts.append("%d ancienne%s version%s remplacée%s" % (r, "s" if r > 1 else "", "s" if r > 1 else "", "s" if r > 1 else ""))
             _sync_set(name, step="", done=True, msg="Chaîne à jour" + (" · " + ", ".join(parts) if parts else ""))
             _health["data"] = None
         except Exception as e:
