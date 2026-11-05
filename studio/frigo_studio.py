@@ -290,6 +290,14 @@ def plan_conversion(info):
         vf = []
         if v.get("codec_name") == "mpeg2video":
             vf.append("bwdif=mode=0:deint=interlaced")  # DVD : on enlève les lignes entrelacées
+        if h > 1088:
+            vf.append("scale=-2:1080:flags=lanczos")  # 4K → 1080p : bien assez pour la télé, et 4 fois plus léger
+            notes.append("ramené en 1080p")
+            w, h = 0, 1080
+        if (v.get("color_transfer") or "") in ("smpte2084", "arib-std-b67"):
+            # HDR → couleurs normales (sinon l'image paraît délavée sur la télé)
+            vf.append("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
+            notes.append("HDR converti en couleurs normales")
         if w % 2 or h % 2:
             vf.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
         if vf:
