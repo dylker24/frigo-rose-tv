@@ -1392,7 +1392,7 @@ async function openPick(){
   PK.ch=ch;PK.items=[];PK.i=0;PK.open=true;$("pick").hidden=false;$("pk-ch").textContent="n°"+(ch.num||cur+1)+" · "+ch.name;
   $("pk-left").textContent="";$("pk-note").textContent="Je regarde ce qui passe sur la chaîne…";$("pk-list").textContent="";hideUI&&hideUI();
   let r=null;
-  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(studioBase()+"/tv/lineup?num="+encodeURIComponent(ch.num||cur+1),{signal:ac.signal});clearTimeout(tt);r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(studioBase()+"/tv/lineup?num="+encodeURIComponent(ch.num||cur+1),{signal:ac.signal});clearTimeout(tt);if(res.status===404)r={error:"Studio n'est pas à jour sur le PC : mets-le à jour pour choisir la suite"};else r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
   catch(e){if(PK.open&&PK.ch===ch)$("pk-note").textContent=r&&r.error?r.error:"Pour choisir la suite, Frigo Rosé Studio doit être ouvert sur le PC";return}
   if(!PK.open||PK.ch!==ch)return;
   PK.items=r.items||[];$("pk-left").textContent=r.left?"le programme en cours finit dans "+dur(r.left):"";
@@ -1444,7 +1444,7 @@ function replayItems(){
 }
 async function playReplay(it){
   clearTimeout(prevT);const base=studioBase();let r=null;toast("Je lance le replay…",4000);
-  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(base+"/tv/replay/play?ext="+encodeURIComponent(it.rp.ext),{signal:ac.signal});clearTimeout(tt);r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(base+"/tv/replay/play?ext="+encodeURIComponent(it.rp.ext),{signal:ac.signal});clearTimeout(tt);if(res.status===404)r={error:"Studio n'est pas à jour sur le PC : mets-le à jour pour le replay"};else r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
   catch(e){toast(r&&r.error?r.error:"Pour le replay, Frigo Rosé Studio doit être ouvert sur le PC",5000);return}
   closePanel();
   if(it.i!==cur){try{if(channels[cur])releaseChannel(channels[cur])}catch(e){}cur=it.i}
