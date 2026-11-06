@@ -2194,8 +2194,10 @@ def tv_startover(num):
     if cur.get("type") != "content" or not cur.get("ext"):
         raise RuntimeError("Ce programme ne peut pas être repris au début")
     jid = str(cur["ext"]).replace("-", "")
-    q = urlencode({"MediaSourceId": jid, "VideoCodec": "h264", "AudioCodec": "aac",
-                   "TranscodingMaxAudioChannels": 2, "MaxStreamingBitrate": 8000000, "MaxWidth": 1920, "SegmentContainer": "ts",
+    # le fichier tel quel quand c'est possible (H.264 : copie, qualité d'origine), sinon conversion en bonne qualité
+    q = urlencode({"MediaSourceId": jid, "VideoCodec": "h264", "AudioCodec": "aac", "AllowVideoStreamCopy": "true", "AllowAudioStreamCopy": "true",
+                   "TranscodingMaxAudioChannels": 2, "MaxStreamingBitrate": 40000000, "VideoBitrate": 12000000, "AudioBitrate": 192000,
+                   "MaxWidth": 1920, "SegmentContainer": "ts",
                    "MinSegments": 1, "BreakOnNonKeyFrames": "true", "DeviceId": "frigo-rose-tv", "PlaySessionId": uuid.uuid4().hex})
     port = urlparse(_fast(conf["jellyfin_url"])).port or 8096
     return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "proxy": "/tv/jf/Videos/%s/master.m3u8?%s" % (jid, q), "port": port, "title": cur.get("title") or "",
