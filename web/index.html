@@ -708,6 +708,17 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 
 /* « Depuis le début » : la pastille ne s'affiche qu'avec le bandeau, pas par-dessus le film */
 body.idle .sopill{opacity:0}
+/* Thèmes à débloquer : 10 h sur une chaîne = le thème aux couleurs de la chaîne */
+.unl{margin-top:.9rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem}
+.unl .u{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:.7rem;background:rgba(255,255,255,.05);font-size:.88rem}
+.unl .u .sw{flex:none;width:1.4rem;height:1.4rem;border-radius:.45rem;display:grid;place-items:center;font-size:.75rem}
+.unl .u b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unl .u div{flex:1;min-width:0}
+.unl .u small{color:var(--mute,#a4a2ad);font-size:.78rem}
+.unl .u .pb{height:.22rem;border-radius:.2rem;background:rgba(255,255,255,.12);margin-top:.25rem;overflow:hidden}.unl .u .pb i{display:block;height:100%;background:var(--accent-t)}
+.unl .u.ok{background:rgba(var(--accent-rgb),.16)}
+.unl .h{grid-column:1/-1;font:800 .72rem var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--mute,#a4a2ad);margin-top:.2rem}
+
 /* « Choisir la suite » : le programme qui passe juste après sur la chaîne */
 .pick{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(6,6,9,.72)}
 .pk-box{width:min(46rem,90vw);max-height:84vh;display:flex;flex-direction:column;background:#141418;border:1px solid rgba(255,255,255,.08);border-radius:1.4rem;padding:1.6rem 1.6rem 1.2rem;box-shadow:0 2rem 5rem rgba(0,0,0,.55)}
@@ -878,6 +889,7 @@ body.vpause #video{visibility:hidden}
       <div class="fld"><label id="s-theme-l">Thème</label>
         <div class="logo-row"><button class="btn" id="s-theme"></button><button class="btn" id="s-fest"></button></div>
         <small>La couleur de l'appli et la déco des fêtes, pour le profil en cours. En automatique, la déco s'allume toute seule à Halloween, Noël, au Nouvel an et à la Saint-Valentin.</small>
+        <div class="unl" id="s-unl"></div>
       </div>
       <div class="fld"><label>Format d'image</label>
         <div class="logo-row"><button class="btn" id="s-fit"></button></div>
@@ -1631,6 +1643,43 @@ function rcRun(v){
   }catch(e){}
   rcSoon();
 }
+
+/* ================= Thèmes à débloquer : 10 h sur une chaîne débloquent le thème à ses couleurs ================= */
+const UNL_H=10;let WATCHED={},WATCHED_P="",WATCHED_T=0;
+function loadWatched(force){
+  if(!fdb||demo||!profile)return;if(!force&&WATCHED_P===profile.id&&Date.now()-WATCHED_T<5*60000)return;
+  const pid=profile.id;WATCHED_T=Date.now();
+  try{fdb.ref("frigorosetv/watch/"+pid+"/ch").once("value").then(sn=>{if(!profile||profile.id!==pid)return;WATCHED=sn.val()||{};WATCHED_P=pid;checkUnlocks();if(screen==="settings")renderUnl()}).catch(()=>{})}catch(e){}
+}
+function watchedSec(ch){const k=wtKey(ch.name),a=profile&&WT.acc[profile.id];return ((WATCHED[k]&&WATCHED[k].s)||0)+((a&&a.ch[k]&&a.ch[k].s)||0)}
+function hasUnl(ch){return ((profile&&profile.unl)||[]).some(u=>u.k===wtKey(ch.name))}
+function themeColorFor(ch){
+  const fb=chColor(ch),norm=rgb=>{let [r,g,b]=rgb;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+    if(mx-mn<40)return fb; // logo gris ou noir et blanc : couleur de la chaîne
+    if(mx<120){const f=150/mx;r*=f;g*=f;b*=f} // trop sombre : on éclaircit
+    return "#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("")};
+  if(ZC.get(ch.id))return Promise.resolve(norm(ZC.get(ch.id)));
+  if(!ch.logo)return Promise.resolve(fb);
+  return logoSmall(ch.logo).then(src=>src?ambFrom(src):null).then(rgb=>rgb?norm(rgb):fb).catch(()=>fb);
+}
+function checkUnlocks(){
+  if(!profile||WATCHED_P!==profile.id)return;
+  channels.forEach(ch=>{if(hasUnl(ch)||watchedSec(ch)<UNL_H*3600)return;
+    const k=wtKey(ch.name);profile.unl=(profile.unl||[]).filter(u=>u.k!==k);profile.unl.push({k,name:ch.name,a:fb0(ch)});
+    themeColorFor(ch).then(a=>{const u=(profile.unl||[]).find(x=>x.k===k);if(u)u.a=a;profile.theme="ch:"+k;saveProfiles();applyTheme();
+      showTvMsg({text:"🏆 Thème « "+ch.name+" » débloqué ! "+UNL_H+" h passées sur la chaîne. L'appli est maintenant à ses couleurs · change-le quand tu veux dans Réglages → Thème",from:"Frigo Rosé TV",at:Date.now(),until:Date.now()+15000})})})
+}
+function fb0(ch){return chColor(ch)}
+function renderUnl(){
+  const box=$("s-unl");if(!box)return;box.textContent="";if(!profile||demo)return;
+  const L=channels.map(ch=>({ch,s:watchedSec(ch),ok:hasUnl(ch)})).filter(x=>x.ok||x.s>=600).sort((a,b)=>(b.ok-a.ok)||(b.s-a.s)).slice(0,9);
+  box.append(el("div","h",L.length?"Thèmes à débloquer · "+UNL_H+" h sur une chaîne":"Regarde "+UNL_H+" h une chaîne pour débloquer son thème"));
+  L.forEach(x=>{const u=el("div","u"+(x.ok?" ok":""));const sw=el("span","sw",x.ok?"✓":"🔒");const un=(profile.unl||[]).find(v=>v.k===wtKey(x.ch.name));sw.style.background=x.ok&&un?un.a:"rgba(255,255,255,.1)";
+    const d=el("div");d.append(el("b",null,x.ch.name),el("small",null,x.ok?"Débloqué":dur(x.s*1000)+" / "+UNL_H+" h"));
+    if(!x.ok){const pb=el("div","pb"),i=el("i");i.style.width=Math.min(100,x.s/(UNL_H*36))+"%";pb.append(i);d.append(pb)}
+    u.append(sw,d);box.append(u)});
+}
+setInterval(()=>{loadWatched();checkUnlocks()},60000);
 /* ================= Habillage des chaînes ================= */
 const ID={shown:{},t:null,on:false};
 function identsOn(){return LS.get("frtv_idents","1")!=="0"}
@@ -2462,7 +2511,7 @@ document.addEventListener("click",e=>{if(screen==="profiles"||screen==="pedit")d
 /* Profils en ligne : les mêmes sur toutes les télés (chez toi, chez tes beaux-parents…)
    et gardés même si on réinstalle l'appli. Firebase : frigorosetv/profsync/<id> */
 const PSIG={};let profSyncOn=false,profPushT=null;
-function profCloud(p){const o={id:p.id,name:p.name,av:p.av||0,up:p.up||0};if(p.pic)o.pic=p.pic;if(p.img)o.img=p.img;if(p.fest)o.fest=p.fest;if(Array.isArray(p.favs))o.favs=p.favs.slice(0,200);if(Array.isArray(p.recent))o.recent=p.recent.slice(0,12);if(p.reqSeen)o.reqSeen=p.reqSeen;if(p.voice)o.voice=true;if(p.vivid)o.vivid=true;return o}
+function profCloud(p){const o={id:p.id,name:p.name,av:p.av||0,up:p.up||0};if(p.pic)o.pic=p.pic;if(p.img)o.img=p.img;if(p.fest)o.fest=p.fest;if(Array.isArray(p.favs))o.favs=p.favs.slice(0,200);if(Array.isArray(p.recent))o.recent=p.recent.slice(0,12);if(p.reqSeen)o.reqSeen=p.reqSeen;if(p.voice)o.voice=true;if(p.vivid)o.vivid=true;if(p.theme)o.theme=p.theme;if(Array.isArray(p.unl))o.unl=p.unl.slice(0,60);return o}
 function profSig(p){const o=profCloud(p);delete o.up;return JSON.stringify(o)}
 function pushCloudProfiles(){
   clearTimeout(profPushT);profPushT=setTimeout(()=>{
@@ -2630,7 +2679,8 @@ function renderSettings(){
   $("s-warm").textContent=warmOn()?"Activé":"Désactivé";
   $("s-ident").textContent=identsOn()?"Activé":"Désactivé";
   $("s-fit").textContent=fitLabel();
-  const th=curTheme();$("s-theme").innerHTML='<span class="thm-dot" style="background:'+th.a+'"></span>'+th.name;
+  const th=curTheme();$("s-theme").innerHTML='<span class="thm-dot" style="background:'+th.a+'"></span>'+(th.chan?"🏆 ":"")+th.name;
+  try{renderUnl()}catch(e){}
   $("s-fest").textContent="Déco : "+FESTS_LABEL[festPref()];
   {const o=LS.get("frtv_lite","");$("s-lite").textContent=o==="1"?"Activé":o==="0"?"Désactivé":"Automatique ("+(LITE?"activé":"désactivé")+")"}
   $("s-theme-l").textContent=profile?"Thème de "+profile.name:"Thème";
@@ -2661,7 +2711,7 @@ $("s-demo").onclick=()=>{demo=!demo;LS.set("frtv_demo",demo?"1":"0");boot()};
 $("s-prof").onclick=()=>{if(document.activeElement)document.activeElement.blur();showProfiles()};
 $("s-logo").onclick=()=>$("s-logo-file").click();
 $("s-fit").onclick=()=>cycleFit();
-$("s-theme").onclick=()=>{if(!profile){toast("Choisis un profil d'abord");return}const i=THEMES.findIndex(t=>t.id===curTheme().id);profile.theme=THEMES[(i+1)%THEMES.length].id;saveProfiles();applyTheme();renderSettings()};
+$("s-theme").onclick=()=>{if(!profile){toast("Choisis un profil d'abord");return}const L=allThemes(),i=L.findIndex(t=>t.id===curTheme().id);profile.theme=L[(i+1)%L.length].id;saveProfiles();applyTheme();renderSettings()};
 $("s-lite").onclick=()=>{const o=LS.get("frtv_lite","");const n=o===""?"1":o==="1"?"0":"";LS.set("frtv_lite",n);toast("Mode léger : "+(n==="1"?"activé":n==="0"?"désactivé":"automatique")+" · relance l'appli pour l'appliquer",4500);renderSettings()};
 $("s-fest").onclick=()=>{if(!profile){toast("Choisis un profil d'abord");return}const i=FESTS_ORDER.indexOf(festPref());profile.fest=FESTS_ORDER[(i+1)%FESTS_ORDER.length];saveProfiles();applyTheme();renderSettings()};
 $("s-ident").onclick=()=>{LS.set("frtv_idents",identsOn()?"0":"1");if(!identsOn())hideIdent();renderSettings();toast(identsOn()?"Habillage des chaînes activé":"Habillage des chaînes désactivé")};
@@ -2737,7 +2787,9 @@ const THEMES=[
 ];
 const FESTS_ORDER=["auto","halloween","noel","nouvelan","valentin","off"];
 const FESTS_LABEL={auto:"automatique",halloween:"Halloween",noel:"Noël",nouvelan:"Nouvel an",valentin:"Saint-Valentin",off:"désactivée"};
-function curTheme(){return THEMES.find(t=>t.id===(profile&&profile.theme))||THEMES[0]}
+function lightHex(h,f){const n=parseInt(h.slice(1),16),c=[(n>>16)&255,(n>>8)&255,n&255].map(v=>Math.round(v+(255-v)*f));return "#"+c.map(v=>v.toString(16).padStart(2,"0")).join("")}
+function allThemes(){return THEMES.concat(((profile&&profile.unl)||[]).map(u=>({id:"ch:"+u.k,name:u.name,a:u.a,t:lightHex(u.a,.45),chan:true})))}
+function curTheme(){const L=allThemes();return L.find(t=>t.id===(profile&&profile.theme))||THEMES[0]}
 function festPref(){return (profile&&profile.fest)||"auto"}
 function festNow(d){d=d||new Date();const m=d.getMonth()+1,j=d.getDate();
   if(m===10&&j>=20||m===11&&j<=1)return "halloween";
@@ -2859,7 +2911,7 @@ function reqNews(){
   setTimeout(()=>toast("🎉 Ta demande « "+r.title+" » est arrivée"+(c?" sur "+c.name+(c.number?" (n°"+c.number+")":""):"")+(mine.length>1?" · et "+(mine.length-1)+" autre"+(mine.length>2?"s":""):""),7000),2600);
   profile.reqSeen=Date.now();saveProfiles();
 }
-function chooseProfile(i){
+function chooseProfile(i){setTimeout(()=>{try{loadWatched(true)}catch(e){}},3000);
   profile=profiles[i];LS.set("frtv_profile",profile.id);updateChip();chime();publishProfiles();
   $("profiles").classList.add("leave");
   setTimeout(()=>{$("profiles").classList.remove("leave");hello(proceed);try{reqNews()}catch(e){}try{applyAV()}catch(e){}},420);
