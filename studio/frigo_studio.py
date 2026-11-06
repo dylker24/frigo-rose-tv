@@ -2194,14 +2194,76 @@ def tv_startover(num):
     if cur.get("type") != "content" or not cur.get("ext"):
         raise RuntimeError("Ce programme ne peut pas être repris au début")
     jid = str(cur["ext"]).replace("-", "")
-    # le fichier tel quel quand c'est possible (H.264 : copie, qualité d'origine), sinon conversion en bonne qualité
+    return dict(_jf_vod(jid), title=cur.get("title") or "", start=int(now - off), dur=int(cur["duration"]), elapsed=int(off))
+
+
+def _jf_vod(jid):
+    """Lecture d'une vidéo Jellyfin sur la télé (via Studio) : le fichier tel quel quand c'est possible, sinon conversion en bonne qualité."""
     q = urlencode({"MediaSourceId": jid, "VideoCodec": "h264", "AudioCodec": "aac", "AllowVideoStreamCopy": "true", "AllowAudioStreamCopy": "true",
                    "TranscodingMaxAudioChannels": 2, "MaxStreamingBitrate": 40000000, "VideoBitrate": 12000000, "AudioBitrate": 192000,
                    "MaxWidth": 1920, "SegmentContainer": "ts",
                    "MinSegments": 1, "BreakOnNonKeyFrames": "true", "DeviceId": "frigo-rose-tv", "PlaySessionId": uuid.uuid4().hex})
     port = urlparse(_fast(conf["jellyfin_url"])).port or 8096
-    return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "proxy": "/tv/jf/Videos/%s/master.m3u8?%s" % (jid, q), "port": port, "title": cur.get("title") or "",
-            "start": int(now - off), "dur": int(cur["duration"]), "elapsed": int(off)}
+    return {"path": "/Videos/%s/master.m3u8?%s" % (jid, q), "proxy": "/tv/jf/Videos/%s/master.m3u8?%s" % (jid, q), "port": port}
+
+
+# ---------- Replay : ce qui est passé sur les chaînes ces 7 derniers jours ----------
+_replay = {"t": 0, "items": []}
+
+
+def tv_replay(days=7):
+    if _replay["items"] and time.time() - _replay["t"] < 300:
+        return _replay["items"]
+    now = time.time() * 1000
+    since = now - days * 864e5
+    best = {}
+    for ch in tn("/api/channels") or []:
+        try:
+            r = tn("/api/channels/%s/programming" % ch["id"], timeout=30) or {}
+        except Exception:
+            continue
+        progs = r.get("programs") or {}
+        lineup = [x for x in (r.get("lineup") or []) if (x.get("duration") or x.get("durationMs") or 0) > 0]
+        durs = [x.get("duration") or x.get("durationMs") or 0 for x in lineup]
+        total = sum(durs)
+        if not total:
+            continue
+        start0 = float(ch.get("startTime") or 0)
+        off = (now - start0) % total
+        k, acc = 0, 0
+        while k < len(lineup) and acc + durs[k] <= off:
+            acc += durs[k]
+            k += 1
+        end = now - (off - acc)  # début du programme en cours = fin du précédent
+        steps = 0
+        while end > since and steps < 2000:
+            steps += 1
+            k = (k - 1) % len(lineup)
+            it = lineup[k]
+            start = end - durs[k]
+            pg = (progs.get(it.get("id")) or {}).get("program") or {}
+            ext = _ext_of(pg, it) if pg and it.get("type") == "content" else ""
+            if ext and durs[k] >= 5 * 60000 and (pg.get("state") or "ok") == "ok":
+                show = ((pg.get("grandparent") or {}).get("title") or pg.get("showTitle") or "")
+                prev = best.get(ext)
+                if not prev or prev["ended"] < end:
+                    best[ext] = {"ext": ext, "id": it.get("id"), "title": pg.get("title") or "", "show": show, "type": pg.get("type") or "",
+                                 "season": pg.get("seasonNumber"), "episode": pg.get("episodeNumber"), "year": pg.get("year"),
+                                 "ch": (ch.get("name") or "").strip(), "num": ch.get("number"), "aired": int(start), "ended": int(end), "dur": int(durs[k])}
+            end = start
+    items = sorted(best.values(), key=lambda x: -x["ended"])[:400]
+    _replay.update(t=time.time(), items=items)
+    return items
+
+
+def tv_replay_play(ext):
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    it = next((x for x in tv_replay() if x["ext"] == ext), None)
+    if not it:
+        raise RuntimeError("Ce programme n'est plus en replay")
+    jid = str(ext).replace("-", "")
+    return dict(_jf_vod(jid), title=it["title"], start=int(time.time() * 1000), dur=it["dur"], elapsed=0)
 
 
 def tn_backup(cid, raw):
@@ -3827,6 +3889,14 @@ class H(BaseHTTPRequestHandler):
         if u.path.startswith("/tv/jf/Videos/"):
             # la vidéo de Jellyfin passe par Studio (Jellyfin refuse souvent les appareils Tailscale, et la clé reste sur le PC)
             return self.jf_proxy(u)
+        if u.path in ("/tv/replay", "/tv/replay/play"):
+            cors = {"Access-Control-Allow-Origin": "*"}
+            try:
+                if u.path == "/tv/replay":
+                    return self.send(200, {"items": tv_replay()}, headers=cors)
+                return self.send(200, tv_replay_play((parse_qs(u.query).get("ext") or [""])[0]), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
         if u.path == "/tv/startover":
             cors = {"Access-Control-Allow-Origin": "*"}
             try:

@@ -902,7 +902,7 @@ body.vpause #video{visibility:hidden}
 
 <div class="ident" id="ident" hidden><div class="id-bar"></div><div class="id-in"><div class="id-logo" id="id-logo"></div><div class="id-txt"><div class="id-k" id="id-k"></div><div class="id-t" id="id-t"></div><div class="id-s" id="id-s"></div></div></div></div>
 <div class="tvmsg" id="tvmsg" hidden><div class="tm-in"><div class="tm-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg></div><div class="tm-body"><div class="tm-kick" id="tm-kick">Message</div><div class="tm-text" id="tm-text"></div></div><div class="tm-ok"><span class="cap">OK</span>Fermer</div></div><div class="tm-bar" id="tm-bar"></div></div>
-<div class="sopill" id="sopill" hidden><span class="so-dot"></span><b>Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span><i class="so-bar"><b id="so-bar"></b></i></div>
+<div class="sopill" id="sopill" hidden><span class="so-dot"></span><b id="so-k">Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span><i class="so-bar"><b id="so-bar"></b></i></div>
 <div class="hpeek" id="hpeek" hidden><div class="hp-img" id="hp-img"></div><div class="hp-body"><div class="hp-kick" id="hp-kick"></div><div class="hp-title" id="hp-title"></div><div class="hp-meta" id="hp-meta"></div><div class="hp-desc" id="hp-desc"></div></div></div>
 <div class="saver" id="saver" hidden><div class="sv-imgs" id="sv-imgs"></div><div class="sv-shade"></div>
   <div class="sv-clock tnum" id="sv-clock"></div><div class="sv-date" id="sv-date"></div>
@@ -1339,8 +1339,8 @@ async function startOver(){
   playVod(ch,{url,title:r.title,dur:r.dur,start:r.start});
 }
 function playVod(ch,so){
-  stopVideo();SO={ch,...so};try{releaseChannel(ch)}catch(e){}videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent="On reprend au début…";
-  document.body.classList.add("so-on");$("sopill").hidden=false;updateSoPill();
+  stopVideo();SO={ch,...so};try{releaseChannel(ch)}catch(e){}videoOk=false;$("lerr").hidden=true;$("novideo").hidden=true;$("loading").hidden=false;$("loading-t").textContent=so.replay?"Lancement du replay…":"On reprend au début…";
+  document.body.classList.add("so-on");$("so-k").textContent=so.replay?"Replay":"Depuis le début";$("sopill").hidden=false;updateSoPill();
   if(window.Hls&&Hls.isSupported()){
     hls=new Hls({enableWorker:true,maxBufferLength:30,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:8,fragLoadingMaxRetry:8});
     const mine=hls;
@@ -1363,7 +1363,38 @@ function updateSoPill(){
 }
 setInterval(()=>{if(SO&&screen==="live")updateSoPill()},1000);
 video.addEventListener("playing",()=>{if(SO){clearTimeout(toastT);$("toast").hidden=true}});
-video.addEventListener("ended",()=>{if(SO){toast("Fin du programme · retour au direct",4000);backToLive()}});
+video.addEventListener("ended",()=>{if(SO){toast(SO.replay?"Fin du replay · retour au direct":"Fin du programme · retour au direct",4000);backToLive()}});
+
+/* ================= Replay : ce qui est passé ces 7 derniers jours, à revoir depuis le début ================= */
+const RP={items:[],t:0,busy:false};
+function agoDay(t){const d=new Date(t),n=new Date(),day=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime(),k=Math.round((day(n)-day(d))/864e5);
+  const h=hhmm(t);return k<=0?"aujourd'hui à "+h:k===1?"hier à "+h:k<7?d.toLocaleDateString("fr-FR",{weekday:"long"})+" à "+h:"il y a "+k+" jours"}
+async function loadReplay(force){
+  if(demo||RP.busy||(!force&&Date.now()-RP.t<10*60000))return;RP.busy=true;
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),20000);const r=await fetch(studioBase()+"/tv/replay",{signal:ac.signal}).then(x=>x.json());clearTimeout(tt);
+    RP.items=(r.items||[]);RP.t=Date.now();if(screen==="home")renderHome()}catch(e){RP.t=Date.now()-8*60000}
+  RP.busy=false;
+}
+function replayItems(){
+  const out=[];
+  for(const x of RP.items){if(out.length>=40)break;
+    const i=channels.findIndex((c,j)=>String(c.num||j+1)===String(x.num));if(i<0)continue;
+    const ep=x.season!=null&&x.episode!=null?"S"+x.season+"E"+x.episode:"";
+    const title=x.show?x.show+" · "+(ep?ep+" · ":"")+x.title:x.title;
+    out.push({i,ch:channels[i],kind:"replay",rp:x,p:{title,start:x.aired,stop:x.aired+x.dur,year:x.year,icon:cfg.server.replace(/\/+$/,"")+"/api/programs/"+x.id+"/artwork/thumbnail",desc:""}})}
+  return out;
+}
+async function playReplay(it){
+  clearTimeout(prevT);const base=studioBase();let r=null;toast("Je lance le replay…",4000);
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(base+"/tv/replay/play?ext="+encodeURIComponent(it.rp.ext),{signal:ac.signal});clearTimeout(tt);r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  catch(e){toast(r&&r.error?r.error:"Pour le replay, Frigo Rosé Studio doit être ouvert sur le PC",5000);return}
+  closePanel();
+  if(it.i!==cur){try{if(channels[cur])releaseChannel(channels[cur])}catch(e){}cur=it.i}
+  const ch=channels[cur];let host="";try{host=new URL(cfg.server).hostname}catch(e){}
+  try{dbgPush("replay : "+it.p.title)}catch(e){}
+  playVod(ch,{url:r.proxy?base+r.proxy:"http://"+host+":"+(r.port||8096)+r.path,title:it.p.title,dur:r.dur,start:Date.now(),replay:true});
+}
+setInterval(()=>{if(screen==="home")loadReplay()},60000);
 
 /* ================= Voix claires (comme « Améliorer les dialogues » d'Apple TV) et Image vive ================= */
 /* Le son passe par un petit studio dans la télé : voix (centre) mises en avant, côtés (musique, ambiance) baissés,
@@ -1590,6 +1621,7 @@ function homeRows(){
   if(rec.length)rows.push({id:"rec",title:"Reprendre",list:rec,live:true});
   if(fav.length)rows.push({id:"fav",title:"Tes chaînes favorites",list:fav,live:true});
   const top=topItems(now);if(top.length)rows.push({id:"top",title:"Top 10 de la maison",hint:"les plus regardés chez vous",list:top,live:false,top:true});
+  const rp=replayItems();if(rp.length)rows.push({id:"replay",title:"Replay",hint:"ce qui est passé ces 7 derniers jours",list:rp,live:false,replay:true});
   rows.push({id:"now",title:"En ce moment sur Frigo Rosé TV",list:nowRow,live:true});
   if(nw.length)rows.push({id:"news",title:"Nouveau sur Frigo Rosé TV",list:nw,live:false,news:true});
   if(next.length)rows.push({id:"next",title:"À suivre",list:next.slice(0,14),live:false});
@@ -1640,7 +1672,7 @@ function homeFocus(){
   if(hRow>0){const r=rows[Math.min(hRow,rows.length)-1];return r.list[Math.max(0,Math.min(hCol[r.id]||0,r.list.length-1))]}
   return nowRow[Math.max(0,Math.min(heroI,nowRow.length-1))];
 }
-function openHome(){hRow=0;hBtn=0;heroI=Math.max(0,cur);hCol={now:heroI};zone="content";setScreen("home")}
+function openHome(){hRow=0;hBtn=0;heroI=Math.max(0,cur);hCol={now:heroI};zone="content";setScreen("home");try{loadReplay()}catch(e){}}
 function renderHomeBg(it){
   if(!it)return;
   updateAmb(it);
@@ -1718,10 +1750,11 @@ function renderHome(light){
   const kk=$("h-kick");kk.textContent="";
   if(live)kk.append(el("span","dot"));
   if(it.ch.logo)kk.append(logoImg(it.ch.logo));
-  kk.append(el("span",null,(it.news?"Nouveau":live?"En direct":"À "+hhmm(it.p.start))+" · n°"+(it.ch.num||it.i+1)+" · "+it.ch.name+(isFav(it.ch)?" ★":"")));
+  kk.append(el("span",null,(it.kind==="replay"?"Replay · diffusé "+agoDay(it.p.start):it.news?"Nouveau":live?"En direct":"À "+hhmm(it.p.start))+" · n°"+(it.ch.num||it.i+1)+" · "+it.ch.name+(isFav(it.ch)?" ★":"")));
   $("h-title").textContent=it.news?it.nt:it.p.title+(it.p.sub?" · "+it.p.sub:"");
   const m=$("h-meta");m.textContent="";
-  if(it.news&&it.p.synthetic){m.append(el("span",null,"Arrivé "+it.ago),el("span",null,"Passe bientôt sur la chaîne"))}
+  if(it.kind==="replay"){m.append(el("span",null,dur(it.p.stop-it.p.start)));if(it.p.year)m.append(el("span",null,String(it.p.year)));m.append(el("span","cat","À regarder depuis le début"))}
+  else if(it.news&&it.p.synthetic){m.append(el("span",null,"Arrivé "+it.ago),el("span",null,"Passe bientôt sur la chaîne"))}
   else{
     m.append(el("span",null,hhmm(it.p.start)+" – "+hhmm(it.p.stop)));if(it.p.cat)m.append(el("span","cat",it.p.cat));
     if(live){const b=el("div","bar");const i=el("i");i.style.width=Math.max(0,Math.min(100,(now-it.p.start)/(it.p.stop-it.p.start)*100))+"%";b.append(i);m.append(b,el("span",null,"encore "+dur(it.p.stop-now)))}
@@ -1729,7 +1762,7 @@ function renderHome(light){
   }
   $("h-desc").textContent=it.p.desc||"";
   const dt=$("h-dots");dt.textContent="";if(hRow===0&&nowRow.length>1)nowRow.forEach((x,j)=>dt.append(el("i",j===heroI?"on":"")));
-  $("h-play").lastChild.textContent=live?"Regarder":"Aller sur la chaîne";
+  $("h-play").lastChild.textContent=it.kind==="replay"?"Regarder le replay":live?"Regarder":"Aller sur la chaîne";
   $("h-play").classList.toggle("f",zone==="content"&&hRow===0&&hBtn===0);
   $("h-guide").classList.toggle("f",zone==="content"&&hRow===0&&hBtn===1);
   $("h-surp").classList.toggle("f",zone==="content"&&hRow===0&&hBtn===2);
@@ -1754,11 +1787,12 @@ function renderHome(light){
       if(big){const ov=el("div","nov");ov.append(el("span","nk","Nouveau · arrivé "+x.ago),el("strong",null,x.nt),el("span","nw",x.when.charAt(0).toUpperCase()+x.when.slice(1)+" sur "+x.ch.name));th.append(ov)}
       else if(row.news&&x.isNew)th.append(el("span","newtag","NOUVEAU"));
       if(row.tonight)th.append(el("span","tntag",x.p.start<=now?"EN CE MOMENT":hhmm(x.p.start)));
+      if(row.replay)th.append(el("span","tntag","REPLAY"));
       if(row.top){c.classList.add("top");th.append(el("span","rk",String(j+1)));th.append(el("span","tntag",x.p.start<=now?"EN CE MOMENT":hhmm(x.p.start)))}
       if(big)c.append(th,el("b",null,x.p.desc?x.p.desc.slice(0,90)+(x.p.desc.length>90?"…":""):"Ajouté "+x.ago+" sur "+x.ch.name),el("small",null,x.p.cat||"\u00a0"));
       else if(row.news)c.append(th,el("b",null,x.nt),el("small",null,x.sub));else
-      c.append(th,el("b",null,x.p.title),el("small",null,row.live?x.ch.name+" · encore "+dur(x.p.stop-now):hhmm(x.p.start)+" · "+x.ch.name));
-      c.onclick=()=>goChannel(x.i);
+      c.append(th,el("b",null,x.p.title),el("small",null,row.replay?"Diffusé "+agoDay(x.p.start)+" · "+x.ch.name:row.live?x.ch.name+" · encore "+dur(x.p.stop-now):hhmm(x.p.start)+" · "+x.ch.name));
+      c.onclick=()=>x.kind==="replay"?playReplay(x):goChannel(x.i);
       tr.append(c);
     });
     const pv=el("button","harr prev"),nx=el("button","harr next");pv.type=nx.type="button";
@@ -1827,7 +1861,7 @@ function homeKey(k){
   else if(k==="down"){if(hRow===0){hRow=1;const r0=rows[0];hCol[r0.id]=Math.max(0,r0.list.findIndex(x=>x.i===heroI))}else if(hRow<rows.length){hRow++;const r1=rows[hRow-1];if(hCol[r1.id]==null)hCol[r1.id]=0}}
   else if(k==="left"){if(hRow===0)hBtn=Math.max(0,hBtn-1);else hCol[row.id]=Math.max(0,(hCol[row.id]||0)-1)}
   else if(k==="right"){if(hRow===0)hBtn=Math.min(2,hBtn+1);else hCol[row.id]=Math.min(row.list.length-1,(hCol[row.id]||0)+1)}
-  else if(k==="ok"){if(hRow===0&&hBtn===1){$("h-guide").click();return}if(hRow===0&&hBtn===2){surprise();return}const it=homeFocus();if(it)goChannel(it.i);return}
+  else if(k==="ok"){if(hRow===0&&hBtn===1){$("h-guide").click();return}if(hRow===0&&hBtn===2){surprise();return}const it=homeFocus();if(it){if(it.kind==="replay")playReplay(it);else goChannel(it.i)}return}
   renderHome(true);schedulePreview();
 }
 
@@ -2026,6 +2060,11 @@ function renderBanner(){
   $("b-start").textContent=hhmm(p.start);$("b-stop").textContent=hhmm(p.stop);
   $("b-bar").style.width=Math.max(0,Math.min(100,(now-p.start)/(p.stop-p.start)*100))+"%";
   $("b-next").textContent="";$("b-next").append(el("span",null,"Ensuite · "+hhmm(n.start)),document.createTextNode(n.title));
+  if(SO&&SO.replay){ // replay : le bandeau parle du film revu, pas de ce qui passe en direct
+    const d=(SO.dur||0),t=(video.currentTime||0)*1000;$("b-title").textContent=SO.title;
+    $("b-start").textContent="0:00";$("b-stop").textContent=dur(d);$("b-bar").style.width=d?Math.min(100,t/d*100)+"%":"0";
+    $("b-next").textContent="";$("b-next").append(el("span",null,"En direct sur la chaîne · "),document.createTextNode(p.title));
+  }
   $("clock").textContent=hhmm(now);
 }
 function showBanner(){const bn=$("banner");bn.classList.remove("anim");void bn.offsetWidth;bn.classList.add("anim");showUI()}
@@ -2063,7 +2102,7 @@ function liveEdge(){if(hls&&hls.liveSyncPosition)return hls.liveSyncPosition;con
 function updateDelay(){
   const t=$("b-ondir-t"),o=$("b-ondir");
   {const lb=document.querySelector('#ctrl .cb[data-c="live"]');if(lb)lb.classList.toggle("callme",!!SO||(!demo&&videoOk&&liveEdge()-video.currentTime>15))}
-  if(SO){t.textContent="DEPUIS LE DÉBUT";o.classList.add("late");return}
+  if(SO){t.textContent=SO.replay?"REPLAY":"DEPUIS LE DÉBUT";o.classList.add("late");return}
   if(demo||!videoOk){t.textContent="EN DIRECT";o.classList.remove("late");return}
   const behind=liveEdge()-video.currentTime;
   if(behind>15){const m=Math.floor(behind/60),sec=Math.floor(behind%60);t.textContent="DIFFÉRÉ −"+m+":"+String(sec).padStart(2,"0");o.classList.add("late")}
