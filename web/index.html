@@ -1334,13 +1334,23 @@ function play(ch,attempt){
     hls=new Hls({enableWorker:true,startFragPrefetch:true,liveSyncDurationCount:2,maxBufferLength:15,backBufferLength:300,manifestLoadingTimeOut:40000,manifestLoadingMaxRetry:4,manifestLoadingRetryDelay:350,manifestLoadingMaxRetryTimeout:1500,levelLoadingMaxRetry:15,levelLoadingRetryDelay:350,levelLoadingMaxRetryTimeout:1500,fragLoadingMaxRetry:15,fragLoadingRetryDelay:250,fragLoadingMaxRetryTimeout:1500});
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{video.play().catch(()=>{})});
     const mine=hls;
-    const fail=()=>{if(hls!==mine)return;if(attempt<2&&channels[cur]===ch){$("loading-t").textContent=ch.name+" redémarre…";play(ch,attempt+1)}else{hls.destroy();hls=null;liveError()}};
-    hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError()}else fail()});
+    const fail=why=>{if(hls!==mine)return;if(attempt<1&&channels[cur]===ch){$("loading-t").textContent=ch.name+" redémarre…";play(ch,attempt+1)}else{hls.destroy();hls=null;chanFailed(ch,why||"chargement")}};
+    hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal)return;if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError()}else fail(d.details||"réseau")});
     hls.loadSource(url);hls.attachMedia(video);
-    loadDog=setTimeout(()=>{if(hls===mine&&!videoOk)fail()},attempt?40000:45000);
+    loadDog=setTimeout(()=>{if(hls===mine&&!videoOk)fail("trop long")},attempt?22000:28000);
     clearTimeout(slowT);slowT=setTimeout(()=>{if(hls===mine&&!videoOk)$("loading-t").textContent=ch.name+" démarre, encore quelques secondes…"},7000);
   }else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=url;video.play().catch(()=>{})}
   else liveError("Ce navigateur ne sait pas lire les chaînes.");
+}
+/* Une chaîne qui ne démarre pas : on le dit, on revient sur la chaîne d'avant, et Studio est prévenu */
+function chanFailed(ch,why){
+  try{if(fdb&&!demo)fdb.ref("frigorosetv/incidents").push({ch:ch.name,num:ch.num||"",dev:deviceLabel(),prof:profile?profile.name:"",why:String(why).slice(0,60),at:Date.now()}).catch(()=>{})}catch(e){}
+  try{dbgPush("chaîne en panne : "+ch.name+" ("+why+")")}catch(e){}
+  chanFailed.at=chanFailed.at||{};chanFailed.at[ch.id]=Date.now();
+  const okBack=i=>i>=0&&channels[i]&&channels[i]!==ch&&!(Date.now()-(chanFailed.at[channels[i].id]||0)<180000); // pas de ping-pong entre deux chaînes en panne
+  const back=okBack(lastLive)?lastLive:(okBack(prev)?prev:-1);
+  if(back>=0&&screen==="live"){toast("😕 "+ch.name+" a un souci en ce moment · retour sur "+channels[back].name,6000);tune(back);return}
+  liveError(ch.name+" a un souci en ce moment. Réessaie dans quelques minutes, ou change de chaîne.");
 }
 function liveError(msg){$("loading").hidden=true;$("lerr").hidden=false;if(msg)$("lerr-t").textContent=msg;const p=typeof pcProblem==="function"&&pcProblem();if(p)$("lerr-t").textContent=p.t+". "+p.m}
 video.addEventListener("playing",()=>{setTimeout(chPreviewPos,60);clearTimeout(waitT);clearTimeout(loadDog);warmNeighbors();$("loading").hidden=true;$("lerr").hidden=true;videoOk=true;if($("zapfx").classList.contains("on"))zapRelease();if(screen==="home")renderHomeBg(homeFocus())});

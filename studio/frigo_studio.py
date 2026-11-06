@@ -1092,6 +1092,183 @@ def dvd_import(drive, name, dest, tchan="", eject=True):
     return new_job("conv", dvd=True, drive=drive, name=nm, title=nm, dest=dest, tchan=tchan, eject=eject, src="")["id"]
 
 
+# ================================================================ pilote automatique
+# 1) les vidéos lourdes ajoutées dans une médiathèque sont converties la nuit suivante
+# 2) Studio surveille disques, chaînes et pannes signalées par les télés, et prévient (Studio + téléphone via ntfy)
+ALERTS = {}          # clé -> {"t", "msg", "fix", "level", "sent"}
+_autoconv_seen = {}
+
+
+def notify_phone(title, msg):
+    topic = conf.get("ntfy_topic")
+    if not topic or not conf.get("ntfy_on", True):
+        return False
+    try:
+        req = urllib.request.Request("https://ntfy.sh/" + quote(topic, safe=""), data=msg.encode("utf-8"), method="POST",
+                                     headers={"Title": "Frigo Rose Studio", "Tags": "tv", "Priority": "default"})
+        urllib.request.urlopen(req, timeout=10).read()
+        return True
+    except Exception as e:
+        bglog("ntfy : %s" % e)
+        return False
+
+
+def alert(key, msg, fix="", level="warn"):
+    a = ALERTS.get(key)
+    now = time.time()
+    if a and a["msg"] == msg:
+        a["t"] = now
+        if now - a.get("sent", 0) < 12 * 3600:
+            return
+    else:
+        ALERTS[key] = a = {"t": now, "first": now, "msg": msg, "fix": fix, "level": level, "sent": 0}
+    a["fix"] = fix
+    if notify_phone("Frigo Rosé Studio", msg + ((" · " + fix) if fix else "")):
+        a["sent"] = now
+    else:
+        a["sent"] = a.get("sent") or 0
+    away_log("⚠️ " + msg)
+
+
+def clear_alert(key):
+    ALERTS.pop(key, None)
+
+
+def _find_moved(path):
+    """Le dossier d'une médiathèque a disparu : est-il sur un autre disque (lettre changée) ?"""
+    if not WIN or len(path) < 3 or path[1] != ":":
+        return ""
+    tail = path[2:]
+    for d in "DEFGHIJKLMNOPQRSTUVWXYZ":
+        cand = d + ":" + tail
+        if d + ":" != path[:2].upper() and os.path.isdir(cand):
+            return cand
+    return ""
+
+
+def monitor_once():
+    try:
+        jf_libraries(True)
+    except Exception:
+        pass
+    libs = jf_cache.get("libs") or []
+    if not libs:
+        return  # Jellyfin injoignable : la carte PC le dit déjà
+    # disques / dossiers
+    for l in libs:
+        key = "lib:" + l["name"]
+        pth = l.get("path") or ""
+        if pth and not os.path.isdir(pth):
+            moved = _find_moved(pth)
+            if moved:
+                alert(key, "Le dossier de %s a changé de disque : %s est maintenant en %s" % (l["name"], pth[:2], moved[:2]),
+                      "Remets la lettre %s au disque : clic droit sur Démarrer → Gestion du disque → clic droit sur %s → Modifier la lettre" % (pth[:2], moved[:2]), "bad")
+            else:
+                alert(key, "Le dossier de %s est introuvable (%s)" % (l["name"], pth), "Disque débranché ? Rebranche-le, sinon la chaîne ne marche plus", "bad")
+        else:
+            clear_alert(key)
+    # chaînes
+    try:
+        for c in channel_health(True):
+            key = "ch:" + c["id"]
+            if c.get("count", 0) == 0:
+                alert(key, "La chaîne %s est vide" % c["name"], "Ajoute des vidéos dans sa médiathèque", "bad")
+            elif c.get("ghosts"):
+                alert(key, "%s : %d programme%s introuvable%s (%s)" % (c["name"], c["ghosts"], "s" if c["ghosts"] > 1 else "", "s" if c["ghosts"] > 1 else "", ", ".join(c.get("ghost_titles", [])[:3])),
+                      "Studio → Chaînes → %s → Retirer les programmes introuvables" % c["name"], "bad")
+            else:
+                clear_alert(key)
+    except Exception as e:
+        bglog("surveillance des chaînes : %s" % e)
+    # pannes signalées par les télés
+    try:
+        inc = fb("/incidents") or {}
+        last = conf.get("inc_seen", 0)
+        new = sorted([v for v in inc.values() if isinstance(v, dict) and v.get("at", 0) > last], key=lambda v: v["at"])
+        for v in new:
+            when = time.strftime("%H:%M", time.localtime(v["at"] / 1000))
+            alert("inc:%s:%s" % (v.get("ch"), v["at"] // 3600000), "%s n'a pas démarré sur %s%s à %s" % (v.get("ch"), v.get("dev") or "une télé", (" (" + v["prof"] + ")") if v.get("prof") else "", when),
+                  "Regarde la chaîne dans Studio (vidéo lourde ou introuvable ?)", "warn")
+        if new:
+            conf["inc_seen"] = new[-1]["at"]
+            save_conf(conf)
+        if len(inc) > 150:
+            for k in sorted(inc, key=lambda k: (inc[k] or {}).get("at", 0))[:len(inc) - 100]:
+                fb("/incidents/" + k, "DELETE")
+    except Exception as e:
+        bglog("incidents : %s" % e)
+    for k in [k for k, a in ALERTS.items() if k.startswith("inc:") and time.time() - a["t"] > 86400]:
+        ALERTS.pop(k, None)
+
+
+def autoconv_once():
+    if not conf.get("auto_convert", True):
+        return 0
+    libs = (jf_cache.get("libs") or []) if isinstance(jf_cache, dict) else []
+    queued = {x.get("src") for x in jobs if x.get("kind") == "conv" and x["status"] in ("attente", "en cours")}
+    n = 0
+    for l in libs:
+        root = l.get("path") or ""
+        if not root or not os.path.isdir(root):
+            continue
+        for d, dirs, fs in os.walk(root):
+            if TRASH_DIR in d:
+                continue
+            for f in fs:
+                pth = os.path.join(d, f)
+                if os.path.splitext(f)[1].lower() not in VIDEO_EXT or ".part" in f.lower() or pth in queued:
+                    continue
+                try:
+                    st = os.stat(pth)
+                except OSError:
+                    continue
+                sig = "%d:%d" % (st.st_size, int(st.st_mtime))
+                if _autoconv_seen.get(pth) == sig or time.time() - st.st_mtime < 600:
+                    continue
+                try:
+                    info = media_info(pth)
+                except Exception:
+                    continue
+                _autoconv_seen[pth] = sig
+                if info.get("heavy"):
+                    media_convert([pth], night=True)
+                    n += 1
+                    bglog("pilote auto : %s sera convertie cette nuit (%s)" % (f, ", ".join(info["heavy"])))
+    try:
+        with open(os.path.join(DATA, "autoconv.json"), "w", encoding="utf-8") as fh:
+            json.dump(_autoconv_seen, fh)
+    except OSError:
+        pass
+    if n:
+        away_log("Pilote auto : %d vidéo%s lourde%s seront converties cette nuit" % (n, "s" if n > 1 else "", "s" if n > 1 else ""))
+    return n
+
+
+def autopilot_loop():
+    try:
+        with open(os.path.join(DATA, "autoconv.json"), encoding="utf-8") as fh:
+            _autoconv_seen.update(json.load(fh))
+    except Exception:
+        pass
+    if not conf.get("ntfy_topic"):
+        conf["ntfy_topic"] = "frigorose-" + uuid.uuid4().hex[:12]
+        save_conf(conf)
+    time.sleep(90)
+    k = 0
+    while True:
+        try:
+            monitor_once()
+        except Exception as e:
+            bglog("surveillance : %s" % e)
+        if k % 3 == 0:
+            try:
+                autoconv_once()
+            except Exception as e:
+                bglog("pilote auto : %s" % e)
+        k += 1
+        time.sleep(600)
+
+
 def media_merge(paths, name=""):
     paths = [x for x in paths if x]
     if len(paths) < 2:
@@ -4080,6 +4257,15 @@ class H(BaseHTTPRequestHandler):
             for d in ds:
                 d["title"] = dvd_title(d["label"]) if d["disc"] else ""
             return self.send(200, {"drives": ds, "makemkv": makemkv_tool()})
+        if u.path == "/api/alerts/test" and self.authed():
+            ok = notify_phone("Frigo Rosé Studio", "✅ Les alertes de Frigo Rosé Studio arrivent bien sur ton téléphone")
+            return self.send(200 if ok else 400, {"ok": ok, "error": "" if ok else "L'envoi n'a pas marché (internet coupé sur le PC ?)"})
+        if u.path == "/api/alerts/check" and self.authed():
+            threading.Thread(target=lambda: (monitor_once(), autoconv_once()), daemon=True).start()
+            return self.send(200, {"ok": True})
+        if u.path == "/api/alerts" and self.authed():
+            return self.send(200, {"alerts": sorted([dict(v, key=k) for k, v in ALERTS.items()], key=lambda a: -a["t"]),
+                                   "topic": conf.get("ntfy_topic", ""), "ntfy": conf.get("ntfy_on", True), "auto": conf.get("auto_convert", True)})
         if u.path == "/api/watch" and self.authed():
             try:
                 return self.send(200, {"watch": fb("/watch") or {}, "hidden": [k for k, v in (fb("/profsync") or {}).items() if isinstance(v, dict) and v.get("hidden")]})
@@ -4268,7 +4454,7 @@ class H(BaseHTTPRequestHandler):
             for k in ("watch_src", "watch_dest"):
                 if isinstance(b.get(k), str):
                     conf[k] = b[k].strip()
-            for k in ("watch_on", "watch_delete"):
+            for k in ("watch_on", "watch_delete", "auto_convert", "ntfy_on"):
                 if k in b:
                     conf[k] = bool(b[k])
             if b.get("parallel"):
@@ -4563,6 +4749,7 @@ def main():
     threading.Thread(target=away_loop, daemon=True).start()
     threading.Thread(target=services_boot, daemon=True).start()
     threading.Thread(target=watch_loop, daemon=True).start()
+    threading.Thread(target=autopilot_loop, daemon=True).start()
     if not os.environ.get("FRS_NO_BROWSER") and "--silent" not in sys.argv:
         threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open("http://localhost:%d/" % PORT)), daemon=True).start()
     try:
