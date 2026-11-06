@@ -2256,6 +2256,99 @@ def tv_replay(days=7):
     return items
 
 
+# ---------- « Au choix » : sur une chaîne en direct, on choisit le programme qui passe juste après ----------
+CHOICES = {}   # id de chaîne -> {"pid", "title", "who", "at"}
+
+
+def _tv_channel(num):
+    try:
+        n = float(num)
+    except (TypeError, ValueError):
+        raise RuntimeError("chaîne inconnue")
+    ch = next((c for c in (tn("/api/channels") or []) if c.get("number") is not None and abs(float(c["number"]) - n) < 0.01), None)
+    if not ch:
+        raise RuntimeError("chaîne inconnue")
+    return ch
+
+
+def _cur_index(ch, raw):
+    durs = [x.get("duration") or x.get("durationMs") or 0 for x in raw]
+    total = sum(durs)
+    if not total:
+        raise RuntimeError("chaîne vide")
+    off = (time.time() * 1000 - float(ch.get("startTime") or 0)) % total
+    k = 0
+    while k < len(raw) and off >= durs[k]:
+        off -= durs[k]
+        k += 1
+    return min(k, len(raw) - 1), durs, off
+
+
+def tv_lineup(num):
+    """Ce qu'on peut choisir sur la chaîne : chaque programme une fois, sauf celui en cours."""
+    ch = _tv_channel(num)
+    r = tn("/api/channels/%s/programming" % ch["id"], timeout=30) or {}
+    raw, progs = r.get("lineup") or [], r.get("programs") or {}
+    k, durs, off = _cur_index(ch, raw)
+    seen, out = set(), []
+    n = len(raw)
+    for step in range(1, n + 1):
+        it = raw[(k + step) % n]
+        if it.get("type") != "content" or it.get("id") in seen or it.get("id") == raw[k].get("id"):
+            continue
+        seen.add(it.get("id"))
+        pg = (progs.get(it.get("id")) or {}).get("program") or {}
+        show = ((pg.get("grandparent") or {}).get("title") or "")
+        ep = ("S%sE%s · " % (pg.get("seasonNumber"), pg.get("episodeNumber"))) if pg.get("seasonNumber") is not None and pg.get("episodeNumber") is not None else ""
+        out.append({"id": it.get("id"), "title": (show + " · " + ep if show else "") + (pg.get("title") or "Programme"), "dur": durs[(k + step) % n],
+                    "year": pg.get("year"), "next": step == 1})
+    left = int(durs[k] - off)
+    choice = CHOICES.get(ch["id"])
+    if choice and time.time() - choice["at"] > left / 1000 + 600:
+        choice = None
+    return {"items": out[:300], "left": left, "choice": choice}
+
+
+def tv_choose_next(num, pid, who=""):
+    ch = _tv_channel(num)
+    cid = ch["id"]
+    r = tn("/api/channels/%s/programming" % cid, timeout=30) or {}
+    raw = list(r.get("lineup") or [])
+    if not raw:
+        raise RuntimeError("chaîne vide")
+    k, durs, off = _cur_index(ch, raw)
+    if raw[k].get("id") == pid:
+        raise RuntimeError("Ce programme passe déjà en ce moment")
+    n = len(raw)
+    # le prochain passage de ce programme, en partant de maintenant
+    j = next(((k + st) % n for st in range(1, n) if raw[(k + st) % n].get("id") == pid), None)
+    if j is None:
+        raise RuntimeError("Ce programme n'est pas sur la chaîne")
+    title = ((r.get("programs") or {}).get(pid) or {}).get("program", {}).get("title") or "Programme"
+    if j == (k + 1) % n:
+        CHOICES[cid] = {"pid": pid, "title": title, "who": who, "at": time.time()}
+        return {"ok": True, "title": title, "already": True}
+    start0 = float(ch.get("startTime") or 0)
+    tn_backup(cid, raw)
+    item = raw.pop(j)
+    shift = 0
+    if j < k:          # il était plus haut dans la liste : tout ce qui suit remonte, on décale le départ pour ne pas couper le programme en cours
+        k -= 1
+        shift = durs[j]
+    raw.insert(k + 1, item)
+    tn_save(cid, raw)
+    want = start0 + shift
+    try:
+        now_ch = tn("/api/channels/%s" % quote(cid, safe="")) or {}
+        if abs(float(now_ch.get("startTime") or 0) - want) > 1:
+            tn_channel_put(cid, startTime=int(want))
+    except Exception as e:
+        bglog("au choix : départ de %s : %s" % (ch.get("name"), e))
+    CHOICES[cid] = {"pid": pid, "title": title, "who": who, "at": time.time()}
+    bglog("au choix : %s passe après le programme en cours sur %s (%s)" % (title, ch.get("name"), who or "?"))
+    return {"ok": True, "title": title}
+
+
 def tv_replay_play(ext):
     if not conf.get("jellyfin_key"):
         raise RuntimeError("Studio n'est pas relié à Jellyfin")
@@ -3889,6 +3982,15 @@ class H(BaseHTTPRequestHandler):
         if u.path.startswith("/tv/jf/Videos/"):
             # la vidéo de Jellyfin passe par Studio (Jellyfin refuse souvent les appareils Tailscale, et la clé reste sur le PC)
             return self.jf_proxy(u)
+        if u.path in ("/tv/lineup", "/tv/next"):
+            cors = {"Access-Control-Allow-Origin": "*"}
+            qs = parse_qs(u.query)
+            try:
+                if u.path == "/tv/lineup":
+                    return self.send(200, tv_lineup((qs.get("num") or [""])[0]), headers=cors)
+                return self.send(200, tv_choose_next((qs.get("num") or [""])[0], (qs.get("id") or [""])[0], (qs.get("who") or [""])[0][:40]), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
         if u.path in ("/tv/replay", "/tv/replay/play"):
             cors = {"Access-Control-Allow-Origin": "*"}
             try:

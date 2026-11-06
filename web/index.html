@@ -708,6 +708,24 @@ body.refreshing .chs-tools .rf svg{animation:spin .8s linear infinite}
 
 /* « Depuis le début » : la pastille ne s'affiche qu'avec le bandeau, pas par-dessus le film */
 body.idle .sopill{opacity:0}
+/* « Choisir la suite » : le programme qui passe juste après sur la chaîne */
+.pick{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(6,6,9,.72)}
+.pk-box{width:min(46rem,90vw);max-height:84vh;display:flex;flex-direction:column;background:#141418;border:1px solid rgba(255,255,255,.08);border-radius:1.4rem;padding:1.6rem 1.6rem 1.2rem;box-shadow:0 2rem 5rem rgba(0,0,0,.55)}
+.pk-h{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
+.pk-h small{display:block;font:800 .78rem var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--accent-t)}
+.pk-h b{font:800 1.7rem/1.15 var(--display)}
+.pk-h span{color:var(--mute,#a4a2ad);font-size:.95rem;white-space:nowrap}
+.pk-note{margin:.7rem 0 .2rem;color:var(--mute,#a4a2ad);font-size:.95rem}.pk-note b{color:#fff}
+.pk-list{margin-top:.8rem;overflow:hidden;display:flex;flex-direction:column;gap:.45rem;min-height:0}
+.pk-it{display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;border-radius:.9rem;background:rgba(255,255,255,.04);border:2px solid transparent}
+.pk-it b{flex:1;font-size:1.15rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-it i{font-style:normal;color:var(--mute,#a4a2ad);font-size:.9rem;white-space:nowrap}
+.pk-it .nx{font:800 .7rem var(--ui);letter-spacing:.1em;padding:.25rem .5rem;border-radius:.4rem;background:rgba(255,255,255,.1)}
+.pk-it.f{background:linear-gradient(100deg,var(--accent),var(--accent-t));border-color:#fff;transform:scale(1.02)}
+.pk-it.f i{color:rgba(255,255,255,.85)}
+.pk-k{margin-top:1rem;color:var(--mute,#a4a2ad);font-size:.9rem;display:flex;gap:.6rem;align-items:center}
+.pk-k .cap{margin-left:.6rem}
+
 /* Habillage façon vraie chaîne : « Dans 1 min » et « Tout de suite » (transform/opacity seulement) */
 .ident{position:fixed;left:3.2rem;bottom:3.4rem;z-index:24;pointer-events:none;--ic:224,36,94;max-width:46rem}
 .ident .id-bar{position:absolute;left:0;top:0;bottom:0;width:.42rem;border-radius:.3rem;background:rgb(var(--ic));transform-origin:50% 100%;transform:scaleY(0)}
@@ -761,7 +779,7 @@ body.vpause #video{visibility:hidden}
   <div class="scrim"></div>
   <div class="clock tnum" id="clock"></div>
   <div class="bug"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/></svg></span><span>Frigo Rosé TV</span></div>
-  <div class="ctrl" id="ctrl"><button class="cb" data-c="home" aria-label="Accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg><span class="tip">Accueil</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="restart" aria-label="Reprendre au début"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14"/><path d="M19 5l-9 7 9 7z" fill="currentColor"/></svg><span class="tip">Reprendre au début</span></button><button class="cb" data-c="back30" aria-label="Reculer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Reculer de 30 s</span></button><button class="cb big" data-c="play" id="cb-play" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg><span class="tip">Pause</span></button><button class="cb" data-c="fwd30" aria-label="Avancer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Avancer de 30 s</span></button><button class="cb" data-c="live" aria-label="Revenir au direct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg><span class="tip">Revenir au direct</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="mosaic" aria-label="Mosaïque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><span class="tip">Mosaïque</span></button><button class="cb" data-c="guide" aria-label="Guide TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v16"/></svg><span class="tip">Guide TV</span></button><button class="cb" data-c="list" aria-label="Liste des chaînes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg><span class="tip">Liste des chaînes</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="voice" id="cb-voice" aria-label="Voix claires"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg><span class="tip">Voix claires</span></button><button class="cb" data-c="vivid" id="cb-vivid" aria-label="Image vive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span class="tip">Image vive</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="fav" id="cb-fav" aria-label="Favori"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6-4.5-4.2 6.1-.8z"/></svg><span class="tip">Ajouter aux favoris</span></button><button class="cb" data-c="format" aria-label="Format d'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 12h10M7 12l2-2M7 12l2 2M17 12l-2-2M17 12l-2 2"/></svg><span class="tip">Format d'image</span></button><button class="cb" data-c="full" aria-label="Plein écran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Plein écran</span></button></div>
+  <div class="ctrl" id="ctrl"><button class="cb" data-c="home" aria-label="Accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg><span class="tip">Accueil</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="restart" aria-label="Reprendre au début"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14"/><path d="M19 5l-9 7 9 7z" fill="currentColor"/></svg><span class="tip">Reprendre au début</span></button><button class="cb" data-c="back30" aria-label="Reculer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Reculer de 30 s</span></button><button class="cb big" data-c="play" id="cb-play" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg><span class="tip">Pause</span></button><button class="cb" data-c="fwd30" aria-label="Avancer de 30 s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" stroke="none" font-family="Geist,sans-serif">30</text></svg><span class="tip">Avancer de 30 s</span></button><button class="cb" data-c="live" aria-label="Revenir au direct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg><span class="tip">Revenir au direct</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="mosaic" aria-label="Mosaïque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><span class="tip">Mosaïque</span></button><button class="cb" data-c="pick" id="cb-pick" aria-label="Choisir la suite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h8M4 18h6"/><path d="M17 13v8M13 17h8"/></svg><span class="tip">Choisir la suite</span></button><button class="cb" data-c="guide" aria-label="Guide TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v16"/></svg><span class="tip">Guide TV</span></button><button class="cb" data-c="list" aria-label="Liste des chaînes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg><span class="tip">Liste des chaînes</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="voice" id="cb-voice" aria-label="Voix claires"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg><span class="tip">Voix claires</span></button><button class="cb" data-c="vivid" id="cb-vivid" aria-label="Image vive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span class="tip">Image vive</span></button><i class="csep" aria-hidden="true"></i><button class="cb" data-c="fav" id="cb-fav" aria-label="Favori"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6-4.5-4.2 6.1-.8z"/></svg><span class="tip">Ajouter aux favoris</span></button><button class="cb" data-c="format" aria-label="Format d'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 12h10M7 12l2-2M7 12l2 2M17 12l-2-2M17 12l-2 2"/></svg><span class="tip">Format d'image</span></button><button class="cb" data-c="full" aria-label="Plein écran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Plein écran</span></button></div>
   <div class="banner" id="banner">
     <div class="cnum" id="b-box"><b id="b-num">1</b><small>CHAÎNE</small><img id="b-cl" alt="" hidden><span class="cnn" id="b-cn" hidden></span></div>
     <div class="bmain">
@@ -901,6 +919,7 @@ body.vpause #video{visibility:hidden}
 </div>
 
 <div class="ident" id="ident" hidden><div class="id-bar"></div><div class="id-in"><div class="id-logo" id="id-logo"></div><div class="id-txt"><div class="id-k" id="id-k"></div><div class="id-t" id="id-t"></div><div class="id-s" id="id-s"></div></div></div></div>
+<div class="pick" id="pick" hidden><div class="pk-box"><div class="pk-h"><div><small id="pk-ch"></small><b>Qu'est-ce qu'on regarde après ?</b></div><span id="pk-left"></span></div><div class="pk-note" id="pk-note"></div><div class="pk-list" id="pk-list"></div><div class="pk-k"><span class="cap">OK</span> Ça passe juste après <span class="cap">Retour</span> Fermer</div></div></div>
 <div class="tvmsg" id="tvmsg" hidden><div class="tm-in"><div class="tm-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg></div><div class="tm-body"><div class="tm-kick" id="tm-kick">Message</div><div class="tm-text" id="tm-text"></div></div><div class="tm-ok"><span class="cap">OK</span>Fermer</div></div><div class="tm-bar" id="tm-bar"></div></div>
 <div class="sopill" id="sopill" hidden><span class="so-dot"></span><b id="so-k">Depuis le début</b><span class="so-t" id="so-t"></span><span class="so-k"><span class="cap">Retour</span> Revenir au direct</span><i class="so-bar"><b id="so-bar"></b></i></div>
 <div class="hpeek" id="hpeek" hidden><div class="hp-img" id="hp-img"></div><div class="hp-body"><div class="hp-kick" id="hp-kick"></div><div class="hp-title" id="hp-title"></div><div class="hp-meta" id="hp-meta"></div><div class="hp-desc" id="hp-desc"></div></div></div>
@@ -1364,6 +1383,45 @@ function updateSoPill(){
 setInterval(()=>{if(SO&&screen==="live")updateSoPill()},1000);
 video.addEventListener("playing",()=>{if(SO){clearTimeout(toastT);$("toast").hidden=true}});
 video.addEventListener("ended",()=>{if(SO){toast(SO.replay?"Fin du replay · retour au direct":"Fin du programme · retour au direct",4000);backToLive()}});
+
+
+/* ================= Choisir la suite : sur la chaîne en direct, le programme qui passe juste après ================= */
+const PK={open:false,items:[],i:0,ch:null};
+async function openPick(){
+  const ch=channels[cur];if(demo||!ch){noVideoToast();return}
+  PK.ch=ch;PK.items=[];PK.i=0;PK.open=true;$("pick").hidden=false;$("pk-ch").textContent="n°"+(ch.num||cur+1)+" · "+ch.name;
+  $("pk-left").textContent="";$("pk-note").textContent="Je regarde ce qui passe sur la chaîne…";$("pk-list").textContent="";hideUI&&hideUI();
+  let r=null;
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),12000);const res=await fetch(studioBase()+"/tv/lineup?num="+encodeURIComponent(ch.num||cur+1),{signal:ac.signal});clearTimeout(tt);r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  catch(e){if(PK.open&&PK.ch===ch)$("pk-note").textContent=r&&r.error?r.error:"Pour choisir la suite, Frigo Rosé Studio doit être ouvert sur le PC";return}
+  if(!PK.open||PK.ch!==ch)return;
+  PK.items=r.items||[];$("pk-left").textContent=r.left?"le programme en cours finit dans "+dur(r.left):"";
+  $("pk-note").innerHTML="";
+  if(r.choice&&r.choice.title){$("pk-note").append("Déjà choisi"+(r.choice.who?" par "+r.choice.who:"")+" : ");$("pk-note").append(el("b",null,r.choice.title))}
+  else $("pk-note").textContent=PK.items.length?"Ton choix passe pour toute la maison, juste après le programme en cours.":"Rien d'autre à choisir sur cette chaîne.";
+  renderPick();
+}
+function renderPick(){
+  const box=$("pk-list");box.textContent="";const n=PK.items.length,vis=7;
+  const first=Math.max(0,Math.min(PK.i-3,n-vis));
+  PK.items.slice(first,first+vis).forEach((x,j)=>{const d=el("div","pk-it"+(first+j===PK.i?" f":""));d.append(el("b",null,x.title));if(x.next)d.append(el("span","nx","DÉJÀ À SUIVRE"));d.append(el("i",null,dur(x.dur)+(x.year?" · "+x.year:"")));
+    d.onclick=()=>{PK.i=first+j;pickOk()};box.append(d)});
+}
+function closePick(){PK.open=false;$("pick").hidden=true}
+$("pick").addEventListener("click",e=>{if(e.target.id==="pick")closePick()});
+async function pickOk(){
+  const x=PK.items[PK.i],ch=PK.ch;if(!x||!ch)return;closePick();toast("Je le mets juste après…",4000);
+  let r=null;
+  try{const who=profile?profile.name:"";const res=await fetch(studioBase()+"/tv/next?num="+encodeURIComponent(ch.num||channels.indexOf(ch)+1)+"&id="+encodeURIComponent(x.id)+"&who="+encodeURIComponent(who));r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  catch(e){toast(r&&r.error?r.error:"Ça n'a pas marché, réessaie dans un instant",5000);return}
+  const p=progAt(ch,Date.now());toast("✓ « "+x.title+" » passe juste après"+(p&&!p.synthetic?", dans "+dur(p.stop-Date.now()):""),5000);
+  setTimeout(()=>{try{refreshFromServer()}catch(e){}},4000);
+}
+function pickKey(k){
+  if(k==="back"){closePick();return}
+  if(k==="up")PK.i=Math.max(0,PK.i-1);else if(k==="down")PK.i=Math.min(PK.items.length-1,PK.i+1);else if(k==="ok"){pickOk();return}
+  renderPick();
+}
 
 /* ================= Replay : ce qui est passé ces 7 derniers jours, à revoir depuis le début ================= */
 const RP={items:[],t:0,busy:false};
@@ -2136,6 +2194,7 @@ function doCtl(c){
   else if(c==="restart"){if(SO){video.currentTime=0;video.play().catch(()=>{})}else startOver()}
   else if(c==="guide"){ctlMode=false;openGuide()}
   else if(c==="mosaic"){ctlMode=false;openMosaic()}
+  else if(c==="pick"){ctlMode=false;openPick()}
   else if(c==="list"){ctlMode=false;renderCtl();openMg()}
   else if(c==="full")toggleFull();
   else if(c==="fav")toggleFav(channels[cur]);
@@ -3128,7 +3187,7 @@ document.addEventListener("keyup",e=>{if(keyName(e)!=="ok"||!okT)return;clearTim
 document.addEventListener("keydown",e=>{
   if(SV.on){e.preventDefault();e.stopImmediatePropagation();saverClose();return}
   if(TM&&!$("tvmsg").hidden&&/^(ok|back)$/.test(keyName(e)||"")){e.preventDefault();e.stopImmediatePropagation();hideTvMsg();return}
-  if(SO&&screen==="live"&&!mgOpen&&!ctlMode&&keyName(e)==="back"){e.preventDefault();e.stopImmediatePropagation();backToLive();return}  // une touche réveille la télé, sans rien faire d'autre
+  if(SO&&screen==="live"&&!mgOpen&&!ctlMode&&!PK.open&&keyName(e)==="back"){e.preventDefault();e.stopImmediatePropagation();backToLive();return}  // une touche réveille la télé, sans rien faire d'autre
   hidePeek();
   if(keyName(e)==="ok"&&!(document.activeElement&&document.activeElement.tagName==="INPUT")&&longOkTarget()){
     e.preventDefault();lastKey=Date.now();if(e.repeat||okT)return;okLong=false;
@@ -3147,6 +3206,7 @@ document.addEventListener("keydown",e=>{
   if(screen==="pedit"){editKey(k);return}
   if(screen==="error"){if(k==="left"||k==="up")eIdx=Math.max(0,eIdx-1);else if(k==="right"||k==="down")eIdx=Math.min(2,eIdx+1);else if(k==="ok"){document.querySelectorAll("#e-btns .btn")[eIdx].click();return}renderErr();return}
   if(/^d\d$/.test(k)){digit(k.slice(1));return}
+  if(PK.open){pickKey(k);return}
   if(screen==="live"){
     if(mgOpen){mgKey(k);return}
     if(!$("lerr").hidden&&k==="ok"){play(channels[cur]);return}
