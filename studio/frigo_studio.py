@@ -1173,6 +1173,8 @@ def monitor_once():
             key = "ch:" + c["id"]
             if c.get("count", 0) == 0:
                 alert(key, "La chaîne %s est vide" % c["name"], "Ajoute des vidéos dans sa médiathèque", "bad")
+            elif c.get("ghosts") and _try_repair(c["id"]):
+                clear_alert(key)  # remis en place tout seul (nouvelle version trouvée)
             elif c.get("ghosts"):
                 alert(key, "%s : %d programme%s introuvable%s (%s)" % (c["name"], c["ghosts"], "s" if c["ghosts"] > 1 else "", "s" if c["ghosts"] > 1 else "", ", ".join(c.get("ghost_titles", [])[:3])),
                       "Studio → Chaînes → %s → Retirer les programmes introuvables" % c["name"], "bad")
@@ -2730,6 +2732,75 @@ def channel_ghosts(pr):
     return out
 
 
+def _tnorm(t):
+    t = unicodedata.normalize("NFD", (t or "").lower())
+    return re.sub(r"[^a-z0-9]+", "", "".join(ch for ch in t if unicodedata.category(ch) != "Mn"))
+
+
+def repair_ghosts(cid, remove_rest=False):
+    """Programmes introuvables d'une chaîne : si la vidéo existe encore sous une nouvelle version (convertie, renommée…),
+    on la remet À LA MÊME PLACE ; sinon on la retire seulement si remove_rest. Le programme en cours n'est pas coupé (tn_save)."""
+    pr = tn_programming(cid)
+    g = channel_ghosts(pr)
+    if not g:
+        return 0, 0, []
+    gid = {x["id"]: x for x in g}
+    used = {x["id"] for x in pr["lineup"] if x.get("type") == "content" and x["id"] not in gid}
+    cands = {}
+    for lib in {x["lib"] for x in g if x.get("lib")}:
+        try:
+            for c in tn_library_programs(lib, fresh=True):
+                cands.setdefault(_tnorm(c["title"]), []).append(c)
+        except Exception:
+            pass
+    newraw, fixed, removed, titles = [], 0, 0, []
+    for it in pr["raw"]:
+        gx = gid.get(it.get("id"))
+        if not gx:
+            newraw.append(it)
+            continue
+        c = next((c for c in cands.get(_tnorm(gx["title"]), []) if c["id"] not in used and c.get("duration")), None)
+        if c:
+            newraw.append({"type": "content", "id": c["id"], "duration": c["duration"]})
+            used.add(c["id"])
+            fixed += 1
+            titles.append(gx["title"])
+        elif remove_rest:
+            removed += 1
+        else:
+            newraw.append(it)
+    if not fixed and not removed:
+        return 0, 0, []
+    tn_backup(cid, pr["raw"])
+    tn_save(cid, newraw)
+    return fixed, removed, sorted(set(titles))
+
+
+def _try_repair(cid):
+    try:
+        f, r, t = repair_ghosts(cid)
+        if f:
+            bglog("réparation : %d programme(s) remis dans leur nouvelle version (%s)" % (f, ", ".join(t[:5])))
+        return f > 0 and not channel_ghosts(tn_programming(cid))
+    except Exception as e:
+        bglog("réparation : %s" % e)
+        return False
+
+
+def repair_all_channels():
+    """Après des conversions : toutes les chaînes (pas seulement celle de la médiathèque) retrouvent la nouvelle version."""
+    out = []
+    for c in tn_channels():
+        try:
+            f, r, t = repair_ghosts(c["id"])
+            if f:
+                out.append("%s : %s" % (c["name"], ", ".join(t[:4])))
+                bglog("réparation : %d programme(s) remplacé(s) par leur nouvelle version sur %s (%s)" % (f, c["name"], ", ".join(t[:5])))
+        except Exception as e:
+            bglog("réparation de %s : %s" % (c.get("name"), e))
+    return out
+
+
 def remove_ghosts(cid):
     pr = tn_programming(cid)
     g = channel_ghosts(pr)
@@ -3636,10 +3707,10 @@ def follow_libs(names):
                     c = next((x for x in tn_channels() if same_name(x["name"], name)), None)
                     if c:
                         g = channel_ghosts(tn_programming(c["id"]))
-                        if 0 < len(g) <= k + 2:
-                            r, titles = remove_ghosts(c["id"])
-                            bglog("conversion : %d ancienne(s) version(s) retirée(s) de %s : %s" % (r, name, ", ".join(titles[:5])))
-                        elif g:
+                        if g:
+                            repair_all_channels()  # nouvelle version remise à la même place, sur toutes les chaînes
+                            g = []
+                        if g:
                             bglog("conversion : %d fantôme(s) sur %s pour %d conversion(s), je ne touche à rien" % (len(g), name, k))
                         elif not k_retry.get(name):
                             # Jellyfin n'a pas encore vu disparaître l'ancien fichier : on revient voir dans 3 min
@@ -4635,9 +4706,16 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e), "trace": _trace()})
         if u.path == "/api/tn/ghosts":
             try:
-                n, titles = remove_ghosts(b.get("channel") or "")
+                cid = b.get("channel") or ""
+                f, _r, ft = repair_ghosts(cid)  # d'abord : remettre la nouvelle version à la même place quand elle existe
+                n, titles = remove_ghosts(cid)   # puis retirer ce qui n'existe vraiment plus
                 _health["data"] = None
-                return self.send(200, {"removed": n, "titles": titles, "msg": ("%d programme%s introuvable%s retiré%s : %s" % (n, "s" if n > 1 else "", "s" if n > 1 else "", "s" if n > 1 else "", ", ".join(titles[:4]))) if n else "Aucun fantôme sur cette chaîne"})
+                parts = []
+                if f:
+                    parts.append("%d remis dans leur nouvelle version : %s" % (f, ", ".join(ft[:4])))
+                if n:
+                    parts.append("%d introuvable%s retiré%s : %s" % (n, "s" if n > 1 else "", "s" if n > 1 else "", ", ".join(titles[:4])))
+                return self.send(200, {"removed": n, "fixed": f, "titles": titles, "msg": " · ".join(parts) if parts else "Aucun fantôme sur cette chaîne"})
             except Exception as e:
                 return self.send(400, {"error": str(e)})
         if u.path == "/api/tn/fill":
