@@ -2542,6 +2542,81 @@ def tv_replay_play(ext):
     return dict(_jf_vod(jid), title=it["title"], start=int(time.time() * 1000), dur=it["dur"], elapsed=0)
 
 
+# ---------- Fiche programme sur la télé : affiche, genres, durée, casting (lus dans Jellyfin) ----------
+_info_cache = {}
+_INFO_FIELDS = "Overview,Genres,People,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,Taglines,PremiereDate,ParentId"
+
+
+def _img(item_id, kind="Primary", w=600):
+    return "/tv/img?id=%s&t=%s&w=%d" % (item_id, kind, w)
+
+
+def tv_info(pid="", ext=""):
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    key = (pid or "") + "|" + (ext or "")
+    c = _info_cache.get(key)
+    if c and time.time() - c[0] < 1800:
+        return c[1]
+    if not ext and pid:
+        if not re.fullmatch(r"[0-9a-fA-F-]{36}", pid):
+            raise RuntimeError("programme inconnu")
+        pg = tn("/api/programs/%s" % pid, timeout=10) or {}
+        ext = _ext_of(pg, {})
+    ext = str(ext or "").replace("-", "").lower()
+    if not re.fullmatch(r"[0-9a-f]{32}", ext):
+        raise RuntimeError("Pas de fiche pour ce programme")
+    r = _jf_items("Ids=%s&Fields=%s" % (ext, _INFO_FIELDS))
+    if not r:
+        raise RuntimeError("Jellyfin ne connaît pas ce programme")
+    x = r[0]
+    ep = x.get("Type") == "Episode"
+    s = {}
+    if ep and x.get("SeriesId"):
+        s = (_jf_items("Ids=%s&Fields=%s" % (x["SeriesId"], _INFO_FIELDS)) or [{}])[0]
+    tags = x.get("ImageTags") or {}
+    stags = s.get("ImageTags") or {}
+    # fond : l'image large du film (ou de la série), sinon l'affiche
+    if x.get("BackdropImageTags"):
+        bd = _img(x["Id"], "Backdrop", 1280)
+    elif ep and x.get("ParentBackdropItemId"):
+        bd = _img(x["ParentBackdropItemId"], "Backdrop", 1280)
+    elif s.get("BackdropImageTags"):
+        bd = _img(s["Id"], "Backdrop", 1280)
+    else:
+        bd = ""
+    if ep and stags.get("Primary"):
+        poster = _img(s["Id"], "Primary", 500)
+    elif tags.get("Primary"):
+        poster = _img(x["Id"], "Primary", 500)
+    else:
+        poster = ""
+    logo = _img(x["Id"], "Logo", 700) if tags.get("Logo") else (_img(s["Id"], "Logo", 700) if stags.get("Logo") else "")
+    people = x.get("People") or s.get("People") or []
+    cast = [{"name": p.get("Name"), "role": (p.get("Role") or "")[:40],
+             "img": _img(p["Id"], "Primary", 200) if p.get("PrimaryImageTag") else ""}
+            for p in people if p.get("Type") == "Actor" and p.get("Name")][:6]
+    direc = [p.get("Name") for p in people if p.get("Type") == "Director" and p.get("Name")][:2]
+    rt = x.get("RunTimeTicks") or s.get("RunTimeTicks") or 0
+    out = {"kind": "episode" if ep else "movie",
+           "title": (s.get("Name") or x.get("SeriesName")) if ep else x.get("Name"),
+           "episode": x.get("Name") if ep else "",
+           "season": x.get("ParentIndexNumber"), "number": x.get("IndexNumber"),
+           "year": x.get("ProductionYear") or s.get("ProductionYear"),
+           "genres": (x.get("Genres") or s.get("Genres") or [])[:3],
+           "rating": round(float(x.get("CommunityRating") or s.get("CommunityRating") or 0), 1) or None,
+           "official": x.get("OfficialRating") or s.get("OfficialRating") or "",
+           "minutes": int(rt / 600000000) if rt else None,
+           "overview": (x.get("Overview") or s.get("Overview") or "")[:700],
+           "tagline": ((x.get("Taglines") or s.get("Taglines") or [""])[0] or "")[:140],
+           "backdrop": bd, "poster": poster, "logo": logo, "cast": cast, "directors": direc}
+    _info_cache[key] = (time.time(), out)
+    if len(_info_cache) > 400:
+        for k in sorted(_info_cache, key=lambda k: _info_cache[k][0])[:100]:
+            _info_cache.pop(k, None)
+    return out
+
+
 def tn_backup(cid, raw):
     f = os.path.join(BACKUPS, "%s-%d.json" % (cid, int(time.time() * 1000)))
     with open(f, "w", encoding="utf-8") as fh:
@@ -4109,7 +4184,8 @@ class H(BaseHTTPRequestHandler):
             self.send_header(k, v)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(b)))
-        self.send_header("Cache-Control", "no-store")
+        if not any(k.lower() == "cache-control" for k in (headers or {})):
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(b)
 
@@ -4302,6 +4378,28 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, tv_replay_play((parse_qs(u.query).get("ext") or [""])[0]), headers=cors)
             except Exception as e:
                 return self.send(400, {"error": str(e)}, headers=cors)
+        if u.path == "/tv/info":
+            cors = {"Access-Control-Allow-Origin": "*"}
+            qs = parse_qs(u.query)
+            try:
+                return self.send(200, tv_info((qs.get("pid") or [""])[0], (qs.get("ext") or [""])[0]), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
+        if u.path == "/tv/img":
+            cors = {"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=86400"}
+            qs = parse_qs(u.query)
+            iid, kind = (qs.get("id") or [""])[0], (qs.get("t") or ["Primary"])[0]
+            try:
+                w = max(32, min(1600, int((qs.get("w") or ["600"])[0])))
+            except ValueError:
+                w = 600
+            if not re.fullmatch(r"[0-9a-fA-F-]{20,40}", iid) or kind not in ("Primary", "Backdrop", "Logo", "Thumb"):
+                return self.send(400, {"error": "image"}, headers=cors)
+            try:
+                data, ct = _jf_raw("/Items/%s/Images/%s?maxWidth=%d&quality=82" % (iid, kind, w))
+            except Exception:
+                return self.send(404, {"error": "pas d'image"}, headers=cors)
+            return self.send(200, data, ct, headers=cors)
         if u.path == "/tv/startover":
             cors = {"Access-Control-Allow-Origin": "*"}
             try:
