@@ -1133,17 +1133,34 @@ function parseXMLTV(txt){
   for(const k in map)map[k].sort((a,b)=>a.start-b.start);
   return {map,names};
 }
+let TNID={},GUIDE_T=0,NPCHK={};
+/* Ce que Tunarr passe vraiment : si le guide dit autre chose (programme ajouté, chaîne modifiée…), on le recharge */
+async function checkNowPlaying(ch){
+  try{
+    if(demo||!ch)return;const id=TNID[String(ch.num)];if(!id)return;
+    if(Date.now()-(NPCHK[id]||0)<60000)return;NPCHK[id]=Date.now();
+    const c=new AbortController(),t=setTimeout(()=>c.abort(),8000);
+    const r=await fetch(cfg.server.replace(/\/+$/,"")+"/api/channels/"+id+"/now_playing",{signal:c.signal});clearTimeout(t);if(!r.ok)return;
+    const np=await r.json(),real=((np.program||{}).title||"").trim();if(!real||np.type!=="content")return;
+    const p=progAt(ch,Date.now()),shown=p?(p.title||""):"";
+    const a=norm(real),b=norm(shown);
+    if(!b||(b.indexOf(a)<0&&a.indexOf(b)<0)){try{dbgPush("guide faux sur "+ch.name+" : "+shown+" ≠ "+real)}catch(e){}
+      if(Date.now()-GUIDE_T>60000)refreshFromServer()}
+  }catch(e){}
+}
 async function loadTunarr(){
   const base=cfg.server.replace(/\/+$/,"");
   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),12000);
   try{
     const r1=await fetch(base+"/api/channels.m3u",{signal:ctl.signal});if(!r1.ok)throw new Error("m3u "+r1.status);
     const list=parseM3U(await r1.text());
-    let x={map:{},names:{}};
-    try{const r2=await fetch(base+"/api/xmltv.xml",{signal:ctl.signal});if(r2.ok)x=parseXMLTV(await r2.text())}catch(e){}
-    const byName={};for(const k in x.names)byName[norm(x.names[k])]=k;
-    progs={};
-    list.forEach(c=>{progs[c.id]=x.map[c.key]||x.map[byName[norm(c.name)]]||[]});
+    clearTimeout(to);
+    // le guide est gros (500 Ko) : on lui laisse plus de temps, et s'il n'arrive pas on garde l'ancien plutôt que tout vider
+    let x=null;const c2=new AbortController(),t2=setTimeout(()=>c2.abort(),30000);
+    try{const r2=await fetch(base+"/api/xmltv.xml",{signal:c2.signal});if(r2.ok)x=parseXMLTV(await r2.text())}catch(e){}finally{clearTimeout(t2)}
+    try{const c3=new AbortController(),t3=setTimeout(()=>c3.abort(),10000);const r3=await fetch(base+"/api/channels",{signal:c3.signal});clearTimeout(t3);if(r3.ok){TNID={};(await r3.json()).forEach(c=>{TNID[String(c.number)]=c.id})}}catch(e){}
+    if(x){const byName={};for(const k in x.names)byName[norm(x.names[k])]=k;const np={};list.forEach(c=>{np[c.id]=x.map[c.key]||x.map[byName[norm(c.name)]]||[]});progs=np;GUIDE_T=Date.now()}
+    else{const old=progs;progs={};list.forEach(c=>{progs[c.id]=old[c.id]||[]});try{dbgPush("guide pas reçu, on garde l'ancien")}catch(e){}}
     channels=list;
     return list.length>0;
   }finally{clearTimeout(to)}
@@ -2185,7 +2202,7 @@ function renderBanner(){
   }
   $("clock").textContent=hhmm(now);
 }
-function showBanner(){const bn=$("banner");bn.classList.remove("anim");void bn.offsetWidth;bn.classList.add("anim");showUI()}
+function showBanner(){if(!SO&&channels[cur])checkNowPlaying(channels[cur]);const bn=$("banner");bn.classList.remove("anim");void bn.offsetWidth;bn.classList.add("anim");showUI()}
 const PLAYICO='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
 const PAUSEICO=$("cb-play").querySelector("svg").outerHTML;
 const CTLS=()=>[...document.querySelectorAll("#ctrl .cb")];
@@ -3319,6 +3336,9 @@ setInterval(()=>{
 },20000);
 $("clk2").textContent=hhmm(Date.now());
 setInterval(()=>{if(!demo&&channels.length)refreshFromServer()},10*60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!demo&&channels.length&&Date.now()-GUIDE_T>2*60000)refreshFromServer()});
+video.addEventListener("playing",()=>{if(!SO&&channels[cur])setTimeout(()=>checkNowPlaying(channels[cur]),3000)});
+setInterval(()=>{if(screen==="live"&&!SO&&videoOk&&channels[cur])checkNowPlaying(channels[cur])},5*60000);
 
 /* Appli Android (télé) : on relance la chaîne au retour dans l'appli, pas de bouton plein écran (déjà plein écran) */
 const IN_TV_APP=/FrigoRoseTV/.test(navigator.userAgent);
