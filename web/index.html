@@ -1542,7 +1542,7 @@ function fiFill(it,info){
   const yr=(info&&info.year)||p.year;if(yr)parts.push(el("span",null,String(yr)));
   const mins=info&&info.kind!=="episode"&&info.minutes?info.minutes*MIN:p.stop-p.start;if(mins>0)parts.push(el("span",null,dur(mins)));
   if(info&&info.rating)parts.push(el("span","st","★ "+String(info.rating).replace(".",",")));
-  if(info&&info.official)parts.push(el("span",null,info.official));
+  if(info&&info.official){const o=String(info.official).replace(/^FR-?/i,"").toUpperCase(),t=/^(TP|U|ALL|G|0)$/.test(o)?"Tous publics":/^\d+$/.test(o)?"Déconseillé aux -"+o+" ans":"";if(t)parts.push(el("span",null,t))}
   parts.forEach((x,j)=>{if(j)m.append(el("i","dot"));m.append(x)});
   const gen=info&&info.genres&&info.genres.length?info.genres:(p.cat?p.cat.split(" · "):[]);
   gen.slice(0,3).forEach(g=>m.append(el("span","ch",g)));
