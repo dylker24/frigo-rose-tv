@@ -1201,9 +1201,19 @@ def monitor_once():
         ALERTS.pop(k, None)
 
 
+_autoconv_lock = threading.Lock()
+
+
 def autoconv_once():
-    if not conf.get("auto_convert", True):
+    if not conf.get("auto_convert", True) or not _autoconv_lock.acquire(blocking=False):
         return 0
+    try:
+        return _autoconv_run()
+    finally:
+        _autoconv_lock.release()
+
+
+def _autoconv_run():
     libs = (jf_cache.get("libs") or []) if isinstance(jf_cache, dict) else []
     queued = {x.get("src") for x in jobs if x.get("kind") == "conv" and x["status"] in ("attente", "en cours")}
     n = 0
@@ -1229,8 +1239,9 @@ def autoconv_once():
                     info = media_info(pth)
                 except Exception:
                     continue
-                _autoconv_seen[pth] = sig
-                if info.get("heavy"):
+                if not info.get("heavy"):
+                    _autoconv_seen[pth] = sig  # vidéo légère : plus besoin de la revérifier
+                else:  # lourde : revérifiée à chaque passage tant qu'elle n'est pas convertie (même si Studio redémarre)
                     media_convert([pth], night=True)
                     n += 1
                     bglog("pilote auto : %s sera convertie cette nuit (%s)" % (f, ", ".join(info["heavy"])))
@@ -2513,14 +2524,7 @@ def tv_choose_next(num, pid, who=""):
         k -= 1
         shift = durs[j]
     raw.insert(k + 1, item)
-    tn_save(cid, raw)
-    want = start0 + shift
-    try:
-        now_ch = tn("/api/channels/%s" % quote(cid, safe="")) or {}
-        if abs(float(now_ch.get("startTime") or 0) - want) > 1:
-            tn_channel_put(cid, startTime=int(want))
-    except Exception as e:
-        bglog("au choix : départ de %s : %s" % (ch.get("name"), e))
+    tn_save(cid, raw)  # tn_save recale tout seul le départ : le programme en cours n'est pas coupé
     CHOICES[cid] = {"pid": pid, "title": title, "who": who, "at": time.time()}
     bglog("au choix : %s passe après le programme en cours sur %s (%s)" % (title, ch.get("name"), who or "?"))
     return {"ok": True, "title": title}
@@ -2549,9 +2553,55 @@ def tn_backup(cid, raw):
             pass
 
 
+def _time_snap(cid):
+    """Avant de changer une chaîne : quel programme passe, et où on en est dedans."""
+    try:
+        ch = tn("/api/channels/%s" % quote(cid, safe="")) or {}
+        raw = (tn("/api/channels/%s/programming" % cid, timeout=30) or {}).get("lineup") or []
+        durs = [x.get("duration") or x.get("durationMs") or 0 for x in raw]
+        total = sum(durs)
+        if not total or ch.get("startTime") is None:
+            return None
+        off = (time.time() * 1000 - float(ch["startTime"])) % total
+        k = 0
+        while k < len(raw) and off >= durs[k]:
+            off -= durs[k]
+            k += 1
+        k = min(k, len(raw) - 1)
+        occ = sum(1 for x in raw[:k] if x.get("id") == raw[k].get("id"))
+        return {"id": raw[k].get("id"), "occ": occ, "off": off, "start": float(ch["startTime"])}
+    except Exception:
+        return None
+
+
+def _time_restore(cid, snap):
+    """Après le changement : on recale le départ de la chaîne pour que le même programme continue au même endroit
+    (sinon le guide et la télé annoncent un autre film que celui qui passe vraiment)."""
+    if not snap or not snap.get("id"):
+        return
+    try:
+        raw = (tn("/api/channels/%s/programming" % cid, timeout=30) or {}).get("lineup") or []
+        acc, n = 0, 0
+        for x in raw:
+            d = x.get("duration") or x.get("durationMs") or 0
+            if x.get("id") == snap["id"]:
+                if n == snap["occ"]:
+                    want = int(time.time() * 1000 - acc - snap["off"])
+                    ch = tn("/api/channels/%s" % quote(cid, safe="")) or {}
+                    if abs(float(ch.get("startTime") or 0) - want) > 1500:
+                        tn_channel_put(cid, startTime=want)
+                    return
+                n += 1
+            acc += d
+    except Exception as e:
+        bglog("recalage de la chaîne : %s" % e)
+
+
 def tn_save(cid, lineup):
+    snap = _time_snap(cid)
     items = [x for x in (_clean_item(i) for i in lineup) if x]
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": False}, timeout=60)
+    _time_restore(cid, snap)
     _health["data"] = None
 
 
@@ -2573,7 +2623,9 @@ def tn_add(cid, progs, announce_it=True):
     items = [{"type": "content", "id": p["id"], "duration": p["duration"]} for p in progs if p.get("id") and p.get("duration")]
     if not items:
         raise RuntimeError("Rien à ajouter")
+    snap = _time_snap(cid)
     tn("/api/channels/%s/programming" % cid, "POST", {"type": "manual", "lineup": items, "append": True}, timeout=60)
+    _time_restore(cid, snap)
     _health["data"] = None
     if announce_it:
         threading.Thread(target=announce, args=(cid, [p for p in progs if p.get("id") and p.get("duration")], cur), daemon=True).start()
@@ -3040,8 +3092,11 @@ def media_heavy(folder):
 
 def media_convert(paths, night=False):
     ids = []
+    busy = {x.get("src") for x in jobs if x.get("kind") == "conv" and x["status"] in ("attente", "en cours")}
     for pth in paths:
         _check_inside(pth)
+        if pth in busy:
+            continue  # déjà dans la file d'attente
         kw = {"night": True, "msg": "Prévue cette nuit (vers %d h), une à la fois" % int(conf.get("night_from", 2))} if night else {}
         ids.append(new_job("conv", src=pth, dest=os.path.dirname(pth), delete=False, trash_src=True, sync=True, title=os.path.basename(pth), **kw)["id"])
     return ids
