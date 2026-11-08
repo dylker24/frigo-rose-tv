@@ -2279,13 +2279,15 @@ function homeKey(k){
 let cIdx=0,chFilter="all",chZone="grid",chTool=0;
 const CHT=["all","fav","cat:acteurs","cat:comedie","cat:films","cat:series","cat:jeunesse","cat:divert","mosaic","refresh"];
 /* Catégories des chaînes : d'après le nom, sinon d'après ce qu'elles passent (films, épisodes, vidéos) */
-const CATKW={acteurs:["bourdon","danyboon"],comedie:["comedie","tuche","bandeafifi","spectacle","verino","scenesdemenages","policeacademy","campingparadis","enfamille"],
+const CATKW={acteurs:["bourdon","danyboon","defunes"],comedie:["comedie","tuche","bandeafifi","spectacle","verino","scenesdemenages","policeacademy","campingparadis","enfamille"],
   films:["grandecran","generationcine","transformers","policeacademy","biopic","pagnol","comedie","culte","tuche","bandeafifi","minions","pixar","disney","filmdanimation","film"],
   series:["friends","modernfamily","simpson","americandad","campingparadis","josephine","familleformidable","enfamille","petitemaison","rookie","monk","scenesdemenages","violetta"],
   jeunesse:["animation","anime","pixar","disney","minions","dessin","violetta"],
   divert:["noholito","danielle","dyna","verino","cauchemar","campingcar","histoiressecretes","spectacle","videofamille"]};
 const CATNAME={acteurs:"acteurs",comedie:"comédie",films:"films",series:"séries",jeunesse:"jeunesse",divert:"divertissement"};
-function chInCat(ch,cat){const n=norm(ch.name);if(cat!=="acteurs"&&CATKW.acteurs.some(k=>n.indexOf(k)>=0))return false;if((CATKW[cat]||[]).some(k=>n.indexOf(k)>=0))return true;
+let CHCATS={};
+async function loadChCats(){if(demo)return;try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),8000);const r=await fetch(studioBase()+"/tv/cats",{signal:ac.signal});clearTimeout(tt);if(r.ok){CHCATS=(await r.json()).cats||{};if(screen==="chaines")renderChaines()}}catch(e){}}
+function chInCat(ch,cat){const own=CHCATS[TNID[String(ch.num)]];if(own)return own.includes(cat);const n=norm(ch.name);if(cat!=="acteurs"&&CATKW.acteurs.some(k=>n.indexOf(k)>=0))return false;if((CATKW[cat]||[]).some(k=>n.indexOf(k)>=0))return true;
   if(Object.keys(CATKW).some(c=>CATKW[c].some(k=>n.indexOf(k)>=0)))return false;
   const v=(typeof CT!=="undefined"&&CT.chans||[]).find(c=>String(c.num)===String(ch.num));if(!v)return false;
   return (cat==="films"&&v.kind==="movies")||(cat==="series"&&v.kind==="series")||(cat==="divert"&&v.kind==="videos")}
@@ -2296,7 +2298,7 @@ function chCols(){return 4}
 let MOS=false;
 function openMosaic(){MOS=true;document.body.classList.add("mosaic");chFilter="all";openChaines()}
 function closeMosaic(){if(!MOS)return;MOS=false;document.body.classList.remove("mosaic")}
-function openChaines(){const l=chList();cIdx=Math.max(0,l.indexOf(cur));chZone="grid";zone="content";setScreen("chaines");chPreviewSched()}
+function openChaines(){loadChCats();const l=chList();cIdx=Math.max(0,l.indexOf(cur));chZone="grid";zone="content";setScreen("chaines");chPreviewSched()}
 function applyTool(t){const v=CHT[t];if(v==="refresh"){manualRefresh();return}if(v==="mosaic"){openMosaic();return}if(v&&v!==chFilter){chFilter=v;cIdx=0}}
 let refreshing=false;
 async function manualRefresh(){

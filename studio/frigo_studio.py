@@ -4891,6 +4891,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e)}, headers=cors)
         if u.path == "/api/tidy" and self.local():
             return self.send(200, {k: TIDY[k] for k in ("state", "done", "total", "err", "plan")})
+        if u.path == "/tv/cats":
+            return self.send(200, {"cats": conf.get("chcats") or {}}, headers={"Access-Control-Allow-Origin": "*"})
         if u.path in ("/tv/vod/chans", "/tv/vod/chan", "/tv/vod/play"):
             cors = {"Access-Control-Allow-Origin": "*"}
             qs = parse_qs(u.query)
@@ -5369,6 +5371,18 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, {"msg": "%d programme%s ajouté%s à la fin de la chaîne" % (n, "s" if n > 1 else "", "s" if n > 1 else "")})
             except Exception as e:
                 return self.send(400, {"error": str(e), "trace": _trace()})
+        if u.path == "/api/chcats":
+            cid, cats = str(b.get("channel") or ""), b.get("cats")
+            if not re.fullmatch(r"[-\w]{8,64}", cid):
+                return self.send(400, {"error": "chaîne inconnue"})
+            m = dict(conf.get("chcats") or {})
+            if cats is None:
+                m.pop(cid, None)
+            else:
+                m[cid] = [c for c in cats if c in ("acteurs", "comedie", "films", "series", "jeunesse", "divert")]
+            conf["chcats"] = m
+            save_conf(conf)
+            return self.send(200, {"ok": True, "chcats": m})
         if u.path == "/api/news":
             try:
                 if b.get("action") == "remove" and re.fullmatch(r"[-\w]{1,64}", b.get("id") or ""):
