@@ -1375,8 +1375,8 @@ const CATKW={acteurs:["bourdon","danyboon","defunes"],comedie:["comedie","tuche"
   films:["grandecran","generationcine","transformers","policeacademy","biopic","pagnol","comedie","culte","tuche","bandeafifi","minions","pixar","disney","filmdanimation","film"],
   series:["friends","modernfamily","simpson","americandad","campingparadis","josephine","familleformidable","enfamille","petitemaison","rookie","monk","scenesdemenages","violetta"],
   jeunesse:["animation","anime","pixar","disney","minions","dessin","violetta"],divert:["noholito","danielle","dyna","verino","cauchemar","campingcar","histoiressecretes","spectacle","videofamille"]};
-const nrm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\btv\b/g,"").replace(/[^a-z0-9]/g,"");
-function autoCats(name){const n=nrm(name);if(CATKW.acteurs.some(k=>n.includes(k)))return["acteurs"];return CATS.map(c=>c[0]).filter(c=>CATKW[c].some(k=>n.includes(k)))}
+const catNrm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\btv\b/g,"").replace(/[^a-z0-9]/g,"");
+function autoCats(name){const n=catNrm(name);if(CATKW.acteurs.some(k=>n.includes(k)))return["acteurs"];return CATS.map(c=>c[0]).filter(c=>CATKW[c].some(k=>n.includes(k)))}
 let CHC=null;
 async function renderCats(){const c=chInfo(),box=$("ch-cats");if(!box)return;
   if(!CHC){try{CHC=(await (await fetch("/tv/cats")).json()).cats||{}}catch(e){CHC={}}}
