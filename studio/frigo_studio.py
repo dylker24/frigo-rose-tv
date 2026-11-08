@@ -2730,6 +2730,8 @@ def nice_title(name, show=None, chan=""):
     o = (name or "").strip()
     if not o or re.fullmatch(r"(MVI|IMG|DSC|VID|PXL|GOPR)[_ -]?\d+|\d+", o, re.I):
         return None, None
+    if " · " in o:  # déjà un beau titre (Friends · S1 E5)
+        return None, None
     t = re.sub(r"\.(mkv|mp4|avi|m4v|mov|ts|wmv)$", "", o, flags=re.I)
     t = t.replace("：", ":").replace("｜", "|").replace("？", "?").replace("⧸", "/").replace("’", "'").replace("…", "")
     t = re.sub(r"^\((?:M6|TF1|W9|C8)\)\s*", "", t)
