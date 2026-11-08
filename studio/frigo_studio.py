@@ -2733,6 +2733,7 @@ def nice_title(name, show=None, chan=""):
     t = re.sub(r"\.(mkv|mp4|avi|m4v|mov|ts|wmv)$", "", o, flags=re.I)
     t = t.replace("：", ":").replace("｜", "|").replace("？", "?").replace("⧸", "/").replace("’", "'").replace("…", "")
     t = re.sub(r"^\((?:M6|TF1|W9|C8)\)\s*", "", t)
+    t = re.sub(r"(?i)(\d+)[ ._]pourcent\b", r"\1%", t)
     t = re.sub(r"(?i)[ ._]avec[ ._]philippe[ ._]etchebest", "", t)
     t = re.sub(r"\s+", " ", t).strip()
     junk = {_nt_n(chan), _nt_n(re.sub(r"(?i)\s+tv\s*$", "", chan or ""))} - {""}
@@ -2862,6 +2863,29 @@ def tidy_plan():
             new, year = nice_title(name, show_of.get(c["id"]), c.get("name") or "")
             if new:
                 plan.append({"id": e, "type": t, "old": name, "new": new, "year": None if show_of.get(c["id"]) else year, "action": "rename", "chan": c.get("name")})
+    # tous les films des médiathèques « films », même ceux pas encore sur une chaîne
+    have = {x["id"] for x in plan}
+    try:
+        libs = jf_libraries(force=True)["libs"]
+    except Exception:
+        libs = []
+    seenlib = set()
+    for l in libs:
+        if l.get("type") != "movies" or not l.get("item") or l["item"] in seenlib:
+            continue
+        seenlib.add(l["item"])
+        for it in _jf_items("ParentId=%s&Recursive=true&IncludeItemTypes=Movie&Fields=ProviderIds,ProductionYear,Path" % l["item"]):
+            e = str(it.get("Id") or "").replace("-", "").lower()
+            pids = it.get("ProviderIds") or {}
+            if e in have or pids.get("Tmdb") or pids.get("Imdb"):
+                continue
+            fn = os.path.splitext(os.path.basename(it.get("Path") or ""))[0] or it.get("Name") or ""
+            new, year = nice_title(fn)
+            if not new:
+                new, year = (it.get("Name") or fn), None
+            plan.append({"id": e, "type": "Movie", "old": it.get("Name") or fn, "new": new, "year": year or it.get("ProductionYear"),
+                         "action": "identify", "chan": l.get("name")})
+            have.add(e)
     return plan
 
 
@@ -2871,8 +2895,9 @@ def _tidy_identify(x):
     best, score = None, 0
     for c in r[:6]:
         s = difflib.SequenceMatcher(None, _nt_n(q), _nt_n(c.get("Name"))).ratio()
-        if x.get("year") and c.get("ProductionYear") and abs(int(c["ProductionYear"]) - int(x["year"])) > 1:
-            s -= .3
+        if x.get("year") and c.get("ProductionYear"):
+            dy = abs(int(c["ProductionYear"]) - int(x["year"]))
+            s += .15 if dy == 0 else .05 if dy == 1 else -.3
         if s > score:
             best, score = c, s
     if best and score >= .82:
