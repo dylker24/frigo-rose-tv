@@ -346,8 +346,8 @@ nav button .ic{width:24px;height:24px}
     <div class="head"><h1>Ajouter</h1></div>
     <div class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Lien YouTube ou nom du son" autocomplete="off" enterkeyhint="search"><button id="qx" hidden><svg class="ic"><use href="#i-x"/></svg></button></div>
     <div class="target" id="target"></div>
-    <div id="jobsBox"></div>
     <div id="results"></div>
+    <div id="jobsBox"></div>
     <div class="sec" id="addHelp">
       <div class="empty" style="text-align:left;line-height:1.6">
         <b style="color:var(--ink)">Deux façons :</b><br>
@@ -628,7 +628,7 @@ async function doSearch(){
   lastQ=q;
   // d'abord ce qu'on a déjà
   const loc=searchLocal(q).slice(0,5);
-  $("#results").innerHTML=(loc.length?`<div class="lab">Déjà dans ta bibliothèque</div><div class="list">${loc.map(s=>songRow(s,{ctx:"search"})).join("")}</div>`:"")+`<div class="lab">Sur YouTube</div><div class="spin"></div>`;
+  $("#results").innerHTML=`<div class="lab">Sur YouTube</div><div class="spin"></div>`+(loc.length?`<div class="lab">Déjà dans ta bibliothèque</div><div class="list">${loc.map(s=>songRow(s,{ctx:"search"})).join("")}</div>`:"");
   try{
     const r=await call("/api/search",{q});
     if(lastQ!==q)return;
