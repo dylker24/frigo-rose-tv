@@ -2689,13 +2689,21 @@ def _catalog_build():
                                        "poster": _img(e, "Primary", 360) if (it.get("ImageTags") or {}).get("Primary") else ""}
                     out.append(g)
                 g["n"] += 1
+                g["eps"] = g.get("eps", 0) + (1 if re.search(r"(?i)\bs\d{1,2}\s?e\s?\d{1,3}\b|\b\d{1,2}x\d{2}\b|\bS?\d{1,2}E\d{1,3}\b", it.get("Name") or "") else 0)
                 g["added"] = max(g["added"], it.get("DateCreated") or "")
+    # une chaîne de vidéos qui est en fait une série (Friends S01E05…) : on l'affiche comme une série
+    for g in out:
+        if g["kind"] == "videos":
+            g["coll"] = True
+            g["title"] = re.sub(r"(?i)\s+tv$", "", g["title"]).strip() or g["title"]
+            if g.pop("eps", 0) * 2 >= g["n"] and g["n"] >= 3:
+                g["kind"] = "series"
     # genres des séries : lus sur la série elle-même
-    sids = [g["jid"] for g in out if g["kind"] == "series"]
+    sids = [g["jid"] for g in out if g["kind"] == "series" and not g.get("coll")]
     for i in range(0, len(sids), 80):
         for it in _jf_items("Ids=%s&Fields=Genres,ProductionYear" % ",".join(sids[i:i + 80])):
             g = groups.get("s:" + str(it.get("Id")))
-            if g:
+            if g and not g.get("coll"):
                 g["genres"] = (it.get("Genres") or [])[:3]
                 g["year"] = it.get("ProductionYear") or g["year"]
                 if not (it.get("ImageTags") or {}).get("Primary"):

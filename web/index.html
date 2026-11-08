@@ -754,6 +754,7 @@ body.idle .sopill{opacity:0}
 .ctc .po img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .ctc .po .ph{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:.3rem;padding:.8rem;font:800 1.05rem/1.15 var(--display);color:#fff}
 .ctc .po .ph small{font:700 .66rem var(--ui);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);margin:0}
+.ctc .po.coll .clg{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);inset:auto;width:70%;height:auto;max-height:45%;object-fit:contain}
 .ctc .po .tag{position:absolute;z-index:1;left:.45rem;top:.45rem;font:800 .6rem var(--ui);letter-spacing:.08em;background:rgba(0,0,0,.7);color:#fff;padding:.22rem .42rem;border-radius:.3rem}
 .ctc .po .tag.live{background:#E5242E}
 .ctc.f .po{transform:scale(1.07);box-shadow:0 0 0 .2rem #fff,0 1rem 2.2rem rgba(0,0,0,.55)}
@@ -1543,7 +1544,7 @@ async function loadCat(force){
   CT.busy=false;if(screen==="catalogue")renderCat()}
 function catFilters(){
   const F=[["all","Tout"],["movie","Films"],["series","Séries"]];
-  if(CT.items.some(x=>x.kind==="videos"))F.push(["videos","Vidéos"]);
+  if(CT.items.some(x=>x.kind==="videos"))F.push(["videos","Collections"]);
   const cnt={};CT.items.forEach(x=>(x.genres||[]).forEach(g=>cnt[g]=(cnt[g]||0)+1));
   Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,7).forEach(g=>{if(cnt[g]>=3)F.push(["g:"+g,g])});
   return F}
@@ -1553,7 +1554,7 @@ function catChIdx(num){return channels.findIndex(c=>String(c.num)===String(num))
 function catAiring(x){
   const now=Date.now(),t=norm(x.title);let live=null,next=null;
   (x.chans||[]).forEach(c=>{const i=catChIdx(c.num);if(i<0)return;const ch=channels[i];
-    if(x.kind==="videos"){const p=progAt(ch,now);if(!live&&p&&!p.synthetic)live={i,ch,p};return}
+    if(x.coll){const p=progAt(ch,now);if(!live&&p&&!p.synthetic)live={i,ch,p};return}
     (progs[ch.id]||[]).forEach(p=>{if(p.stop<=now||!t)return;const a=norm(p.title);if(a.indexOf(t)<0&&t.indexOf(a)<0)return;
       if(p.start<=now){if(!live)live={i,ch,p}}else if(!next||p.start<next.p.start)next={i,ch,p}})});
   return {live,next}}
@@ -1578,10 +1579,12 @@ function renderCat(){
   list.slice(CT.top*CT.cols,(CT.top+CT.rows+1)*CT.cols).forEach((x,k)=>{const j=CT.top*CT.cols+k;
     const c=el("button","ctc"+(zone==="content"&&CT.zone==="grid"&&j===CT.i?" f":""));c.type="button";
     const po=el("div","po"),ch0=x.chans&&x.chans[0];
-    const ph=()=>{const d=el("div","ph");const ci=ch0?catChIdx(ch0.num):-1;po.style.background="linear-gradient(160deg,"+(ci>=0?chColor(channels[ci]):"#444")+"cc,#141418 80%)";d.append(el("small",null,x.kind==="series"?"Série":x.kind==="videos"?"Vidéos":"Film"),document.createTextNode(x.title||""));po.append(d)};
-    if(x.poster){const im=el("img");im.alt="";im.loading="lazy";im.decoding="async";im.onerror=()=>{im.remove();ph()};im.src=sb+x.poster;po.append(im)}else ph();
+    const ph=()=>{const d=el("div","ph");const ci=ch0?catChIdx(ch0.num):-1;po.style.background="linear-gradient(160deg,"+(ci>=0?chColor(channels[ci]):"#444")+"cc,#141418 80%)";d.append(el("small",null,x.kind==="series"?"Série":x.kind==="videos"?"Collection":"Film"),document.createTextNode(x.title||""));po.append(d)};
+    const ci0=ch0?catChIdx(ch0.num):-1,lg0=ci0>=0?channels[ci0].logo:"";
+    if(x.coll&&lg0){po.classList.add("coll");po.style.background="radial-gradient(ellipse at 50% 35%,"+chColor(channels[ci0])+"aa,#141418 78%)";const im=el("img","clg");im.alt="";setLogo(im,lg0);try{plateIfNeeded(im,lg0)}catch(e){}im.onerror=()=>{im.remove();ph()};po.append(im);const d=el("div","ph");d.append(el("small",null,x.kind==="series"?"Série":"Collection"),document.createTextNode(x.title||""));po.append(d)}
+    else if(x.poster&&!x.coll){const im=el("img");im.alt="";im.loading="lazy";im.decoding="async";im.onerror=()=>{im.remove();ph()};im.src=sb+x.poster;po.append(im)}else ph();
     const A=catAiring(x);if(A.live)po.append(el("span","tag live","EN DIRECT"));
-    const sub=[x.year,x.kind==="series"?x.n+" épisode"+(x.n>1?"s":""):x.kind==="videos"?x.n+" vidéo"+(x.n>1?"s":""):"",ch0?ch0.name:""].filter(Boolean).join(" · ");
+    const sub=[x.year,x.kind==="series"?x.n+" épisode"+(x.n>1?"s":""):x.kind==="videos"?x.n+" programme"+(x.n>1?"s":""):"",ch0?ch0.name:""].filter(Boolean).join(" · ");
     c.append(po,el("b",null,x.title||""),el("small",null,sub||"\u00a0"));
     c.onclick=()=>{CT.i=j;CT.zone="grid";catFiche(x)};g.append(c)});
 }
@@ -1604,9 +1607,10 @@ function catFiche(x){
   const A=catAiring(x),ch0=x.chans&&x.chans[0];let i=A.live?A.live.i:A.next?A.next.i:ch0?catChIdx(ch0.num):-1;
   if(i<0){toast("Cette chaîne n'est plus dans la liste");return}
   const ch=channels[i];
-  if(A.live){openFiche({i,ch,p:A.live.p,kind:"now",ext:x.jid,cat:x,poster:x.poster});return}
+  const po=x.coll?"":x.poster;
+  if(A.live){openFiche({i,ch,p:A.live.p,kind:"now",ext:x.jid,cat:x,poster:po});return}
   const p=A.next?A.next.p:{title:x.title,start:0,stop:0,desc:"",icon:"",cat:(x.genres||[]).join(" · ")};
-  openFiche({i,ch,p,kind:"cat",nextP:A.next?A.next.p:null,ext:x.jid,cat:x,poster:x.poster})}
+  openFiche({i,ch,p,kind:"cat",nextP:A.next?A.next.p:null,ext:x.jid,cat:x,poster:po})}
 async function catNext(it){
   const c=(it.cat.chans||[]).find(z=>String(z.num)===String(it.ch.num))||it.cat.chans[0];if(!c||!c.pid)return;
   toast("Je le mets juste après…",4000);let r=null;
@@ -1651,7 +1655,7 @@ function fiFill(it,info){
   $("fi-ep").textContent=epT;$("fi-ep").hidden=!epT;
   const m=$("fi-meta");m.textContent="";const parts=[];
   const yr=(info&&info.year)||p.year;if(yr)parts.push(el("span",null,String(yr)));
-  const cx=it.cat;if(cx&&cx.kind!=="movie"&&cx.n)parts.push(el("span",null,cx.n+(cx.kind==="series"?" épisode":" vidéo")+(cx.n>1?"s":"")));
+  const cx=it.cat;if(cx&&cx.kind!=="movie"&&cx.n)parts.push(el("span",null,cx.n+(cx.kind==="series"?" épisode":" programme")+(cx.n>1?"s":"")));
   const mins=info&&info.kind!=="episode"&&info.minutes?info.minutes*MIN:p.stop-p.start;if(mins>0&&!(cx&&cx.kind!=="movie"))parts.push(el("span",null,dur(mins)));
   if(info&&info.rating)parts.push(el("span","st","★ "+String(info.rating).replace(".",",")));
   if(info&&info.official){const o=String(info.official).replace(/^FR-?/i,"").toUpperCase(),t=/^(TP|U|ALL|G|0)$/.test(o)?"Tous publics":/^\d+$/.test(o)?"Déconseillé aux -"+o+" ans":"";if(t)parts.push(el("span",null,t))}
