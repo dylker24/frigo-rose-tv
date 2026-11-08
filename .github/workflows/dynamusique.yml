@@ -24,7 +24,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip pyinstaller
-          pyinstaller --onefile --noconsole --name Dynamusique --icon dynamusique/icon.ico --add-data "dynamusique/page.html;." --add-data "dynamusique/icon.png;." dynamusique/dynamusique.py
+          pyinstaller --onefile --noconsole --name Dynamusique --icon dynamusique/icon.ico --add-data "dynamusique/page.html;." --add-data "dynamusique/icon.png;." --add-data "dynamusique/sw.js;." dynamusique/dynamusique.py
           Get-Item dist/Dynamusique.exe
       - name: Test sur Windows
         shell: pwsh

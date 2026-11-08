@@ -450,6 +450,52 @@ def tailscale_ip():
     return ""
 
 
+# ---------------------------------------------------------------- https (obligatoire sur iPhone pour le hors-ligne)
+HTTPS_PORT = int(os.environ.get("DYN_HTTPS_PORT", "8798"))
+https = {"url": "", "enable": "", "error": ""}
+
+
+def ts_exe():
+    exe = shutil.which("tailscale") or (r"C:\Program Files\Tailscale\tailscale.exe" if WIN else "")
+    return exe if exe and os.path.exists(exe) else ""
+
+
+def https_loop():
+    """Demande à Tailscale de servir Dynamusique en https (https://nom-du-pc.xxx.ts.net:8798)."""
+    if os.environ.get("DYN_FAKE_HTTPS"):
+        https["url"] = os.environ["DYN_FAKE_HTTPS"]
+        return
+    while True:
+        exe = ts_exe()
+        if not exe:
+            https["error"] = "Tailscale introuvable sur ce PC"
+            time.sleep(60)
+            continue
+        try:
+            r = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, creationflags=NOWIN)
+            name = ((json.loads(r.stdout or "{}").get("Self") or {}).get("DNSName") or "").rstrip(".")
+            if not name:
+                raise RuntimeError("Tailscale n'est pas connecté")
+            out = ""
+            try:
+                r = subprocess.run([exe, "serve", "--bg", "--https=%d" % HTTPS_PORT, "http://127.0.0.1:%d" % PORT], capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=25, creationflags=NOWIN)
+                out = (r.stdout or "") + (r.stderr or "")
+                ok = r.returncode == 0
+            except subprocess.TimeoutExpired as e:
+                out = "".join(x.decode("utf-8", "replace") if isinstance(x, bytes) else (x or "") for x in (e.stdout, e.stderr))
+                ok = False
+            m = re.search(r"https://login\.tailscale\.com/\S+", out)
+            if ok:
+                https.update(url="https://%s:%d" % (name, HTTPS_PORT), enable="", error="")
+                return
+            https["enable"] = m.group(0) if m else ""
+            https["error"] = "" if m else (out.strip().splitlines() or ["https indisponible"])[-1][:200]
+        except Exception as e:
+            https["error"] = str(e)[:200]
+        time.sleep(30)
+
+
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
@@ -479,7 +525,7 @@ def public_state(pid=None):
     with lock:
         return {"v": VERSION_DB["n"], "setup": setup, "songs": list(db["songs"].values()), "profiles": db["profiles"],
                 "jobs": [{k: j[k] for k in ("id", "yt", "title", "thumb", "state", "pct", "error", "profile", "playlist")} for j in jobs],
-                "address": ("http://%s:%d" % (tailscale_ip(), PORT)) if tailscale_ip() else "", "autostart": autostart(),
+                "address": ("http://%s:%d" % (tailscale_ip(), PORT)) if tailscale_ip() else "", "https": https, "autostart": autostart(),
                 "music": MUSIC}
 
 
@@ -595,6 +641,9 @@ def api(path, b):
                             pass
                 save_db()
             return {}
+    if path == "/api/quit":
+        threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
+        return {}
     if path == "/api/autostart":
         return {"on": autostart(bool(b.get("on")))}
     raise ValueError("Action inconnue")
@@ -649,6 +698,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, read_asset("page.html"), "text/html; charset=utf-8")
             if p == "/icon.png":
                 return self.send(200, read_asset("icon.png"), "image/png", {"Cache-Control": "max-age=86400"})
+            if p == "/sw.js":
+                return self.send(200, read_asset("sw.js"), "application/javascript; charset=utf-8", {"Service-Worker-Allowed": "/"})
             if p == "/manifest.webmanifest":
                 return self.send(200, MANIFEST, "application/manifest+json")
             if p == "/api/state":
@@ -716,6 +767,8 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.guard():
             return
+        if self.path.startswith("/api/quit") and not ipaddress.ip_address(self.client_address[0]).is_loopback:
+            return self.send(403, {"error": "interdit"})
         try:
             n = int(self.headers.get("Content-Length") or 0)
             b = json.loads(self.rfile.read(n) or b"{}") if n else {}
@@ -732,16 +785,30 @@ class H(BaseHTTPRequestHandler):
 
 
 def main():
-    try:
-        srv = ThreadingHTTPServer((HOST, PORT), H)
-    except OSError:
-        webbrowser.open("http://localhost:%d/" % PORT)  # déjà lancé
+    srv = None
+    for i in range(20):
+        try:
+            srv = ThreadingHTTPServer((HOST, PORT), H)
+            break
+        except OSError:
+            if i == 0:
+                # une autre version tourne déjà : on lui demande de laisser la place (mise à jour)
+                try:
+                    req = urllib.request.Request("http://127.0.0.1:%d/api/quit" % PORT, data=b"{}", headers={"Content-Type": "application/json"})
+                    urllib.request.urlopen(req, timeout=3)
+                except Exception:
+                    pass
+            time.sleep(0.5)
+    if not srv:
+        webbrowser.open("http://localhost:%d/" % PORT)
         return
     first = not os.path.exists(os.path.join(DATA, ".lance"))
     if first:
         open(os.path.join(DATA, ".lance"), "w").close()
-        autostart(True)  # démarre avec Windows : la musique est toujours dispo sur les téléphones
+    if first or autostart():
+        autostart(True)  # démarre avec Windows (et suit le .exe s'il a changé de place)
     threading.Thread(target=ensure_tools, daemon=True).start()
+    threading.Thread(target=https_loop, daemon=True).start()
     for _ in range(2):
         threading.Thread(target=worker, daemon=True).start()
     if "--silent" not in sys.argv and not os.environ.get("DYN_NO_BROWSER"):

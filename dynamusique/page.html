@@ -257,6 +257,17 @@ nav button .ic{width:24px;height:24px}
 .tg.on{background:var(--me)}
 .tg.on::after{left:21px}
 
+ .offpill{display:inline-flex;align-items:center;gap:6px;font:600 12px Geist,sans-serif;padding:6px 11px;border-radius:99px;background:var(--s2);color:var(--mute);white-space:nowrap}
+.offpill i{width:7px;height:7px;border-radius:50%;background:#F7C266}
+.dl{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-right:3px;color:var(--me)}
+.keep{display:flex;align-items:center;gap:12px;margin:0 20px 10px;padding:12px 14px;border-radius:14px;background:var(--s1)}
+.keep .ic{color:var(--me)}
+.keep div{flex:1;min-width:0}
+.keep b{display:block;font-weight:600}
+.keep small{color:var(--mute);font-size:12px}
+.move{margin:14px 20px 0;padding:14px 16px;border-radius:16px;background:color-mix(in srgb,var(--me) 18%,var(--s1));font-size:14px}
+.move a{display:inline-block;margin-top:10px;background:#fff;color:#000;font-weight:700;padding:10px 16px;border-radius:99px;text-decoration:none}
+.song.na{opacity:.35}
 #toast{position:fixed;left:50%;top:calc(var(--top) + 14px);transform:translate(-50%,-150%);z-index:80;background:var(--ink);color:#000;font-weight:600;padding:11px 18px;border-radius:99px;transition:transform .3s;max-width:90vw;text-align:center;font-size:14px}
 #toast.on{transform:translate(-50%,0)}
 #off{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:10px}
@@ -299,6 +310,8 @@ nav button .ic{width:24px;height:24px}
   <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
   <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></symbol>
   <symbol id="i-yt" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M12 7v8m-3.5-3.5L12 15l3.5-3.5" stroke="#000" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
   <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1"/></symbol>
 </svg>
 
@@ -313,7 +326,7 @@ nav button .ic{width:24px;height:24px}
 <div id="app" hidden>
   <!-- ACCUEIL -->
   <section class="page on" id="p-home">
-    <div class="head"><h1 id="hello">Salut</h1><button class="av" id="meBtn"></button></div>
+    <div class="head"><h1 id="hello">Salut</h1><span class="offpill" id="offPill" hidden><i></i>Hors ligne</span><button class="av" id="meBtn"></button></div>
     <div id="pcInfo"></div>
     <div class="hero">
       <p id="heroSub"></p>
@@ -417,6 +430,9 @@ const store={get(k,d){try{const v=localStorage.getItem("dyn:"+k);return v==null?
 const COLORS=["#FF5A36","#8B5CF6","#14B8A6","#F59E0B","#3B82F6","#EC4899","#22C55E","#EF4444"];
 
 let S={songs:{},list:[],profiles:[],jobs:[],v:-1,setup:{}}, ME=store.get("me",null), TARGET=store.get("target","");
+let OFFLINE=false, KEEP=store.get("keep",{}), HAVE=new Set(), SYNC={on:false,done:0,total:0};
+const CAN_OFF="serviceWorker" in navigator && "caches" in window && window.isSecureContext;
+if(CAN_OFF){navigator.serviceWorker.register("/sw.js").catch(()=>{});try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
 
 async function call(path,body){
   const r=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -442,21 +458,31 @@ function plCover(ids,seed){
 
 /* ---------- données */
 async function refresh(){
-  const d=await call("/api/state");
-  S.v=d.v;S.profiles=d.profiles;S.jobs=d.jobs;S.setup=d.setup;S.address=d.address;S.autostart=d.autostart;S.music=d.music;
+  const r=await fetch("/api/state");
+  if(!r.ok)throw new Error("hors ligne");
+  const d=await r.json();
+  setOffline(r.headers.get("X-Dyn-Offline")==="1");
+  S.v=d.v;S.https=d.https;S.profiles=d.profiles;S.jobs=d.jobs;S.setup=d.setup;S.address=d.address;S.autostart=d.autostart;S.music=d.music;
   S.songs={};for(const s of d.songs)S.songs[s.id]=s;
   S.list=d.songs.slice().sort((a,b)=>b.added-a.added);
   if(ME&&!me())ME=null;
+  await loadHave();
   render();
+  if(!OFFLINE)syncOffline();
+}
+function setOffline(v){
+  if(v===OFFLINE)return;OFFLINE=v;
+  $("#offPill").hidden=!v;$("#off").hidden=true;
+  if(S.profiles.length)render();
 }
 let failures=0;
 async function poll(){
   try{
     const d=await call("/api/ping");failures=0;$("#off").hidden=true;
-    if(d.v!==S.v){await refresh()}
+    if(OFFLINE||d.v!==S.v){await refresh()}
     else{S.jobs=d.jobs.map(j=>Object.assign(S.jobs.find(x=>x.id===j.id)||{},j));if(curPage==="add")renderJobs()}
     setTimeout(poll,d.busy?1500:6000);
-  }catch(e){failures++;if(failures>2&&au.paused)$("#off").hidden=false;setTimeout(poll,4000)}
+  }catch(e){failures++;if(S.profiles.length&&CAN_OFF)setOffline(true);else if(failures>2&&au.paused)$("#off").hidden=false;setTimeout(poll,OFFLINE?10000:4000)}
 }
 
 /* ---------- profils */
@@ -521,9 +547,9 @@ function render(){
 function hour(){const h=new Date().getHours();return h<5?"Bonne nuit":h<12?"Bonjour":h<18?"Salut":"Bonsoir"}
 function songRow(s,opts={}){
   if(!s)return"";
-  return `<button class="song" data-song="${s.id}" ${opts.ctx?`data-ctx="${opts.ctx}"`:""} ${opts.i!=null?`data-i="${opts.i}"`:""}>
+  return `<button class="song ${OFFLINE&&!HAVE.has(s.id)?"na":""}" data-song="${s.id}" ${opts.ctx?`data-ctx="${opts.ctx}"`:""} ${opts.i!=null?`data-i="${opts.i}"`:""}>
     ${opts.num?`<span class="num">${opts.i+1}</span>`:""}<div class="cv">${cover(s)}</div>
-    <div class="t"><b><span class="eqh"></span>${esc(s.title)}</b><small>${isLiked(s.id)?`<span style="color:var(--me)">♥</span> `:""}${esc(s.artist)}</small></div>
+    <div class="t"><b><span class="eqh"></span>${esc(s.title)}</b><small>${HAVE.has(s.id)?`<svg class="dl"><use href="#i-dl"/></svg>`:""}${isLiked(s.id)?`<span style="color:var(--me)">♥</span> `:""}${esc(s.artist)}</small></div>
     <span class="more" data-more="${s.id}">${ic("dots")}</span></button>`;
 }
 function renderHome(){
@@ -544,9 +570,14 @@ function renderHome(){
 }
 function renderPc(){
   const local=/^(localhost|127\.)/.test(location.hostname);
-  if(!local){$("#pcInfo").innerHTML="";return}
+  const H=S.https||{};
+  if(!local){
+    $("#pcInfo").innerHTML=location.protocol==="http:"&&H.url?`<div class="move"><b>Nouvelle adresse pour le hors-ligne</b><br>Ouvre-la dans Safari et remets-la sur l'écran d'accueil (tu peux supprimer l'ancienne icône).<br><a href="${esc(H.url)}">Ouvrir ${esc(H.url.replace("https://",""))}</a></div>`:"";
+    return;
+  }
   $("#pcInfo").innerHTML=`<div class="pcbox">${S.setup.error?`<b style="color:#FF7A7A">${esc(S.setup.error)}</b><br>`:S.setup.ready?"":`<b>${esc(S.setup.step)} ${S.setup.pct||0}%</b><br>`}
-    <b>Sur vos téléphones</b> (avec Tailscale activé), ouvrez dans Safari :<br>${S.address?`<code>${esc(S.address)}</code>`:`<i>Tailscale n'est pas détecté sur ce PC.</i>`}<br><br>
+    <b>Sur vos téléphones</b> (avec Tailscale activé), ouvrez dans Safari :<br>${H.url?`<code>${esc(H.url)}</code>`:S.address?`<code>${esc(S.address)}</code>`:`<i>Tailscale n'est pas détecté sur ce PC.</i>`}<br>
+    ${H.url?"":H.enable?`<br><b style="color:#F7C266">Pour le mode hors-ligne</b>, active le https de Tailscale (un clic) : <a href="${esc(H.enable)}" target="_blank" style="color:var(--ink)">activer ici</a>, puis attends 30 secondes.<br>`:H.error?`<br><small>Hors-ligne pas encore dispo : ${esc(H.error)}</small><br>`:""}<br>
     Puis <b>Partager → Sur l'écran d'accueil</b> pour avoir l'appli.<br>Les sons sont rangés dans <b>${esc(S.music||"")}</b>.
     <div class="switch">Lancer Dynamusique avec Windows<button class="tg ${S.autostart?"on":""}" id="tgAuto"></button></div></div>`;
   $("#tgAuto").onclick=async()=>{try{const r=await call("/api/autostart",{on:!S.autostart});S.autostart=r.on;renderPc()}catch(e){toast(e.message)}};
@@ -713,7 +744,10 @@ function renderDetail(){
   $("#detail").innerHTML=`<div class="dhead"><div class="cv ${c.cls}" ${c.cls==="like"?"":`style="${detailId.type==="art"?"border-radius:50%":""}"`}>${c.html}</div><h1>${esc(title)}</h1><small>${sub} · ${list.length} son${list.length>1?"s":""}${dur?" · "+Math.round(dur/60)+" min":""}</small></div>
     <div class="dact">${mine&&!pl.likes?`<button class="round" id="dMore">${ic("dots")}</button>`:""}${mine&&!pl.likes?`<button class="round" id="dAdd">${ic("plusc")}</button>`:""}<span class="sp"></span>
       <button class="round ${shuffle?"on":""}" id="dShuf">${ic("shuf")}</button><button class="big-play" id="dPlay">${ic(isCtxPlaying()&&!au.paused?"pause":"play",1)}</button></div>
+    ${CAN_OFF&&detailId.type==="pl"?keepBox(detailId.id,list):""}
     <div class="list">${list.map((s,i)=>songRow(s,{ctx:"detail",i})).join("")||`<div class="empty">${pl&&pl.likes?"Appuie sur ♥ pendant l'écoute pour remplir cette liste.":"Playlist vide. Ajoute des sons depuis le menu ⋯ d'un son, ou choisis cette playlist dans Ajouter."}</div>`}</div>`;
+  if($("#tgKeep"))$("#tgKeep").onclick=()=>{KEEP[detailId.id]=!KEEP[detailId.id];if(!KEEP[detailId.id])delete KEEP[detailId.id];store.set("keep",KEEP);
+    toast(KEEP[detailId.id]?"Téléchargement sur le téléphone…":"Retiré du téléphone");renderDetail();syncOffline()};
   $("#dPlay").onclick=()=>{if(isCtxPlaying()){togglePlay();return}playList(list.map(s=>s.id),shuffle?-1:0,shuffle,{name:title,detail:detailId})};
   $("#dShuf").onclick=()=>{playList(list.map(s=>s.id),-1,true,{name:title,detail:detailId})};
   if($("#dMore"))$("#dMore").onclick=()=>plMenu(pl);
@@ -737,6 +771,49 @@ function pickSongs(pl){
   draw("");$("#pkQ").oninput=()=>draw($("#pkQ").value.trim());
   $("#pkL").onclick=e=>{const b=e.target.closest("[data-pick]");if(!b)return;const id=b.dataset.pick;sel.has(id)?sel.delete(id):sel.add(id);const a=b.querySelector(".add");a.classList.toggle("done",sel.has(id));a.innerHTML=ic(sel.has(id)?"check":"plus")};
   $("#pkOk").onclick=async()=>{if(sel.size)await call("/api/playlist/add",{profile:ME,id:pl.id,songs:[...sel]});closeSheet();refresh();if(sel.size)toast(sel.size+" ajouté"+(sel.size>1?"s":""))};
+}
+
+/* ---------- hors ligne */
+function keepBox(id,list){
+  const on=!!KEEP[id],have=list.filter(s=>HAVE.has(s.id)).length;
+  const st=!on?"Pour l'écouter sans réseau":have>=list.length?"Tout est sur le téléphone ✓":SYNC.on?`Téléchargement… ${have}/${list.length}`:`${have}/${list.length} sur le téléphone`;
+  return `<div class="keep">${ic("phone")}<div><b>Sur ce téléphone</b><small id="keepSt">${st}</small></div><button class="tg ${on?"on":""}" id="tgKeep"></button></div>`;
+}
+async function loadHave(){
+  if(!CAN_OFF)return;
+  try{const c=await caches.open("dyn-audio");const k=await c.keys();HAVE=new Set(k.map(r=>(new URL(r.url).pathname.match(/^\/audio\/(\w+)/)||[])[1]).filter(Boolean))}catch(e){}
+}
+function wanted(){
+  const w=new Set();
+  for(const id of Object.keys(KEEP)){
+    let ids=[];
+    if(id==="__likes"){const p=me();ids=p?p.likes:[]}
+    else for(const p of S.profiles){const pl=p.playlists.find(x=>x.id===id);if(pl)ids=pl.songs}
+    ids.forEach(x=>{if(song(x))w.add(x)});
+  }
+  return w;
+}
+async function syncOffline(){
+  if(!CAN_OFF||SYNC.on||OFFLINE||!ME)return;
+  SYNC.on=true;
+  try{
+    const c=await caches.open("dyn-audio"),w=wanted();
+    // on enlève ce qui n'est plus dans une liste gardée
+    for(const id of [...HAVE])if(!w.has(id)){await c.delete("/audio/"+id);await c.delete("/cover/"+id);HAVE.delete(id)}
+    const todo=[...w].filter(id=>!HAVE.has(id));
+    SYNC.total=todo.length;SYNC.done=0;
+    for(const id of todo){
+      if(OFFLINE)break;
+      try{
+        const r=await fetch("/audio/"+id,{cache:"no-store"});if(!r.ok)continue;
+        await c.put("/audio/"+id,new Response(await r.blob(),{headers:{"Content-Type":"audio/mp4"}}));
+        const s=song(id);if(s&&s.cover){const cr=await fetch("/cover/"+id);if(cr.ok)await c.put("/cover/"+id,new Response(await cr.blob(),{headers:{"Content-Type":"image/jpeg"}}))}
+        HAVE.add(id);SYNC.done++;
+        if(detailId&&$("#keepSt"))$("#keepSt").textContent=`Téléchargement… ${SYNC.done}/${SYNC.total}`;
+      }catch(e){if(!navigator.onLine)break}
+    }
+  }catch(e){}
+  SYNC.on=false;render();
 }
 
 /* ---------- menu d'un son */
@@ -795,7 +872,9 @@ let shuffle=store.get("shuffle",false), repeat=store.get("repeat","off");
 function shuffled(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function cur(){return P.order[P.pos]}
 function playList(ids,start,shuf,from){
-  ids=ids.filter(song);if(!ids.length)return toast("Rien à écouter ici");
+  if(OFFLINE){const want=start>=0?ids[start]:null;ids=ids.filter(id=>HAVE.has(id));start=want&&ids.includes(want)?ids.indexOf(want):(want?-2:start);
+    if(start===-2){toast("Ce son n'est pas sur le téléphone");return}}
+  ids=ids.filter(song);if(!ids.length)return toast(OFFLINE?"Aucun son de cette liste n'est sur le téléphone":"Rien à écouter ici");
   if(shuf!==undefined&&shuf!==shuffle){shuffle=shuf;store.set("shuffle",shuffle)}
   P.queue=ids.slice();P.from=from||null;P.extra=[];
   if(start<0)start=Math.floor(Math.random()*ids.length);
@@ -824,6 +903,7 @@ function load(play,time){
 }
 function next(auto){
   if(!P.order.length)return;
+  if(OFFLINE){let n=0;while(n++<P.order.length&&P.pos<P.order.length-1&&!HAVE.has(P.order[P.pos+1]))P.order.splice(P.pos+1,1)}
   if(auto&&repeat==="one"){au.currentTime=0;au.play();return}
   if(P.pos<P.order.length-1){P.pos++;load(true)}
   else if(repeat==="all"||!auto){

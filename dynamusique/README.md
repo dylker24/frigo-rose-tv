@@ -8,7 +8,9 @@ La musique de Dylan et Léna : des sons téléchargés depuis YouTube, des profi
 2. La page s'ouvre sur le PC et affiche l'adresse pour les téléphones (`http://100.x.x.x:8797`).
 3. Sur chaque iPhone (Tailscale activé) : ouvrir cette adresse dans **Safari** → **Partager** → **Sur l'écran d'accueil**.
 
-Dynamusique se lance tout seul avec Windows. Les sons sont rangés dans `Musique\Dynamusique`, la bibliothèque dans `%LOCALAPPDATA%\Dynamusique`.
+Dynamusique se lance tout seul avec Windows. Pour mettre à jour : télécharger le nouveau `.exe` et le lancer, il remplace l'ancien tout seul.
+
+**Hors-ligne** : l'appli s'ouvre via l'adresse https de Tailscale (`https://nom-du-pc….ts.net:8798`). Dans une playlist, activer « Sur ce téléphone » pour garder ses sons sur le tél. Les sons sont rangés dans `Musique\Dynamusique`, la bibliothèque dans `%LOCALAPPDATA%\Dynamusique`.
 Si Frigo Rosé Studio est installé, Dynamusique réutilise ses outils (yt-dlp, ffmpeg).
 
 ## Fichiers
