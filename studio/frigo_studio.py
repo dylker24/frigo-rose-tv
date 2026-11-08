@@ -2619,7 +2619,7 @@ def tv_info(pid="", ext=""):
 
 # ---------- Beaux titres : nettoie les noms de fichiers (Friends.S01E05.MULTI.1080p… → « Friends · S1 E5 ») ----------
 _nt_TECH = set("""480p 576p 720p 1080p 1080i 2160p 4k uhd hdr hdr10 sdr 10bit 8bit x264 x265 h264 h265 hevc avc aac ac3 eac3 dts dd ddp dd+ truehd atmos
-web webrip web-dl webdl bluray blu-ray bdrip brrip dvdrip hdtv hdtv-rip hdrip tvrip rip remux multi multi-vff vff vfq vf vf2 vfi vo vost vostfr french truefrench
+vof vfi2 vff2 web webrip web-dl webdl bluray blu-ray bdrip brrip dvdrip hdtv hdtv-rip hdrip tvrip rip remux multi multi-vff vff vfq vf vf2 vfi vo vost vostfr french truefrench
 subfrench internal repack proper nf amzn dsnp hulu hmax ad ld doc complete integrale mhd light custom remastered remaster happylee""".split())
 _nt_ACC = {"fantome": "fantôme", "etoiles": "étoiles", "etoile": "étoile", "amerique": "Amérique", "greve": "grève", "noel": "Noël", "lycee": "lycée",
         "epreuve": "épreuve", "romeo": "Roméo", "depart": "départ", "gout": "goût", "invites": "invités", "peres": "pères", "madere": "Madère",
