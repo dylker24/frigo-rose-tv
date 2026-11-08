@@ -2627,15 +2627,15 @@ _nt_ACC = {"fantome": "fantôme", "etoiles": "étoiles", "etoile": "étoile", "a
         "parait": "paraît", "recompose": "recomposé", "recompence": "récompense", "recompense": "récompense", "ecole": "école", "ete": "été",
         "premiere": "première", "derniere": "dernière", "pere": "père", "mere": "mère", "frere": "frère", "freres": "frères", "soeur": "sœur",
         "coeur": "cœur", "reve": "rêve", "fete": "fête", "fetes": "fêtes", "verite": "vérité", "eleve": "élève", "eleves": "élèves", "hopital": "hôpital",
-        "chateau": "château", "medecin": "médecin", "seance": "séance", "metier": "métier", "detective": "détective", "secret": "secret",
-        "hyeres": "Hyères", "senas": "Sénas", "estephe": "Estèphe", "etchebest": "Etchebest", "prodigue": "prodigue", "deja": "déjà", "theatre": "théâtre",
+        "chateau": "château", "medecin": "médecin", "seance": "séance", "metier": "métier", "detective": "détective",
+        "hyeres": "Hyères", "senas": "Sénas", "etre": "être", "ca": "ça", "enigme": "énigme", "scene": "scène", "deja": "déjà", "theatre": "théâtre",
         "cinema": "cinéma", "telephone": "téléphone", "television": "télévision", "difference": "différence", "enquete": "enquête", "eclair": "éclair",
         "epoque": "époque", "etrange": "étrange", "equipe": "équipe", "etat": "état", "carriere": "carrière", "mariee": "mariée", "marie": "marié",
         "aine": "aîné", "ile": "île", "foret": "forêt", "reunion": "réunion", "decouverte": "découverte", "generation": "génération", "heros": "héros"}
-_nt_CAPS_KEEP = {"TV", "IA", "COP", "USA", "UK", "OK", "DJ", "VIP", "SOS", "BD", "BDE", "RAID", "M6", "TF1", "PSG", "OM", "II", "III", "IV", "S.O.S."}
+_nt_CAPS_KEEP = {"TV", "IA", "COP", "USA", "UK", "OK", "DJ", "VIP", "SOS", "BD", "BDE", "RAID", "M6", "TF1", "PSG", "OM", "II", "III", "IV", "S.O.S.", "XXL", "M6"}
 _nt_PROPER = {"japon": "Japon", "danielle": "Danielle", "france": "France", "paris": "Paris", "disneyland": "Disneyland", "gaza": "Gaza",
            "israel": "Israël", "russie": "Russie", "noel": "Noël", "brigitte": "Brigitte", "jerry": "Jerry", "tom": "Tom", "mickey": "Mickey",
-           "patrick": "Patrick", "gerard": "Gérard", "francais": "Français", "macron": "Macron", "europe": "Europe", "marseille": "Marseille"}
+           "patrick": "Patrick", "gerard": "Gérard", "francais": "Français", "macron": "Macron", "europe": "Europe", "marseille": "Marseille", "capital": "Capital", "philippe": "Philippe", "etchebest": "Etchebest"}
 _nt_JUNK = {"prime", "episodecomplet", "compilationfr", "megacompilation", "m6mag", "zoneinterdite", "verino"}
 _nt_SEP = re.compile(r"[._]+")
 
@@ -2719,20 +2719,23 @@ _nt_EP = [re.compile(p, re.I) for p in (
     r"(?:^|[ ._-])()E(\d{1,3})(?=[ ._-])")]
 
 
-def _nt_segments(t, show):
+def _nt_segments(t, show, junk=()):
     parts = [p.strip() for p in re.split(r"\s+[-|]+\s+|\s*/\s*/\s*|\s+[-|]+$", t) if p.strip()]
-    keep = [p for p in parts if _nt_n(p) not in _nt_JUNK and not p.startswith("@") and (not show or _nt_n(p) not in (_nt_n(show), _nt_n(show + "tv")))]
+    keep = [p for p in parts if _nt_n(p) not in _nt_JUNK and _nt_n(p) not in junk and not p.startswith("@") and (not show or _nt_n(p) not in (_nt_n(show), _nt_n(show + "tv")))]
     return " - ".join(keep or parts[:1])
 
 
-def nice_title(name, show=None):
+def nice_title(name, show=None, chan=""):
     """(titre propre, année) ; (None, None) si le nom est déjà bien."""
     o = (name or "").strip()
     if not o or re.fullmatch(r"(MVI|IMG|DSC|VID|PXL|GOPR)[_ -]?\d+|\d+", o, re.I):
         return None, None
     t = re.sub(r"\.(mkv|mp4|avi|m4v|mov|ts|wmv)$", "", o, flags=re.I)
     t = t.replace("：", ":").replace("｜", "|").replace("？", "?").replace("⧸", "/").replace("’", "'").replace("…", "")
+    t = re.sub(r"^\((?:M6|TF1|W9|C8)\)\s*", "", t)
+    t = re.sub(r"(?i)[ ._]avec[ ._]philippe[ ._]etchebest", "", t)
     t = re.sub(r"\s+", " ", t).strip()
+    junk = {_nt_n(chan), _nt_n(re.sub(r"(?i)\s+tv\s*$", "", chan or ""))} - {""}
     year = None
     m = re.match(r"^((?:19|20)\d\d)\s*-\s*(.+?)[\s-]*$", t)
     if m and not re.match(r"^\d", m.group(2)):
@@ -2766,16 +2769,16 @@ def nice_title(name, show=None):
             bits = [_nt_strip_tech(b, first=True, years=False)[0].strip(" ()-.,") for b in re.split(r"\s+-\s+", rest)]
             bits = [b for b in bits if b]
             if bits:
-                new = show + " · " + _nt_cap1(_nt_sentence(_nt_fix_words(" - ".join(bits), False)))
+                new = show + " · " + _nt_cap1(_nt_fix_words(_nt_sentence(" - ".join(bits)), False))
                 return (new, None) if new != o else (None, None)
     if sea is not None or ep is not None:
-        et = _nt_segments(_nt_SEP.sub(" ", eptitle or ""), show)
+        et = _nt_segments(_nt_SEP.sub(" ", eptitle or ""), show, junk)
         et = _nt_fix_words(et, filelike).strip(" -.,")
         et = re.sub(r"^\((.+)\)$", r"\1", et)
         if _nt_n(et) == _nt_n(show):
             et = ""
         code = ("S%d " % sea if sea is not None else "") + ("E%d" % ep if ep is not None else "")
-        new = " · ".join(x for x in [show, code.strip(), _nt_sentence(_nt_cap1(et))] if x)
+        new = " · ".join(x for x in [show, code.strip(), _nt_cap1(_nt_sentence(et))] if x)
     else:
         if filelike:
             t, y = _nt_strip_tech(t)
@@ -2786,8 +2789,8 @@ def nice_title(name, show=None):
             if t2 != t:
                 year = year or int(t.rstrip()[-5:-1])
                 t = t2
-        t = _nt_segments(t, show)
-        new = _nt_cap1(_nt_sentence(_nt_fix_words(t, filelike).strip(" -.,")))
+        t = _nt_segments(t, show, junk)
+        new = _nt_cap1(_nt_fix_words(_nt_sentence(t), filelike).strip(" -.,"))
     new = re.sub(r"\s+", " ", new).strip()
     if not new or new == o:
         return None, None
@@ -2853,10 +2856,10 @@ def tidy_plan():
             pids = it.get("ProviderIds") or {}
             if pids.get("Tmdb") or pids.get("Imdb"):
                 continue
-            new, year = nice_title(name)
+            new, year = nice_title(name, chan=c.get("name") or "")
             plan.append({"id": e, "type": t, "old": name, "new": new or name, "year": year or it.get("ProductionYear"), "action": "identify", "chan": c.get("name")})
         elif t == "Video":
-            new, year = nice_title(name, show_of.get(c["id"]))
+            new, year = nice_title(name, show_of.get(c["id"]), c.get("name") or "")
             if new:
                 plan.append({"id": e, "type": t, "old": name, "new": new, "year": None if show_of.get(c["id"]) else year, "action": "rename", "chan": c.get("name")})
     return plan
