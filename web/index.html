@@ -738,6 +738,30 @@ body.idle .sopill{opacity:0}
 .pk-k .cap{margin-left:.6rem}
 
 
+
+/* Catalogue : toutes les affiches de ce qui passe sur les chaînes */
+#v-catalogue:not([hidden]){display:flex;flex-direction:column;gap:1rem;flex:1;min-height:0}
+.ct-h{display:flex;align-items:baseline;gap:1rem}
+.ct-h h1{margin:0;font:800 2.2rem/1.1 var(--display);letter-spacing:-.03em}
+.ct-h span{color:var(--mute);font-size:.95rem}
+.ct-chips{display:flex;gap:.6rem;overflow:hidden;padding:.3rem;margin:-.3rem;flex:none}
+.ct-chip{padding:.5rem 1.1rem;border-radius:2rem;background:var(--s2);color:#ddd;font:600 .95rem var(--ui);border:0;white-space:nowrap;cursor:pointer;transition:transform .15s ease}
+.ct-chip.on{background:rgba(var(--accent-rgb),.25);color:#fff}
+.ct-chip.f{background:#fff;color:#0b0b0d;transform:scale(1.06)}
+.ct-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));gap:1.3rem 1.1rem;align-content:start;padding:1rem .8rem;margin:-1rem -.8rem;overflow:hidden}
+.ctc{display:flex;flex-direction:column;gap:.45rem;background:none;border:0;padding:0;text-align:left;color:var(--ink);font:inherit;cursor:pointer;min-width:0}
+.ctc .po{aspect-ratio:2/3;border-radius:.75rem;overflow:hidden;background:#1c1c21;position:relative;transition:transform .18s ease,box-shadow .18s ease}
+.ctc .po img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ctc .po .ph{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:.3rem;padding:.8rem;font:800 1.05rem/1.15 var(--display);color:#fff}
+.ctc .po .ph small{font:700 .66rem var(--ui);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);margin:0}
+.ctc .po .tag{position:absolute;z-index:1;left:.45rem;top:.45rem;font:800 .6rem var(--ui);letter-spacing:.08em;background:rgba(0,0,0,.7);color:#fff;padding:.22rem .42rem;border-radius:.3rem}
+.ctc .po .tag.live{background:#E5242E}
+.ctc.f .po{transform:scale(1.07);box-shadow:0 0 0 .2rem #fff,0 1rem 2.2rem rgba(0,0,0,.55)}
+.ctc b{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctc small{font-size:.76rem;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-.25rem}
+.ct-empty{grid-column:1/-1;padding:3rem 0;color:var(--mute);font-size:1.05rem;text-align:center}.ct-empty b{display:block;color:#fff;font-size:1.3rem;margin-bottom:.4rem}
+.lite .ctc .po{transition:none}
+
 /* Fiche programme façon cinéma : fond flouté, affiche nette, titre en grand, casting */
 .fiche{position:fixed;inset:0;z-index:45;background:#09090b;overflow:hidden;opacity:0;transition:opacity .28s ease}
 .fiche.on{opacity:1}
@@ -864,6 +888,7 @@ body.vpause #video{visibility:hidden}
       <button class="tab" data-v="home">Accueil</button>
       <button class="tab" data-v="chaines">Chaînes</button>
       <button class="tab" data-v="guide">Guide TV</button>
+      <button class="tab" data-v="catalogue">Catalogue</button>
       <button class="tab" data-v="search">Rechercher</button>
       <button class="tab" data-v="demandes">Demandes</button>
       <button class="tab" data-v="settings">Réglages</button>
@@ -918,6 +943,7 @@ body.vpause #video{visibility:hidden}
     </div>
   </section>
 
+  <section id="v-catalogue" hidden><div class="ct-h"><h1>Catalogue</h1><span id="ct-count"></span></div><div class="ct-chips" id="ct-chips"></div><div class="ct-grid" id="ct-grid"></div></section>
   <section id="v-search" hidden style="flex:1;min-height:0">
     <div class="q-wrap">
       <h1>Rechercher</h1>
@@ -1506,6 +1532,90 @@ function pickKey(k){
 }
 
 
+
+/* ================= Catalogue : toutes les affiches de ce qui passe sur les chaînes ================= */
+const CT={items:[],t:0,busy:false,err:"",f:"all",zone:"chips",chip:0,i:0,top:0,cols:6,rows:2};
+async function loadCat(force){
+  if(demo||CT.busy||(!force&&CT.items.length&&Date.now()-CT.t<10*60000))return;CT.busy=true;CT.err="";
+  try{const ac=new AbortController(),tt=setTimeout(()=>ac.abort(),45000);const res=await fetch(studioBase()+"/tv/catalog",{signal:ac.signal});clearTimeout(tt);
+    const r=res.status===404?{error:"Studio n'est pas à jour sur le PC : mets-le à jour pour voir le catalogue"}:await res.json();if(!res.ok||r.error)throw new Error(r.error||"err");CT.items=r.items||[];CT.t=Date.now()}
+  catch(e){CT.err=e&&e.message&&e.message!=="err"&&!/abort|fetch/i.test(e.message)?e.message:"Pour voir le catalogue, Frigo Rosé Studio doit être ouvert sur le PC"}
+  CT.busy=false;if(screen==="catalogue")renderCat()}
+function catFilters(){
+  const F=[["all","Tout"],["movie","Films"],["series","Séries"]];
+  if(CT.items.some(x=>x.kind==="videos"))F.push(["videos","Vidéos"]);
+  const cnt={};CT.items.forEach(x=>(x.genres||[]).forEach(g=>cnt[g]=(cnt[g]||0)+1));
+  Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,7).forEach(g=>{if(cnt[g]>=3)F.push(["g:"+g,g])});
+  return F}
+function catList(){const f=CT.f;return CT.items.filter(x=>f==="all"?true:f.startsWith("g:")?(x.genres||[]).includes(f.slice(2)):x.kind===f)}
+function catChIdx(num){return channels.findIndex(c=>String(c.num)===String(num))}
+/* où et quand ça passe, d'après le guide */
+function catAiring(x){
+  const now=Date.now(),t=norm(x.title);let live=null,next=null;
+  (x.chans||[]).forEach(c=>{const i=catChIdx(c.num);if(i<0)return;const ch=channels[i];
+    if(x.kind==="videos"){const p=progAt(ch,now);if(!live&&p&&!p.synthetic)live={i,ch,p};return}
+    (progs[ch.id]||[]).forEach(p=>{if(p.stop<=now||!t)return;const a=norm(p.title);if(a.indexOf(t)<0&&t.indexOf(a)<0)return;
+      if(p.start<=now){if(!live)live={i,ch,p}}else if(!next||p.start<next.p.start)next={i,ch,p}})});
+  return {live,next}}
+function openCatalogue(){CT.zone=CT.items.length?"grid":"chips";zone="content";setScreen("catalogue");loadCat()}
+function renderCat(){
+  const g=$("ct-grid"),cb=$("ct-chips");if(!g)return;
+  if(!CT.items.length&&!CT.busy&&!CT.err)loadCat();
+  const F=catFilters();CT.chip=Math.max(0,Math.min(CT.chip,F.length-1));
+  cb.textContent="";F.forEach(([v,t],j)=>{const b=el("button","ct-chip"+(CT.f===v?" on":"")+(zone==="content"&&CT.zone==="chips"&&j===CT.chip?" f":""),t);b.type="button";
+    b.onclick=()=>{CT.chip=j;CT.f=v;CT.i=0;CT.top=0;zone="content";CT.zone="chips";renderCat()};cb.append(b)});
+  const list=catList();
+  $("ct-count").textContent=CT.items.length?list.length+" titre"+(list.length>1?"s":""):"";
+  const rem=parseFloat(getComputedStyle(document.documentElement).fontSize)||16,W=g.clientWidth||900,H=g.clientHeight||400;
+  CT.cols=Math.max(3,Math.floor((W-1.6*rem+1.1*rem)/(6.9*rem+1.1*rem)));g.style.setProperty("--cols",CT.cols);
+  const cw=(W-1.6*rem-(CT.cols-1)*1.1*rem)/CT.cols,chh=cw*1.5+2.2*rem;CT.rows=Math.max(1,Math.floor((H-2*rem+1.3*rem)/(chh+1.3*rem)));
+  g.textContent="";
+  if(!list.length){const e=el("div","ct-empty");if(CT.busy||(!CT.items.length&&!CT.err))e.append(el("b",null,"Je prépare le catalogue…"),document.createTextNode("Ça prend quelques secondes la première fois."));
+    else if(CT.err)e.append(el("b",null,"Catalogue indisponible"),document.createTextNode(CT.err));else e.append(el("b",null,"Rien dans cette catégorie"));g.append(e);return}
+  CT.i=Math.max(0,Math.min(CT.i,list.length-1));const row=Math.floor(CT.i/CT.cols);
+  if(row<CT.top)CT.top=row;if(row>=CT.top+CT.rows)CT.top=row-CT.rows+1;
+  const now=Date.now(),sb=studioBase();
+  list.slice(CT.top*CT.cols,(CT.top+CT.rows+1)*CT.cols).forEach((x,k)=>{const j=CT.top*CT.cols+k;
+    const c=el("button","ctc"+(zone==="content"&&CT.zone==="grid"&&j===CT.i?" f":""));c.type="button";
+    const po=el("div","po"),ch0=x.chans&&x.chans[0];
+    const ph=()=>{const d=el("div","ph");const ci=ch0?catChIdx(ch0.num):-1;po.style.background="linear-gradient(160deg,"+(ci>=0?chColor(channels[ci]):"#444")+"cc,#141418 80%)";d.append(el("small",null,x.kind==="series"?"Série":x.kind==="videos"?"Vidéos":"Film"),document.createTextNode(x.title||""));po.append(d)};
+    if(x.poster){const im=el("img");im.alt="";im.loading="lazy";im.decoding="async";im.onerror=()=>{im.remove();ph()};im.src=sb+x.poster;po.append(im)}else ph();
+    const A=catAiring(x);if(A.live)po.append(el("span","tag live","EN DIRECT"));
+    const sub=[x.year,x.kind==="series"?x.n+" épisode"+(x.n>1?"s":""):x.kind==="videos"?x.n+" vidéo"+(x.n>1?"s":""):"",ch0?ch0.name:""].filter(Boolean).join(" · ");
+    c.append(po,el("b",null,x.title||""),el("small",null,sub||"\u00a0"));
+    c.onclick=()=>{CT.i=j;CT.zone="grid";catFiche(x)};g.append(c)});
+}
+function ctKey(k){
+  const F=catFilters(),list=catList();
+  if(CT.zone==="chips"){
+    if(k==="up"){zone="tabs";renderTabs();renderCat();return}
+    if(k==="left"||k==="right"){CT.chip=Math.max(0,Math.min(F.length-1,CT.chip+(k==="left"?-1:1)));CT.f=F[CT.chip][0];CT.i=0;CT.top=0}
+    else if((k==="down"||k==="ok")&&list.length)CT.zone="grid";
+  }else{
+    const c=CT.cols;
+    if(k==="up"){if(CT.i<c){CT.zone="chips";CT.chip=Math.max(0,F.findIndex(f=>f[0]===CT.f))}else CT.i-=c}
+    else if(k==="down"){if(CT.i+c<list.length)CT.i+=c;else if(Math.floor(CT.i/c)<Math.floor((list.length-1)/c))CT.i=list.length-1}
+    else if(k==="left")CT.i=Math.max(0,CT.i-1);
+    else if(k==="right")CT.i=Math.min(list.length-1,CT.i+1);
+    else if(k==="ok"){const x=list[CT.i];if(x)catFiche(x);return}
+  }
+  renderCat()}
+function catFiche(x){
+  const A=catAiring(x),ch0=x.chans&&x.chans[0];let i=A.live?A.live.i:A.next?A.next.i:ch0?catChIdx(ch0.num):-1;
+  if(i<0){toast("Cette chaîne n'est plus dans la liste");return}
+  const ch=channels[i];
+  if(A.live){openFiche({i,ch,p:A.live.p,kind:"now",ext:x.jid,cat:x,poster:x.poster});return}
+  const p=A.next?A.next.p:{title:x.title,start:0,stop:0,desc:"",icon:"",cat:(x.genres||[]).join(" · ")};
+  openFiche({i,ch,p,kind:"cat",nextP:A.next?A.next.p:null,ext:x.jid,cat:x,poster:x.poster})}
+async function catNext(it){
+  const c=(it.cat.chans||[]).find(z=>String(z.num)===String(it.ch.num))||it.cat.chans[0];if(!c||!c.pid)return;
+  toast("Je le mets juste après…",4000);let r=null;
+  try{const who=profile?profile.name:"";const res=await fetch(studioBase()+"/tv/next?num="+encodeURIComponent(c.num)+"&id="+encodeURIComponent(c.pid)+"&who="+encodeURIComponent(who));r=await res.json();if(!res.ok)throw new Error(r&&r.error||"err")}
+  catch(e){toast(r&&r.error?r.error:"Ça n'a pas marché, réessaie dans un instant",5000);return}
+  const i=catChIdx(c.num),p=i>=0?progAt(channels[i],Date.now()):null;
+  toast("✓ « "+it.cat.title+" » passe juste après sur "+c.name+(p&&!p.synthetic?", dans "+dur(p.stop-Date.now()):""),6000);
+  setTimeout(()=>{try{refreshFromServer()}catch(e){}},4000)}
+
 /* ================= Fiche programme façon cinéma ================= */
 const FI={open:false,it:null,b:0,seq:0,btns:[]},FIC={};
 const FI_PLAY='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
@@ -1513,6 +1623,7 @@ const FI_BACK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 function progPid(p){const m=p&&p.icon&&/\/api\/programs\/([0-9a-f-]{36})\//i.exec(p.icon);return m?m[1]:""}
 function fiWhen(it){const p=it.p,now=Date.now();
   if(it.kind==="replay")return "Replay · diffusé "+agoDay(p.start);
+  if(it.kind==="cat"&&!it.nextP)return "Au programme";
   if(p.start<=now&&p.stop>now)return "";
   if(p.stop<=now)return "Diffusé "+agoDay(p.start);
   const d=new Date(p.start),t=new Date(),k=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/864e5);
@@ -1522,9 +1633,9 @@ function fiFill(it,info){
   const img=u=>u?(/^https?:/.test(u)?u:sb+u):"";
   // fond flouté : sur les petites box, une toute petite image agrandie fait le flou sans rien coûter
   const weak=WEAK();$("fiche").classList.toggle("weakfx",weak);
-  const bgSrc=info&&(info.backdrop||info.poster)?img((info.backdrop||info.poster).replace(/w=\d+/,"w="+(weak?48:160))):artUrl(p);
+  const bgSrc=info&&(info.backdrop||info.poster)?img((info.backdrop||info.poster).replace(/w=\d+/,"w="+(weak?48:160))):it.poster?img(it.poster.replace(/w=\d+/,"w="+(weak?48:160))):artUrl(p);
   const bg=$("fi-bg");if(bg.dataset.k!==bgSrc){bg.dataset.k=bgSrc;bg.style.backgroundImage=bgSrc?'url("'+bgSrc.replace(/"/g,"%22")+'")':"none"}
-  const po=$("fi-poster"),poSrc=info&&info.poster?img(info.poster):artUrl(p);
+  const po=$("fi-poster"),poSrc=info&&info.poster?img(info.poster):it.poster?img(it.poster):artUrl(p);
   if(po.dataset.k!==poSrc+"|"+it.ch.id){po.dataset.k=poSrc+"|"+it.ch.id;po.textContent="";
     const num=()=>{po.textContent="";po.append(el("span","num",String(it.ch.num||it.i+1)))};
     const logo=()=>{po.textContent="";po.style.background="radial-gradient(ellipse at 50% 30%,"+chColor(it.ch)+"99,#141418 75%)";if(it.ch.logo){const lg=el("img","lg");setLogo(lg,it.ch.logo);lg.alt="";lg.onerror=num;po.append(lg)}else num()};
@@ -1540,7 +1651,8 @@ function fiFill(it,info){
   $("fi-ep").textContent=epT;$("fi-ep").hidden=!epT;
   const m=$("fi-meta");m.textContent="";const parts=[];
   const yr=(info&&info.year)||p.year;if(yr)parts.push(el("span",null,String(yr)));
-  const mins=info&&info.kind!=="episode"&&info.minutes?info.minutes*MIN:p.stop-p.start;if(mins>0)parts.push(el("span",null,dur(mins)));
+  const cx=it.cat;if(cx&&cx.kind!=="movie"&&cx.n)parts.push(el("span",null,cx.n+(cx.kind==="series"?" épisode":" vidéo")+(cx.n>1?"s":"")));
+  const mins=info&&info.kind!=="episode"&&info.minutes?info.minutes*MIN:p.stop-p.start;if(mins>0&&!(cx&&cx.kind!=="movie"))parts.push(el("span",null,dur(mins)));
   if(info&&info.rating)parts.push(el("span","st","★ "+String(info.rating).replace(".",",")));
   if(info&&info.official){const o=String(info.official).replace(/^FR-?/i,"").toUpperCase(),t=/^(TP|U|ALL|G|0)$/.test(o)?"Tous publics":/^\d+$/.test(o)?"Déconseillé aux -"+o+" ans":"";if(t)parts.push(el("span",null,t))}
   parts.forEach((x,j)=>{if(j)m.append(el("i","dot"));m.append(x)});
@@ -1561,6 +1673,7 @@ function fiFill(it,info){
 function fiButtons(it){
   const p=it.p,now=Date.now(),live=it.kind!=="replay"&&p.start<=now&&p.stop>now,B=[];
   if(it.kind==="replay")B.push([FI_PLAY+"Lancer le replay",()=>playReplay(it)]);
+  else if(it.kind==="cat"){const c=it.cat.kind==="movie"&&(it.cat.chans||[]).find(z=>z.pid);if(c&&!demo)B.push([FI_PLAY+"Le mettre juste après",()=>catNext(it)]);B.push([(c?"":FI_PLAY)+"Aller sur la chaîne",()=>goChannel(it.i)])}
   else if(live){B.push([FI_PLAY+"Regarder",()=>goChannel(it.i)]);if(!demo)B.push([FI_BACK+"Depuis le début",()=>{goChannel(it.i);setTimeout(()=>{if(channels[cur]===it.ch)startOver()},400)}])}
   else B.push([FI_PLAY+"Aller sur la chaîne",()=>goChannel(it.i)]);
   B.push(["Fermer",null]);FI.btns=B;
@@ -1572,7 +1685,7 @@ function openFiche(it){
   if(!it||!it.p||!it.ch)return;
   hidePeek();clearTimeout(prevT);try{menuPause()}catch(e){}
   FI.open=true;FI.it=it;FI.b=0;const seq=++FI.seq;
-  const pid=it.kind==="replay"?"":progPid(it.p),ext=it.kind==="replay"&&it.rp?it.rp.ext:"",key=pid||ext;
+  const ext=it.ext||(it.kind==="replay"&&it.rp?it.rp.ext:""),pid=ext?"":progPid(it.p),key=pid||ext;
   fiFill(it,key&&FIC[key]||null);fiButtons(it);
   const f=$("fiche");f.hidden=false;requestAnimationFrame(()=>requestAnimationFrame(()=>f.classList.add("on")));
   if(!key||demo||FIC[key])return;
@@ -2438,18 +2551,18 @@ function digit(d){
 }
 
 /* ================= Écrans ================= */
-const TABS=["home","chaines","guide","search","demandes","settings"];
+const TABS=["home","chaines","guide","catalogue","search","demandes","settings"];
 function setScreen(s){
   {const a0=document.activeElement;if(a0&&/^(INPUT|TEXTAREA)$/.test(a0.tagName)&&s!==screen)a0.blur()}
   screen=s;try{rcSoon()}catch(e){}if(s!=="home")hidePeek();if(s!=="chaines")closeMosaic();setTimeout(fxSync,0);if(s!=="chaines"){clearTimeout(chPrevT);setTimeout(chPreviewPos,0)}
   $("splash").hidden=s!=="splash";$("error").hidden=s!=="error";$("profiles").hidden=s!=="profiles";$("pedit").hidden=s!=="pedit";
-  const inPanel=["home","chaines","guide","search","demandes","settings"].includes(s);
+  const inPanel=["home","chaines","guide","catalogue","search","demandes","settings"].includes(s);
   video.muted=s!=="live";
   if(inPanel)menuPause();else if(s==="live")menuResume();
   $("panel").hidden=!inPanel;$("liveui").hidden=s!=="live";document.body.classList.toggle("panel-open",inPanel);
   if(s!=="live"){$("digits").hidden=true}
   else if(!demo&&!videoOk&&channels[cur]&&channels[cur].url&&$("lerr").hidden)$("loading").hidden=false;
-  ["home","chaines","guide","search","demandes","settings"].forEach(v=>$("v-"+v).hidden=v!==s);
+  ["home","chaines","guide","catalogue","search","demandes","settings"].forEach(v=>$("v-"+v).hidden=v!==s);
   $("panel").classList.toggle("is-home",s==="home");$("hbg").hidden=s!=="home";$("hints").hidden=s==="home";
   if(s!=="live"){$("zapfx").classList.remove("on");closeMg();ctlMode=false;$("pauseind").hidden=true;document.body.classList.remove("idle")}
   $("demopill").hidden=!demo;
@@ -2457,6 +2570,7 @@ function setScreen(s){
   if(s==="guide")renderGuide();
   if(s==="home")renderHome();
   if(s==="chaines")renderChaines();
+  if(s==="catalogue")renderCat();
   if(s==="demandes"){startFirebase();renderDemandes()}
   if(s==="settings")renderSettings();
   if(s==="search"){renderSearch()}else if(document.activeElement===$("q-in"))$("q-in").blur();
@@ -2466,10 +2580,10 @@ function closePanel(){if(inPreview){inPreview=false;lastLive=cur;if(profile&&cha
 function renderTabs(){document.querySelectorAll(".tab").forEach((b,i)=>{b.classList.toggle("on",b.dataset.v===screen);b.classList.toggle("f",zone==="tabs"&&i===tabIdx)})}
 function renderHints(){
   const h=$("hints");h.textContent="";
-  const H={chaines:[["▲ ▼ ◀ ▶","Naviguer"],["OK","Regarder"],["OK maintenu","Favori"],["Retour","Revenir au direct"]],guide:[["▲ ▼ ◀ ▶","Naviguer"],["OK","Regarder"],["OK maintenu","Favori"],["Retour","Revenir au direct"]],demandes:[["▲ ▼","Naviguer"],["OK","Voir la chaîne"],["Retour","Revenir au direct"]],settings:[["▲ ▼","Naviguer"],["OK","Valider"],["Retour","Revenir au direct"]],search:[["▲ ▼","Naviguer"],["OK","Regarder ou voir dans le guide"],["Retour","Revenir au direct"]]}[screen]||[];
+  const H={catalogue:[["▲ ▼ ◀ ▶","Naviguer"],["OK","Voir la fiche"],["Retour","Revenir au direct"]],chaines:[["▲ ▼ ◀ ▶","Naviguer"],["OK","Regarder"],["OK maintenu","Favori"],["Retour","Revenir au direct"]],guide:[["▲ ▼ ◀ ▶","Naviguer"],["OK","Regarder"],["OK maintenu","Favori"],["Retour","Revenir au direct"]],demandes:[["▲ ▼","Naviguer"],["OK","Voir la chaîne"],["Retour","Revenir au direct"]],settings:[["▲ ▼","Naviguer"],["OK","Valider"],["Retour","Revenir au direct"]],search:[["▲ ▼","Naviguer"],["OK","Regarder ou voir dans le guide"],["Retour","Revenir au direct"]]}[screen]||[];
   H.forEach(([k,t])=>{const s=el("span");s.append(el("span","cap",k),document.createTextNode(t));h.append(s)});
 }
-document.querySelectorAll(".tab").forEach((b,i)=>b.onclick=()=>{zone="content";if(b.dataset.v==="live")closePanel();else if(b.dataset.v==="home")openHome();else if(b.dataset.v==="chaines")openChaines();else if(b.dataset.v==="guide")openGuide();else if(b.dataset.v==="search")openSearch();else openPanel(b.dataset.v)});
+document.querySelectorAll(".tab").forEach((b,i)=>b.onclick=()=>{zone="content";if(b.dataset.v==="live")closePanel();else if(b.dataset.v==="home")openHome();else if(b.dataset.v==="chaines")openChaines();else if(b.dataset.v==="guide")openGuide();else if(b.dataset.v==="catalogue")openCatalogue();else if(b.dataset.v==="search")openSearch();else openPanel(b.dataset.v)});
 
 /* ================= Guide ================= */
 let VIS=7;
@@ -3440,9 +3554,9 @@ document.addEventListener("keydown",e=>{
   if(zone==="tabs"){
     if(k==="left")tabIdx=Math.max(0,tabIdx-1);
     else if(k==="right")tabIdx=Math.min(TABS.length-1,tabIdx+1);
-    else if(k==="down"||k==="ok"){zone="content";if(screen==="chaines"){chZone="tools";chTool=Math.max(0,CHT.indexOf(chFilter))}const v=TABS[tabIdx];if(v==="live"){closePanel();return}if(v!==screen){if(v==="home"){openHome();return}if(v==="chaines"){openChaines();return}if(v==="guide"){openGuide();return}if(v==="search"){openSearch();return}sR=0;sC=0;dRow=0;openPanel(v);return}}
+    else if(k==="down"||k==="ok"){zone="content";if(screen==="chaines"){chZone="tools";chTool=Math.max(0,CHT.indexOf(chFilter))}const v=TABS[tabIdx];if(v==="live"){closePanel();return}if(v!==screen){if(v==="home"){openHome();return}if(v==="chaines"){openChaines();return}if(v==="guide"){openGuide();return}if(v==="catalogue"){openCatalogue();return}if(v==="search"){openSearch();return}sR=0;sC=0;dRow=0;openPanel(v);return}}
     if(k==="left"||k==="right"){const v=TABS[tabIdx];if(v!=="live"&&v!==screen){if(v==="guide"){gRow=Math.max(0,cur);gT=Date.now();winStart=floor30(gT)}if(v==="home"){hRow=0;heroI=Math.max(0,cur);hCol={now:heroI}}if(v==="chaines"){cIdx=Math.max(0,chList().indexOf(cur));chZone="grid"}setScreen(v);zone="tabs"}}
-    renderTabs();if(screen==="settings")renderSettings();if(screen==="demandes")renderDemandes();if(screen==="home")renderHome();if(screen==="chaines")renderChaines();if(screen==="search")renderSearch();
+    renderTabs();if(screen==="settings")renderSettings();if(screen==="demandes")renderDemandes();if(screen==="home")renderHome();if(screen==="chaines")renderChaines();if(screen==="search")renderSearch();if(screen==="catalogue")renderCat();
     return;
   }
   if(screen==="guide")guideKey(k);
@@ -3451,6 +3565,7 @@ document.addEventListener("keydown",e=>{
   else if(screen==="chaines")chKey(k);
   else if(screen==="settings")setKey(k);
   else if(screen==="search")searchKey(k);
+  else if(screen==="catalogue")ctKey(k);
 });
 
 let rsT=null;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(["home","guide","chaines"].includes(screen))refreshViews()},200)});

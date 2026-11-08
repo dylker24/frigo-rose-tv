@@ -2617,6 +2617,124 @@ def tv_info(pid="", ext=""):
     return out
 
 
+# ---------- Catalogue : tout ce qui passe sur les chaînes, avec les affiches ----------
+_catalog = {"t": 0, "items": [], "busy": False}
+_catalog_lock = threading.Lock()
+
+
+def _catalog_build():
+    chans = sorted([c for c in (tn("/api/channels") or []) if c.get("id")], key=lambda c: float(c.get("number") or 0))
+    seen = {}  # ext -> [{num, name, pid}]
+    order = []
+
+    def prog(c):
+        try:
+            return c, tn_programming(c["id"])
+        except Exception:
+            return c, None
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        res = list(ex.map(prog, chans))
+    for c, pr in res:
+        if not pr:
+            continue
+        num = c.get("number")
+        num = int(num) if isinstance(num, (int, float)) and float(num).is_integer() else num
+        for x in pr["lineup"]:
+            e = x.get("ext")
+            if x.get("type") != "content" or not e or x.get("state") not in ("", "ok"):
+                continue
+            if e not in seen:
+                seen[e] = []
+                order.append(e)
+            if not any(s["num"] == num for s in seen[e]):
+                seen[e].append({"num": num, "name": (c.get("name") or "").strip(), "pid": x.get("id")})
+    info = {}
+    ids = list(seen)
+    for i in range(0, len(ids), 80):
+        for it in _jf_items("Ids=%s&Fields=Genres,ProductionYear,DateCreated" % ",".join(ids[i:i + 80])):
+            info[str(it.get("Id") or "").replace("-", "").lower()] = it
+    out, groups = [], {}
+    for e in order:
+        it = info.get(e)
+        if not it:
+            continue
+        t = it.get("Type")
+        ch = seen[e]
+        if t == "Episode" and it.get("SeriesId"):
+            key = "s:" + it["SeriesId"]
+            g = groups.get(key)
+            if not g:
+                g = groups[key] = {"key": key, "kind": "series", "title": it.get("SeriesName") or it.get("Name"), "jid": it["SeriesId"],
+                                   "year": it.get("ProductionYear"), "genres": [], "n": 0, "chans": [], "added": it.get("DateCreated") or "",
+                                   "poster": _img(it["SeriesId"], "Primary", 360)}
+                out.append(g)
+            g["n"] += 1
+            g["year"] = min(filter(None, [g["year"], it.get("ProductionYear")]), default=None)
+            g["added"] = max(g["added"], it.get("DateCreated") or "")
+            for s in ch:
+                if not any(z["num"] == s["num"] for z in g["chans"]):
+                    g["chans"].append({"num": s["num"], "name": s["name"]})
+        elif t == "Movie":
+            out.append({"key": "m:" + e, "kind": "movie", "title": it.get("Name"), "jid": e, "year": it.get("ProductionYear"),
+                        "genres": (it.get("Genres") or [])[:3], "chans": ch, "added": it.get("DateCreated") or "",
+                        "poster": _img(e, "Primary", 360) if (it.get("ImageTags") or {}).get("Primary") else ""})
+        else:
+            # vidéos YouTube, souvenirs… : une seule case par chaîne
+            for s in ch[:1]:
+                key = "v:%s" % s["num"]
+                g = groups.get(key)
+                if not g:
+                    g = groups[key] = {"key": key, "kind": "videos", "title": s["name"], "jid": "", "year": None, "genres": [],
+                                       "n": 0, "chans": [{"num": s["num"], "name": s["name"]}], "added": "",
+                                       "poster": _img(e, "Primary", 360) if (it.get("ImageTags") or {}).get("Primary") else ""}
+                    out.append(g)
+                g["n"] += 1
+                g["added"] = max(g["added"], it.get("DateCreated") or "")
+    # genres des séries : lus sur la série elle-même
+    sids = [g["jid"] for g in out if g["kind"] == "series"]
+    for i in range(0, len(sids), 80):
+        for it in _jf_items("Ids=%s&Fields=Genres,ProductionYear" % ",".join(sids[i:i + 80])):
+            g = groups.get("s:" + str(it.get("Id")))
+            if g:
+                g["genres"] = (it.get("Genres") or [])[:3]
+                g["year"] = it.get("ProductionYear") or g["year"]
+                if not (it.get("ImageTags") or {}).get("Primary"):
+                    g["poster"] = ""
+    out.sort(key=lambda x: unicodedata.normalize("NFD", (x["title"] or "").lower()).encode("ascii", "ignore"))
+    return out
+
+
+def tv_catalog(fresh=False):
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    age = time.time() - _catalog["t"]
+    if _catalog["items"] and age < 900 and not fresh:
+        return _catalog["items"]
+
+    def run():
+        try:
+            items = _catalog_build()
+            _catalog.update(t=time.time(), items=items)
+        except Exception as e:
+            bglog("catalogue : %s" % e)
+        finally:
+            _catalog["busy"] = False
+    if _catalog["items"]:
+        # on rend l'ancien tout de suite et on met à jour derrière
+        with _catalog_lock:
+            if not _catalog["busy"]:
+                _catalog["busy"] = True
+                threading.Thread(target=run, daemon=True).start()
+        return _catalog["items"]
+    with _catalog_lock:
+        if not _catalog["items"]:
+            _catalog["busy"] = True
+            run()
+    if not _catalog["items"]:
+        raise RuntimeError("Le catalogue n'a pas pu être préparé")
+    return _catalog["items"]
+
+
 def tn_backup(cid, raw):
     f = os.path.join(BACKUPS, "%s-%d.json" % (cid, int(time.time() * 1000)))
     with open(f, "w", encoding="utf-8") as fh:
@@ -4383,6 +4501,12 @@ class H(BaseHTTPRequestHandler):
             qs = parse_qs(u.query)
             try:
                 return self.send(200, tv_info((qs.get("pid") or [""])[0], (qs.get("ext") or [""])[0]), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
+        if u.path == "/tv/catalog":
+            cors = {"Access-Control-Allow-Origin": "*"}
+            try:
+                return self.send(200, {"items": tv_catalog()}, headers=cors)
             except Exception as e:
                 return self.send(400, {"error": str(e)}, headers=cors)
         if u.path == "/tv/img":
