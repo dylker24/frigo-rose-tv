@@ -345,7 +345,6 @@ nav button .ic{width:24px;height:24px}
   <section class="page" id="p-add">
     <div class="head"><h1>Ajouter</h1></div>
     <div class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Lien YouTube ou nom du son" autocomplete="off" enterkeyhint="search"><button id="qx" hidden><svg class="ic"><use href="#i-x"/></svg></button></div>
-    <div class="target" id="target"></div>
     <div id="results"></div>
     <div id="jobsBox"></div>
     <div class="sec" id="addHelp">
@@ -353,7 +352,7 @@ nav button .ic{width:24px;height:24px}
         <b style="color:var(--ink)">Deux façons :</b><br>
         · colle un lien YouTube (une vidéo ou une playlist entière)<br>
         · ou tape le nom du son, puis appuie sur <b style="color:var(--ink)">+</b><br><br>
-        Choisis au-dessus dans quelle playlist il doit arriver.
+        Tu choisis ensuite dans quelle playlist il arrive.
       </div>
     </div>
   </section>
@@ -541,7 +540,7 @@ function render(){
   document.documentElement.style.setProperty("--me",p.color);
   $("#meBtn").style.setProperty("--c",p.color);$("#meBtn").textContent=(p.name[0]||"?").toUpperCase();
   if(curPage==="home")renderHome();
-  if(curPage==="add"){renderTarget();renderJobs()}
+  if(curPage==="add")renderJobs();
   if(curPage==="lib")renderLib();
   if(detailId)renderDetail();
   updLike();markPlaying();
@@ -586,16 +585,21 @@ function renderPc(){
 }
 
 /* ---------- ajouter */
-function renderTarget(){
-  const p=me();
-  if(TARGET&&!p.playlists.find(x=>x.id===TARGET))TARGET="";
-  $("#target").innerHTML=`<button class="chip ${!TARGET?"on":""}" data-t="">Juste la bibliothèque</button>`+
-    p.playlists.map(pl=>`<button class="chip ${TARGET===pl.id?"on":""}" data-t="${pl.id}">→ ${esc(pl.name)}</button>`).join("")+
-    `<button class="chip" data-t="__new">+ Nouvelle playlist</button>`;
+// choix de la playlist au moment d'ajouter un son
+function pickPlaylist(title,cover){
+  return new Promise(res=>{
+    const pls=me().playlists.slice().reverse();
+    if(TARGET){const k=pls.findIndex(x=>x.id===TARGET);if(k>0)pls.unshift(pls.splice(k,1)[0])}
+    sheet(`<div class="sh">${cover?`<div class="cv" style="width:84px;height:50px"><img src="${esc(cover)}" alt=""></div>`:""}<div style="min-width:0"><b style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(title||"Ce son")}</b><small>Où tu veux le mettre ?</small></div></div>
+      ${pls.map(pl=>{const c=plCover(pl.songs,pl.name);return `<button class="pl-row" data-pick="${pl.id}"><div class="cv ${c.cls}" style="width:50px;height:50px">${c.html}</div><div><b>${esc(pl.name)}</b><small>${pl.songs.length} son${pl.songs.length>1?"s":""}</small></div></button>`}).join("")}
+      <button class="pl-row" data-pick="__new"><div class="new" style="width:50px;height:50px">${ic("plus")}</div><div><b>Nouvelle playlist</b></div></button>
+      <button class="pl-row" data-pick=""><div class="new" style="width:50px;height:50px;border-style:solid">${ic("lib")}</div><div><b>Juste ma bibliothèque</b><small>Dans aucune playlist</small></div></button>`,()=>res(null));
+    $("#sheet").onclick=async e=>{const b=e.target.closest("[data-pick]");if(!b)return;
+      const v=b.dataset.pick;
+      if(v==="__new"){sheetCb=null;const pl=await newPlaylist();res(pl?pl.id:null);return}
+      closeSheet(true);res(v)};
+  });
 }
-$("#target").onclick=async e=>{const b=e.target.closest(".chip");if(!b)return;
-  if(b.dataset.t==="__new"){const pl=await newPlaylist();if(pl){TARGET=pl.id;store.set("target",TARGET);renderTarget()}return}
-  TARGET=b.dataset.t;store.set("target",TARGET);renderTarget()};
 function renderJobs(){
   const js=S.jobs.slice().reverse();
   if(!js.length){$("#jobsBox").innerHTML="";return}
@@ -617,10 +621,11 @@ async function doSearch(){
   $("#addHelp").hidden=true;
   if(isLink(q)){
     $("#results").innerHTML=`<div class="spin"></div>`;
-    try{const r=await call("/api/add",{url:q,profile:ME,playlist:TARGET});
+    let plid="";
+    if(!/[?&]list=/.test(q)){plid=await pickPlaylist("Ce lien YouTube");if(plid===null){$("#results").innerHTML="";return}}
+    try{const r=await call("/api/add",{url:q,profile:ME,playlist:plid});
       $("#q").value="";$("#qx").hidden=true;$("#results").innerHTML="";
       toast(r.already?"Déjà dans ta bibliothèque":r.linked?"Ajouté (déjà sur le PC)":r.count>1?`${r.count} sons en téléchargement (playlist « ${r.name} »)`:"Téléchargement lancé");
-      if(r.count>1&&r.playlist){TARGET=r.playlist}
       await refresh();
     }catch(e){$("#results").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
     return;
@@ -641,10 +646,14 @@ async function doSearch(){
 }
 $("#results").addEventListener("click",async e=>{
   const b=e.target.closest("[data-yt]");if(!b)return;e.stopPropagation();
-  if(b.classList.contains("done")){toast("Déjà ajouté");return}
+  const row=b.closest(".yt"),img=row&&row.querySelector("img");
+  const plid=await pickPlaylist(b.dataset.title,img&&img.getAttribute("src"));
+  if(plid===null)return;
+  const name=plid?(me().playlists.find(x=>x.id===plid)||{}).name:"";
   b.classList.add("done");b.innerHTML=ic("check");
-  try{const r=await call("/api/add",{yt:b.dataset.yt,title:b.dataset.title,profile:ME,playlist:TARGET});
-    toast(r.already?(TARGET?"Ajouté à la playlist":"Déjà dans ta bibliothèque"):r.linked?"Ajouté (déjà sur le PC)":"Téléchargement lancé");refresh().then(()=>poll())}
+  try{const r=await call("/api/add",{yt:b.dataset.yt,title:b.dataset.title,profile:ME,playlist:plid});
+    toast(r.already?(plid?"Ajouté à « "+name+" »":"Déjà dans ta bibliothèque"):name?"Téléchargement → « "+name+" »":"Téléchargement lancé");refresh().then(()=>poll());return;
+  }
   catch(err){b.classList.remove("done");b.innerHTML=ic("plus");toast(err.message)}
 },true);
 function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")}
