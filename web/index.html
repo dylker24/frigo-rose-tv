@@ -930,7 +930,7 @@ body.vpause #video{visibility:hidden}
 
   <section id="v-chaines" hidden class="chs">
     <div class="chs-h"><div><h1>Chaînes</h1><span id="chs-count"></span></div>
-      <div class="chs-tools" id="chs-tools"><button data-t="all">Toutes</button><button data-t="fav">★ Favorites</button><button data-t="mosaic">Mosaïque</button><button data-t="refresh" class="rf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Actualiser</button></div></div>
+      <div class="chs-tools" id="chs-tools"><button data-t="all">Toutes</button><button data-t="fav">★ Favorites</button><button data-t="cat:comedie">Comédie</button><button data-t="cat:films">Films</button><button data-t="cat:series">Séries</button><button data-t="cat:jeunesse">Jeunesse</button><button data-t="cat:divert">Divertissement</button><button data-t="mosaic">Mosaïque</button><button data-t="refresh" class="rf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Actualiser</button></div></div>
     <div class="chgrid" id="chgrid"></div>
   </section>
 
@@ -2277,8 +2277,19 @@ function homeKey(k){
 
 /* ================= Page Chaînes ================= */
 let cIdx=0,chFilter="all",chZone="grid",chTool=0;
-const CHT=["all","fav","mosaic","refresh"];
-function chList(){const all=channels.map((c,i)=>i);return chFilter==="fav"?all.filter(i=>isFav(channels[i])):all}
+const CHT=["all","fav","cat:comedie","cat:films","cat:series","cat:jeunesse","cat:divert","mosaic","refresh"];
+/* Catégories des chaînes : d'après le nom, sinon d'après ce qu'elles passent (films, épisodes, vidéos) */
+const CATKW={comedie:["comedie","bourdon","danyboon","tuche","bandeafifi","spectacle","verino","scenesdemenages","policeacademy","campingparadis","enfamille"],
+  films:["grandecran","generationcine","transformers","policeacademy","biopic","pagnol","comedie","culte","bourdon","danyboon","tuche","bandeafifi","minions","pixar","disney","filmdanimation","film"],
+  series:["friends","modernfamily","simpson","americandad","campingparadis","josephine","familleformidable","enfamille","petitemaison","rookie","monk","scenesdemenages","violetta"],
+  jeunesse:["animation","anime","pixar","disney","minions","dessin","violetta"],
+  divert:["noholito","danielle","dyna","verino","cauchemar","campingcar","histoiressecretes","spectacle","videofamille"]};
+const CATNAME={comedie:"comédie",films:"films",series:"séries",jeunesse:"jeunesse",divert:"divertissement"};
+function chInCat(ch,cat){const n=norm(ch.name);if((CATKW[cat]||[]).some(k=>n.indexOf(k)>=0))return true;
+  if(Object.keys(CATKW).some(c=>CATKW[c].some(k=>n.indexOf(k)>=0)))return false;
+  const v=(typeof CT!=="undefined"&&CT.chans||[]).find(c=>String(c.num)===String(ch.num));if(!v)return false;
+  return (cat==="films"&&v.kind==="movies")||(cat==="series"&&v.kind==="series")||(cat==="divert"&&v.kind==="videos")}
+function chList(){const all=channels.map((c,i)=>i);if(chFilter.startsWith("cat:"))return all.filter(i=>chInCat(channels[i],chFilter.slice(4)));return chFilter==="fav"?all.filter(i=>isFav(channels[i])):all}
 function chCols(){return 4}
 
 /* ================= Mosaïque : toutes les chaînes d'un coup d'œil ================= */
@@ -2310,7 +2321,7 @@ function renderChaines(){
   {const h=document.querySelector("#v-chaines h1");if(h)h.textContent=MOS?"Mosaïque":"Chaînes"}
   document.querySelectorAll("#chs-tools button").forEach((b,i)=>{const v=b.dataset.t;b.classList.toggle("on",v===chFilter);b.classList.toggle("f",zone==="content"&&chZone==="tools"&&CHT.indexOf(v)===chTool)});
   const l=chList();
-  $("chs-count").textContent=chFilter==="fav"?l.length+" favorite"+(l.length>1?"s":""):channels.length+" chaînes";
+  $("chs-count").textContent=chFilter.startsWith("cat:")?l.length+" chaîne"+(l.length>1?"s":"")+" "+CATNAME[chFilter.slice(4)]:chFilter==="fav"?l.length+" favorite"+(l.length>1?"s":""):channels.length+" chaînes";
   if(!l.length){const e=el("div","empty");e.append(el("b",null,"Pas encore de chaîne favorite"),document.createTextNode("Maintiens OK sur une chaîne, ou clique sur son étoile, pour l'ajouter à tes favoris."));g.append(e);return}
   cIdx=Math.max(0,Math.min(cIdx,l.length-1));
   let fEl=null;
