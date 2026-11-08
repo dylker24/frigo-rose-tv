@@ -55,6 +55,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Fabrication de l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eo pipefail
           exec > >(tee build.log) 2>&1
@@ -62,12 +64,17 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           java -version
           echo "ANDROID_HOME=$ANDROID_HOME"; ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
-          for u in https://services.gradle.org/distributions/gradle-8.7-bin.zip https://downloads.gradle.org/distributions/gradle-8.7-bin.zip https://downloads.gradle-dn.com/distributions/gradle-8.7-bin.zip; do curl -fsSL --retry 4 --retry-delay 5 -o gradle.zip "$u" && unzip -tq gradle.zip >/dev/null && break; done
-          unzip -q gradle.zip -d "$RUNNER_TEMP"
-          mkdir -p android/app/src/main/assets && cp web/index.html android/app/src/main/assets/index.html
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          "$RUNNER_TEMP/gradle-8.7/bin/gradle" -p android assembleRelease --no-daemon --stacktrace
-          cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
+          for u in https://services.gradle.org/distributions/gradle-8.7-bin.zip https://downloads.gradle.org/distributions/gradle-8.7-bin.zip; do curl -fsSL --retry 4 --retry-delay 5 -o gradle.zip "$u" && unzip -tq gradle.zip >/dev/null && break; rm -f gradle.zip; done
+          if [ -f gradle.zip ]; then
+            unzip -q gradle.zip -d "$RUNNER_TEMP"
+            mkdir -p android/app/src/main/assets && cp web/index.html android/app/src/main/assets/index.html
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+            "$RUNNER_TEMP/gradle-8.7/bin/gradle" -p android assembleRelease --no-daemon --stacktrace
+            cp android/app/build/outputs/apk/release/app-release.apk frigo-rose-tv.apk
+          else
+            echo "Gradle injoignable : on garde l'APK de la version précédente"
+            gh release download --repo "$GITHUB_REPOSITORY" --pattern frigo-rose-tv.apk --output frigo-rose-tv.apk
+          fi
           cp frigo-rose-tv.apk web/tv.apk
           ls -la frigo-rose-tv.apk
       - uses: actions/download-artifact@v4
