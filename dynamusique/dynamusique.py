@@ -66,6 +66,10 @@ def load_db():
         for p in d["profiles"]:
             for k, v in (("likes", []), ("playlists", []), ("recent", []), ("plays", {})):
                 p.setdefault(k, v)
+        everyone = [p["id"] for p in d["profiles"]]
+        for so in d["songs"].values():
+            if "owners" not in so:
+                so["owners"] = [so["by"]] if so.get("by") in everyone else list(everyone)
         return d
     except FileNotFoundError:
         return new_db()
@@ -280,15 +284,21 @@ def add_job(vid, title="", pid=None, plid=None):
     with lock:
         for s in db["songs"].values():
             if s.get("yt") == vid:
+                mine = pid in s.setdefault("owners", [])
+                if pid and not mine:
+                    s["owners"].append(pid)  # déjà sur le PC (l'autre l'a) : pas besoin de retélécharger
+                    save_db()
                 if pid and plid:
                     attach(s["id"], pid, plid)
-                return {"id": None, "already": s["id"]}
+                return {"id": None, "already": s["id"] if mine else None, "linked": not mine}
     with jcond:
         for j in jobs:
             if j["yt"] == vid and j["state"] in ("attente", "telechargement"):
+                if pid and (pid, plid) not in j["also"] and pid != j["profile"]:
+                    j["also"].append((pid, plid))
                 return j
         j = {"id": uuid.uuid4().hex[:10], "yt": vid, "title": title or "Recherche du titre…", "thumb": thumb(vid), "state": "attente",
-             "pct": 0, "error": "", "profile": pid, "playlist": plid, "t": time.time()}
+             "pct": 0, "error": "", "profile": pid, "playlist": plid, "also": [], "t": time.time()}
         jobs.append(j)
         jobq.append(j)
         jcond.notify()
@@ -356,7 +366,8 @@ def download(j):
             info = {}
     title, artist = clean(info.get("title") or j["title"], info)
     song = {"id": sid, "yt": j["yt"], "title": title, "artist": artist or "Artiste inconnu", "duration": int(info.get("duration") or 0),
-            "file": sid + ".m4a", "cover": sid + ".jpg" if os.path.exists(base + ".jpg") else "", "added": int(time.time()), "by": j.get("profile")}
+            "file": sid + ".m4a", "cover": sid + ".jpg" if os.path.exists(base + ".jpg") else "", "added": int(time.time()), "by": j.get("profile"),
+            "owners": [x for x in [j.get("profile")] + [a[0] for a in j.get("also", [])] if x] or [p["id"] for p in db["profiles"]]}
     with lock:
         db["songs"][sid] = song
         if j.get("profile") and j.get("playlist"):
@@ -365,6 +376,12 @@ def download(j):
                 pl["songs"].append(sid)
             except ValueError:
                 pass
+        for opid, oplid in j.get("also", []):
+            if oplid:
+                try:
+                    playlist(profile(opid), oplid)["songs"].append(sid)
+                except ValueError:
+                    pass
         save_db()
     j["song"] = sid
     j["title"] = title
@@ -410,7 +427,7 @@ def add_link(url, pid, plid):
     if not vid:
         raise ValueError("Ce lien n'est pas un lien YouTube")
     r = add_job(vid, "", pid, plid)
-    return {"count": 1, "already": r.get("already")}
+    return {"count": 1, "already": r.get("already"), "linked": r.get("linked")}
 
 
 # ---------------------------------------------------------------- accès (PC + Tailscale)
@@ -542,7 +559,7 @@ def api(path, b):
         url = (b.get("url") or "").strip()
         if b.get("yt"):
             r = add_job(b["yt"], b.get("title") or "", pid, b.get("playlist"))
-            return {"count": 1, "already": r.get("already")}
+            return {"count": 1, "already": r.get("already"), "linked": r.get("linked")}
         return add_link(url, pid, b.get("playlist"))
     if path == "/api/job/retry":
         for j in jobs:
@@ -625,6 +642,17 @@ def api(path, b):
             save_db()
             return s
         if path == "/api/song/delete":
+            s = db["songs"].get(b["id"])
+            if s and pid:
+                s["owners"] = [x for x in s.get("owners", []) if x != pid]
+                p["likes"] = [x for x in p["likes"] if x != s["id"]]
+                p["recent"] = [x for x in p["recent"] if x != s["id"]]
+                p["plays"].pop(s["id"], None)
+                for pl in p["playlists"]:
+                    pl["songs"] = [x for x in pl["songs"] if x != s["id"]]
+                if s["owners"]:
+                    save_db()
+                    return {}
             s = db["songs"].pop(b["id"], None)
             if s:
                 for pr in db["profiles"]:

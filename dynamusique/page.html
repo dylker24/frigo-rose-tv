@@ -464,7 +464,7 @@ async function refresh(){
   setOffline(r.headers.get("X-Dyn-Offline")==="1");
   S.v=d.v;S.https=d.https;S.profiles=d.profiles;S.jobs=d.jobs;S.setup=d.setup;S.address=d.address;S.autostart=d.autostart;S.music=d.music;
   S.songs={};for(const s of d.songs)S.songs[s.id]=s;
-  S.list=d.songs.slice().sort((a,b)=>b.added-a.added);
+  S.all=d.songs.slice().sort((a,b)=>b.added-a.added);
   if(ME&&!me())ME=null;
   await loadHave();
   render();
@@ -534,6 +534,8 @@ function go(p){
 }
 function render(){
   if(!S.profiles.length)return;
+  // chacun sa bibliothèque : on ne voit que ses propres sons
+  S.list=(S.all||[]).filter(s=>!s.owners||s.owners.includes(ME));
   if(!ME){showWho();$("#app").hidden=true;$("#nav").hidden=true;return}
   const p=me();
   document.documentElement.style.setProperty("--me",p.color);
@@ -555,7 +557,7 @@ function songRow(s,opts={}){
 function renderHome(){
   const p=me();
   $("#hello").textContent=hour()+" "+p.name;
-  $("#heroSub").textContent=S.list.length?`${S.list.length} son${S.list.length>1?"s":""} dans Dynamusique`:"Ajoute tes premiers sons";
+  $("#heroSub").textContent=S.list.length?`${S.list.length} son${S.list.length>1?"s":""} dans ta bibliothèque`:"Ajoute tes premiers sons";
   const rec=p.recent.map(song).filter(Boolean).slice(0,12);
   $("#secRecent").hidden=!rec.length;
   $("#recent").innerHTML=rec.map(s=>`<button class="card" data-song="${s.id}" data-ctx="recent"><div class="cv">${cover(s)}</div><b>${esc(s.title)}</b><small>${esc(s.artist)}</small></button>`).join("");
@@ -617,7 +619,7 @@ async function doSearch(){
     $("#results").innerHTML=`<div class="spin"></div>`;
     try{const r=await call("/api/add",{url:q,profile:ME,playlist:TARGET});
       $("#q").value="";$("#qx").hidden=true;$("#results").innerHTML="";
-      toast(r.already?"Déjà dans Dynamusique":r.count>1?`${r.count} sons en téléchargement (playlist « ${r.name} »)`:"Téléchargement lancé");
+      toast(r.already?"Déjà dans ta bibliothèque":r.linked?"Ajouté (déjà sur le PC)":r.count>1?`${r.count} sons en téléchargement (playlist « ${r.name} »)`:"Téléchargement lancé");
       if(r.count>1&&r.playlist){TARGET=r.playlist}
       await refresh();
     }catch(e){$("#results").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
@@ -626,11 +628,11 @@ async function doSearch(){
   lastQ=q;
   // d'abord ce qu'on a déjà
   const loc=searchLocal(q).slice(0,5);
-  $("#results").innerHTML=(loc.length?`<div class="lab">Déjà dans Dynamusique</div><div class="list">${loc.map(s=>songRow(s,{ctx:"search"})).join("")}</div>`:"")+`<div class="lab">Sur YouTube</div><div class="spin"></div>`;
+  $("#results").innerHTML=(loc.length?`<div class="lab">Déjà dans ta bibliothèque</div><div class="list">${loc.map(s=>songRow(s,{ctx:"search"})).join("")}</div>`:"")+`<div class="lab">Sur YouTube</div><div class="spin"></div>`;
   try{
     const r=await call("/api/search",{q});
     if(lastQ!==q)return;
-    const have=new Set(Object.values(S.songs).map(s=>s.yt));
+    const have=new Set(S.list.map(s=>s.yt));
     const busy=new Set(S.jobs.filter(j=>j.state!=="erreur").map(j=>j.yt));
     $("#results").querySelector(".spin").outerHTML=`<div>${r.map(v=>`<div class="yt"><div class="cv">${v.thumb?`<img loading="lazy" src="${esc(v.thumb)}" alt="">`:ph(v.id)}</div>
       <div class="t"><b>${esc(v.title)}</b><small>${esc(v.channel)} · ${fmt(v.duration)}</small></div>
@@ -642,7 +644,7 @@ $("#results").addEventListener("click",async e=>{
   if(b.classList.contains("done")){toast("Déjà ajouté");return}
   b.classList.add("done");b.innerHTML=ic("check");
   try{const r=await call("/api/add",{yt:b.dataset.yt,title:b.dataset.title,profile:ME,playlist:TARGET});
-    toast(r.already?(TARGET?"Ajouté à la playlist":"Déjà dans Dynamusique"):"Téléchargement lancé");refresh().then(()=>poll())}
+    toast(r.already?(TARGET?"Ajouté à la playlist":"Déjà dans ta bibliothèque"):r.linked?"Ajouté (déjà sur le PC)":"Téléchargement lancé");refresh().then(()=>poll())}
   catch(err){b.classList.remove("done");b.innerHTML=ic("plus");toast(err.message)}
 },true);
 function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")}
@@ -659,7 +661,7 @@ function renderLib(){
       `<button class="pl-row" id="newPlLib"><div class="new">${ic("plus")}</div><div><b>Nouvelle playlist</b></div></button>`+
       `<button class="pl-row" data-pl="__likes"><div class="cv like">${ph("","heart")}</div><div><b>J'aime</b><small>${p.likes.length} son${p.likes.length>1?"s":""}</small></div></button>`+
       p.playlists.slice().reverse().map(pl=>{const c=plCover(pl.songs,pl.name);return `<button class="pl-row" data-pl="${pl.id}"><div class="cv ${c.cls}">${c.html}</div><div><b>${esc(pl.name)}</b><small>Playlist · ${pl.songs.length} son${pl.songs.length>1?"s":""}</small></div></button>`}).join("")+
-      S.profiles.filter(x=>x.id!==ME&&x.playlists.length).map(o=>`<div class="lab">Playlists de ${esc(o.name)}</div>`+o.playlists.map(pl=>{const c=plCover(pl.songs,pl.name);return `<button class="pl-row" data-pl="${pl.id}" data-owner="${o.id}"><div class="cv ${c.cls}">${c.html}</div><div><b>${esc(pl.name)}</b><small>${esc(o.name)} · ${pl.songs.length} son${pl.songs.length>1?"s":""}</small></div></button>`}).join("")).join("")+`</div>`;
+      `</div>`;
   }
   if(seg==="songs")renderAll();
   if(seg==="art"){
@@ -827,7 +829,7 @@ function songMenu(id,ctx){
     ${pl&&pl.mine&&!pl.likes?`<button class="opt" id="oRm">${ic("minus")}Retirer de cette playlist</button>`:""}
     <button class="opt" id="oArt">${ic("users")}Voir l'artiste</button>
     <button class="opt" id="oEd">${ic("edit")}Modifier titre / artiste</button>
-    <button class="opt red" id="oDel">${ic("trash")}Supprimer de Dynamusique</button>`);
+    <button class="opt red" id="oDel">${ic("trash")}Supprimer de ma bibliothèque</button>`);
   $("#oNext").onclick=()=>{playNext(id);closeSheet();toast("Lu juste après")};
   $("#oLike").onclick=()=>{like(id);closeSheet()};
   $("#oPl").onclick=()=>addToPl(id);
@@ -835,7 +837,7 @@ function songMenu(id,ctx){
   $("#oArt").onclick=()=>{closeSheet();$("#player").classList.remove("on");openDetail({type:"art",id:s.artist})};
   $("#oEd").onclick=()=>{sheet(`<div class="form"><h3>Modifier</h3><label>Titre</label><input id="fT" value="${esc(s.title)}"><label>Artiste</label><input id="fA" value="${esc(s.artist)}"><div class="btns"><button onclick="closeSheet()">Annuler</button><button class="pri" id="fOk">OK</button></div></div>`);
     $("#fOk").onclick=async()=>{await call("/api/song/edit",{id,title:$("#fT").value,artist:$("#fA").value});closeSheet();await refresh();updNow()}};
-  $("#oDel").onclick=async()=>{if(!confirm("Supprimer « "+s.title+" » de Dynamusique pour tout le monde ?"))return;await call("/api/song/delete",{id});closeSheet();removeFromQueue(id);refresh()};
+  $("#oDel").onclick=async()=>{if(!confirm("Supprimer « "+s.title+" » de ta bibliothèque ?"))return;await call("/api/song/delete",{id,profile:ME});closeSheet();removeFromQueue(id);refresh()};
 }
 function addToPl(id){
   const p=me();
