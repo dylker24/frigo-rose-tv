@@ -259,7 +259,13 @@ JUNK = re.compile(r"\s*[\(\[](?:[^\)\]]*?(?:official|officiel|clip|lyrics?|parol
 
 
 def clean(title, info):
-    """Titre / artiste propres à partir des infos YouTube."""
+    """Titre / artiste propres : l'artiste principal seul (sans les « feat. »), pour bien regrouper par artiste."""
+    t, a = _clean(title, info)
+    a = re.split(r"\s+(?:feat\.?|ft\.?|featuring|avec)\s+", a, flags=re.I)[0].strip(" ,")
+    return t, a
+
+
+def _clean(title, info):
     artist = info.get("artist") or info.get("creator") or ""
     track = info.get("track") or ""
     if artist and track:
