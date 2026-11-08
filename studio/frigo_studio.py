@@ -2617,6 +2617,325 @@ def tv_info(pid="", ext=""):
     return out
 
 
+# ---------- Beaux titres : nettoie les noms de fichiers (Friends.S01E05.MULTI.1080p… → « Friends · S1 E5 ») ----------
+_nt_TECH = set("""480p 576p 720p 1080p 1080i 2160p 4k uhd hdr hdr10 sdr 10bit 8bit x264 x265 h264 h265 hevc avc aac ac3 eac3 dts dd ddp dd+ truehd atmos
+web webrip web-dl webdl bluray blu-ray bdrip brrip dvdrip hdtv hdtv-rip hdrip tvrip rip remux multi multi-vff vff vfq vf vf2 vfi vo vost vostfr french truefrench
+subfrench internal repack proper nf amzn dsnp hulu hmax ad ld doc complete integrale mhd light custom remastered remaster happylee""".split())
+_nt_ACC = {"fantome": "fantôme", "etoiles": "étoiles", "etoile": "étoile", "amerique": "Amérique", "greve": "grève", "noel": "Noël", "lycee": "lycée",
+        "epreuve": "épreuve", "romeo": "Roméo", "depart": "départ", "gout": "goût", "invites": "invités", "peres": "pères", "madere": "Madère",
+        "mouvementees": "mouvementées", "rentree": "rentrée", "separations": "séparations", "tournee": "tournée", "sirenes": "sirènes",
+        "parait": "paraît", "recompose": "recomposé", "recompence": "récompense", "recompense": "récompense", "ecole": "école", "ete": "été",
+        "premiere": "première", "derniere": "dernière", "pere": "père", "mere": "mère", "frere": "frère", "freres": "frères", "soeur": "sœur",
+        "coeur": "cœur", "reve": "rêve", "fete": "fête", "fetes": "fêtes", "verite": "vérité", "eleve": "élève", "eleves": "élèves", "hopital": "hôpital",
+        "chateau": "château", "medecin": "médecin", "seance": "séance", "metier": "métier", "detective": "détective", "secret": "secret",
+        "hyeres": "Hyères", "senas": "Sénas", "estephe": "Estèphe", "etchebest": "Etchebest", "prodigue": "prodigue", "deja": "déjà", "theatre": "théâtre",
+        "cinema": "cinéma", "telephone": "téléphone", "television": "télévision", "difference": "différence", "enquete": "enquête", "eclair": "éclair",
+        "epoque": "époque", "etrange": "étrange", "equipe": "équipe", "etat": "état", "carriere": "carrière", "mariee": "mariée", "marie": "marié",
+        "aine": "aîné", "ile": "île", "foret": "forêt", "reunion": "réunion", "decouverte": "découverte", "generation": "génération", "heros": "héros"}
+_nt_CAPS_KEEP = {"TV", "IA", "COP", "USA", "UK", "OK", "DJ", "VIP", "SOS", "BD", "BDE", "RAID", "M6", "TF1", "PSG", "OM", "II", "III", "IV", "S.O.S."}
+_nt_PROPER = {"japon": "Japon", "danielle": "Danielle", "france": "France", "paris": "Paris", "disneyland": "Disneyland", "gaza": "Gaza",
+           "israel": "Israël", "russie": "Russie", "noel": "Noël", "brigitte": "Brigitte", "jerry": "Jerry", "tom": "Tom", "mickey": "Mickey",
+           "patrick": "Patrick", "gerard": "Gérard", "francais": "Français", "macron": "Macron", "europe": "Europe", "marseille": "Marseille"}
+_nt_JUNK = {"prime", "episodecomplet", "compilationfr", "megacompilation", "m6mag", "zoneinterdite", "verino"}
+_nt_SEP = re.compile(r"[._]+")
+
+
+def _nt_n(s):
+    return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFD", (s or "").lower()).encode("ascii", "ignore").decode())
+
+
+def _nt_is_tech(w):
+    lw = w.lower().strip("[]()")
+    if lw in _nt_TECH or lw in ("5.1", "7.1", "2.0"):
+        return True
+    return bool(re.fullmatch(r"\d{3,4}[pi]|[xh]\.?26[45]|ddp?\d?(\.\d)?|\d+bit|web-?dl|hdtv-?rip|ac3-\w+|[xh]26[45]-\w+|h26[45]-\w+|aac-\w+", lw))
+
+
+def _nt_fix_words(s, apos=True):
+    if apos:
+        s = re.sub(r"(?<![.\w])([lLdDsSjJnNmMcC]|[qQ]u) (?=[aeiouyhéèêàâîôûAEIOUYHÉ])", lambda m: m.group(1) + "'", s)
+    out = []
+    for w in s.split(" "):
+        pre = ""
+        if "'" in w[:3]:
+            pre, w = w[:w.index("'") + 1], w[w.index("'") + 1:]
+        k = _nt_n(w)
+        if k in _nt_ACC and w.lower() == unicodedata.normalize("NFD", w.lower()).encode("ascii", "ignore").decode():
+            r = _nt_ACC[k]
+            w = (r[0].upper() + r[1:]) if w[:1].isupper() and r[:1].islower() else r
+        out.append(pre + w)
+    return " ".join(out)
+
+
+def _nt_sentence(s):
+    """Les mots tout en majuscules repassent en minuscules (« DANIELLE AU JAPON » → « Danielle au Japon »)."""
+    words = s.split(" ")
+    L = lambda w: re.sub(r"[^A-Za-zÀ-ÿŒœ]", "", w)
+    caps = {i for i, w in enumerate(words) if len(L(w)) >= 2 and L(w).isupper() and not re.search(r"\d", w) and w.strip("!?.,:;()'\"#") not in _nt_CAPS_KEEP}
+    if len(caps) < 2:
+        return s
+    res = []
+    for i, w in enumerate(words):
+        if i in caps:
+            lw = w.lower()
+            res.append(_nt_PROPER.get(_nt_n(lw), lw))
+        else:
+            res.append(w)
+    t = " ".join(res)
+    m = re.search(r"[a-zà-ÿœ]", t)
+    if m and not re.search(r"[A-ZÀ-Ý0-9]", t[:m.start()]):
+        t = t[:m.start()] + t[m.start()].upper() + t[m.start() + 1:]
+    return t
+
+
+def _nt_cap1(s):
+    s = s.strip()
+    return s[:1].upper() + s[1:] if s else s
+
+
+def _nt_strip_tech(s, first=False, years=True):
+    """Coupe au premier mot technique (FRENCH, 1080p, x264…) ou à l'année suivie de technique."""
+    s = re.sub(r"\[[^\]]*\]", " ", s)
+    toks = [t for t in re.split(r"[ ._]+", s) if t]
+    year = None
+    cut = len(toks)
+    Y = lambda x: bool(re.fullmatch(r"\(?(19|20)\d\d\)?", x or ""))
+    for i, t in enumerate(toks):
+        if _nt_is_tech(t) and (i > 0 or first):
+            cut = i
+            break
+        if years and Y(t) and i > 0 and (i + 1 >= len(toks) or _nt_is_tech(toks[i + 1]) or Y(toks[i + 1]) or re.fullmatch(r"(?i)s\d+e\d+", toks[i + 1])):
+            year = int(t.strip("()"))
+            cut = i
+            break
+    return " ".join(toks[:cut]).strip(" -–|"), year
+
+
+_nt_EP = [re.compile(p, re.I) for p in (
+    r"(?:^|[ ._-])S(\d{1,2})[ ._]?E[ ._]?(\d{1,3})(?=$|[ ._-])",
+    r"(?:^|[ ._-])S?(\d{1,2})x(\d{1,3})(?=$|[ ._-])",
+    r"(?:^|[ ._-])(\d{1,2})E(\d{1,3})(?=$|[ ._-])",
+    r"(?:^|[ ._-])S(\d{1,2})()(?=[ ._-])",
+    r"(?:^|[ ._-])()E(\d{1,3})(?=[ ._-])")]
+
+
+def _nt_segments(t, show):
+    parts = [p.strip() for p in re.split(r"\s+[-|]+\s+|\s*/\s*/\s*|\s+[-|]+$", t) if p.strip()]
+    keep = [p for p in parts if _nt_n(p) not in _nt_JUNK and not p.startswith("@") and (not show or _nt_n(p) not in (_nt_n(show), _nt_n(show + "tv")))]
+    return " - ".join(keep or parts[:1])
+
+
+def nice_title(name, show=None):
+    """(titre propre, année) ; (None, None) si le nom est déjà bien."""
+    o = (name or "").strip()
+    if not o or re.fullmatch(r"(MVI|IMG|DSC|VID|PXL|GOPR)[_ -]?\d+|\d+", o, re.I):
+        return None, None
+    t = re.sub(r"\.(mkv|mp4|avi|m4v|mov|ts|wmv)$", "", o, flags=re.I)
+    t = t.replace("：", ":").replace("｜", "|").replace("？", "?").replace("⧸", "/").replace("’", "'").replace("…", "")
+    t = re.sub(r"\s+", " ", t).strip()
+    year = None
+    m = re.match(r"^((?:19|20)\d\d)\s*-\s*(.+?)[\s-]*$", t)
+    if m and not re.match(r"^\d", m.group(2)):
+        year, t = int(m.group(1)), m.group(2)
+    words = [w for w in re.split(r"[ ._\[\]]+", t) if w]
+    filelike = (bool(re.search(r"\w[._]\w", t)) and " " not in t) or sum(1 for w in words[1:] if _nt_is_tech(w)) >= 2
+    sea = ep = None
+    eptitle = None
+    for rx in _nt_EP:
+        m = rx.search(t)
+        if m:
+            sea = int(m.group(1)) if m.group(1) else None
+            ep = int(m.group(2)) if m.group(2) else None
+            before, after = t[:m.start()], t[m.end():]
+            after = re.sub(r"(?i)[ .]team[ .].*$", "", after)
+            after = re.sub(r"(?i)^[ .]*final\b", "", after)
+            after = _nt_strip_tech(after, first=True, years=False)[0].strip(" .-–")
+            after = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{2}-\d{2}-\d{4}\b", "", after)
+            eptitle = after
+            if not show:
+                show = _nt_cap1(_nt_SEP.sub(" ", _nt_strip_tech(before)[0]))
+            break
+    if sea is None and ep is None and show:
+        m = re.match(r"^(\d{1,2})\s+-\s+(.+)$", t)  # « 04 - Marjorie au régime - EN FAMILLE »
+        if m:
+            ep, eptitle = int(m.group(1)), m.group(2)
+        elif _nt_n(t).startswith(_nt_n(show)) and _nt_n(t) != _nt_n(show):
+            k = len(show.split())
+            rest = " ".join(re.split(r"[ ._]+", t)[k:])
+            rest = re.sub(r"(?i)[ .]team[ .].*$", "", rest)
+            bits = [_nt_strip_tech(b, first=True, years=False)[0].strip(" ()-.,") for b in re.split(r"\s+-\s+", rest)]
+            bits = [b for b in bits if b]
+            if bits:
+                new = show + " · " + _nt_cap1(_nt_sentence(_nt_fix_words(" - ".join(bits), False)))
+                return (new, None) if new != o else (None, None)
+    if sea is not None or ep is not None:
+        et = _nt_segments(_nt_SEP.sub(" ", eptitle or ""), show)
+        et = _nt_fix_words(et, filelike).strip(" -.,")
+        et = re.sub(r"^\((.+)\)$", r"\1", et)
+        if _nt_n(et) == _nt_n(show):
+            et = ""
+        code = ("S%d " % sea if sea is not None else "") + ("E%d" % ep if ep is not None else "")
+        new = " · ".join(x for x in [show, code.strip(), _nt_sentence(_nt_cap1(et))] if x)
+    else:
+        if filelike:
+            t, y = _nt_strip_tech(t)
+            year = year or y
+            t = _nt_SEP.sub(" ", t)
+        else:
+            t2 = re.sub(r"\s*\((19|20)\d\d\)\s*$", "", t)
+            if t2 != t:
+                year = year or int(t.rstrip()[-5:-1])
+                t = t2
+        t = _nt_segments(t, show)
+        new = _nt_cap1(_nt_sentence(_nt_fix_words(t, filelike).strip(" -.,")))
+    new = re.sub(r"\s+", " ", new).strip()
+    if not new or new == o:
+        return None, None
+    return new, year
+
+
+TIDY = {"state": "", "plan": [], "done": 0, "total": 0, "err": "", "t": 0}
+TIDY_BACKUP = os.path.join(DATA, "titres-avant.json")
+
+
+def _jf_admin():
+    users = jf("/Users") or []
+    u = next((x for x in users if (x.get("Policy") or {}).get("IsAdministrator")), users[0] if users else None)
+    return u["Id"] if u else None
+
+
+def tidy_plan():
+    """Ce qui serait renommé (rien n'est changé ici)."""
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    chans = sorted([c for c in (tn("/api/channels") or []) if c.get("id")], key=lambda c: float(c.get("number") or 0))
+    def prog(c):
+        try:
+            return c, tn_programming(c["id"])
+        except Exception:
+            return c, None
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        per = list(ex.map(prog, chans))
+    owner, ids = {}, []
+    for c, pr in per:
+        for x in (pr or {}).get("lineup") or []:
+            e = x.get("ext")
+            if x.get("type") == "content" and e and e not in owner:
+                owner[e] = c
+                ids.append(e)
+    info = {}
+    for i in range(0, len(ids), 80):
+        for it in _jf_items("Ids=%s&Fields=ProviderIds,ProductionYear,Path" % ",".join(ids[i:i + 80])):
+            info[str(it.get("Id") or "").replace("-", "").lower()] = it
+    # les chaînes faites d'épisodes (Friends S01E05…) : le nom de la chaîne sert de nom de série
+    bych = {}
+    for e in ids:
+        it = info.get(e)
+        if it:
+            bych.setdefault(owner[e]["id"], []).append(it)
+    show_of = {}
+    for c, _ in per:
+        its = bych.get(c["id"]) or []
+        vids = [x for x in its if x.get("Type") == "Video"]
+        eps = sum(1 for x in vids if any(rx.search(x.get("Name") or "") for rx in _nt_EP[:3]) or re.match(r"^\d{1,2}\s+-\s+", x.get("Name") or ""))
+        if len(vids) >= 3 and eps * 2 >= len(vids):
+            show_of[c["id"]] = re.sub(r"(?i)\s+tv\s*$", "", (c.get("name") or "").strip())
+    plan = []
+    for e in ids:
+        it = info.get(e)
+        if not it:
+            continue
+        c = owner[e]
+        if re.search(r"(?i)vid[ée]o.*famille|souvenir", c.get("name") or ""):
+            continue
+        t, name = it.get("Type"), it.get("Name") or ""
+        if t == "Movie":
+            pids = it.get("ProviderIds") or {}
+            if pids.get("Tmdb") or pids.get("Imdb"):
+                continue
+            new, year = nice_title(name)
+            plan.append({"id": e, "type": t, "old": name, "new": new or name, "year": year or it.get("ProductionYear"), "action": "identify", "chan": c.get("name")})
+        elif t == "Video":
+            new, year = nice_title(name, show_of.get(c["id"]))
+            if new:
+                plan.append({"id": e, "type": t, "old": name, "new": new, "year": None if show_of.get(c["id"]) else year, "action": "rename", "chan": c.get("name")})
+    return plan
+
+
+def _tidy_identify(x):
+    q = x["new"]
+    r = media_idsearch(x["id"], "Movie", q, x.get("year") or "")
+    best, score = None, 0
+    for c in r[:6]:
+        s = difflib.SequenceMatcher(None, _nt_n(q), _nt_n(c.get("Name"))).ratio()
+        if x.get("year") and c.get("ProductionYear") and abs(int(c["ProductionYear"]) - int(x["year"])) > 1:
+            s -= .3
+        if s > score:
+            best, score = c, s
+    if best and score >= .82:
+        jf("/Items/RemoteSearch/Apply/%s?ReplaceAllImages=true" % quote(x["id"]), "POST", best, timeout=60)
+        return best.get("Name")
+    return None
+
+
+def _tidy_rename(uid, x):
+    dto = jf("/Users/%s/Items/%s" % (uid, x["id"]), timeout=15) or {}
+    if not dto.get("Id"):
+        raise RuntimeError("introuvable")
+    dto["Name"] = x["new"]
+    if x.get("year") and not dto.get("ProductionYear"):
+        dto["ProductionYear"] = int(x["year"])
+    lk = set(dto.get("LockedFields") or [])
+    lk.add("Name")
+    dto["LockedFields"] = sorted(lk)
+    jf("/Items/%s" % x["id"], "POST", dto, timeout=20)
+
+
+def tidy_run(ids=None):
+    try:
+        TIDY.update(state="prépare", err="", done=0)
+        plan = tidy_plan()
+        if ids:
+            plan = [x for x in plan if x["id"] in ids]
+        TIDY.update(plan=plan, total=len(plan), state="renomme")
+        try:
+            with open(TIDY_BACKUP, "r", encoding="utf-8") as f:
+                back = json.load(f)
+        except Exception:
+            back = {}
+        uid = _jf_admin()
+        for x in plan:
+            try:
+                back.setdefault(x["id"], x["old"])
+                if x["action"] == "identify":
+                    got = _tidy_identify(x)
+                    if got:
+                        x["new"], x["result"] = got, "identifié"
+                    else:
+                        _tidy_rename(uid, x)
+                        x["result"] = "renommé"
+                else:
+                    _tidy_rename(uid, x)
+                    x["result"] = "renommé"
+            except Exception as e:
+                x["result"] = "erreur : %s" % e
+            TIDY["done"] += 1
+        with open(TIDY_BACKUP, "w", encoding="utf-8") as f:
+            json.dump(back, f, ensure_ascii=False, indent=1)
+        TIDY["state"] = "tunarr"
+        time.sleep(20)
+        for t in tn_libraries_all():
+            try:
+                tn_scan_lib(t["id"], every=0)
+            except Exception:
+                pass
+        _catalog.update(t=0)
+        _info_cache.clear()
+        TIDY.update(state="fini", t=time.time())
+    except Exception as e:
+        TIDY.update(state="erreur", err=str(e))
+
+
 # ---------- Catalogue : tout ce qui passe sur les chaînes, avec les affiches ----------
 _catalog = {"t": 0, "items": [], "busy": False}
 _catalog_lock = threading.Lock()
@@ -4511,6 +4830,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, tv_info((qs.get("pid") or [""])[0], (qs.get("ext") or [""])[0]), headers=cors)
             except Exception as e:
                 return self.send(400, {"error": str(e)}, headers=cors)
+        if u.path == "/api/tidy" and self.local():
+            return self.send(200, {k: TIDY[k] for k in ("state", "done", "total", "err", "plan")})
         if u.path == "/tv/catalog":
             cors = {"Access-Control-Allow-Origin": "*"}
             try:
@@ -5061,6 +5382,16 @@ class H(BaseHTTPRequestHandler):
                     save_conf(conf)
                     return self.send(200, {"ok": True, "queued": n})
             return self.send(400, {"error": "?"})
+        if u.path == "/api/tidy":
+            if b.get("plan"):
+                try:
+                    return self.send(200, {"plan": tidy_plan()})
+                except Exception as e:
+                    return self.send(400, {"error": str(e)})
+            if TIDY["state"] in ("prépare", "renomme", "tunarr"):
+                return self.send(409, {"error": "Déjà en cours"})
+            threading.Thread(target=tidy_run, args=(set(b.get("ids") or []) or None,), daemon=True).start()
+            return self.send(200, {"ok": True})
         if u.path == "/api/update":
             if b.get("check"):
                 check_update(force=True)
