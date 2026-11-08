@@ -754,7 +754,7 @@ body.idle .sopill{opacity:0}
 .ctc .po img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .ctc .po .ph{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:.3rem;padding:.8rem;font:800 1.05rem/1.15 var(--display);color:#fff}
 .ctc .po .ph small{font:700 .66rem var(--ui);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);margin:0}
-.ctc .po.coll .clg{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);inset:auto;width:70%;height:auto;max-height:45%;object-fit:contain}
+.ctc .po.coll .clg{position:absolute;inset:auto;left:50%;top:40%;transform:translate(-50%,-50%);width:70%;height:auto;max-height:45%;object-fit:contain}
 .ctc .po .tag{position:absolute;z-index:1;left:.45rem;top:.45rem;font:800 .6rem var(--ui);letter-spacing:.08em;background:rgba(0,0,0,.7);color:#fff;padding:.22rem .42rem;border-radius:.3rem}
 .ctc .po .tag.live{background:#E5242E}
 .ctc.f .po{transform:scale(1.07);box-shadow:0 0 0 .2rem #fff,0 1rem 2.2rem rgba(0,0,0,.55)}
@@ -1583,7 +1583,7 @@ function renderCat(){
     const ci0=ch0?catChIdx(ch0.num):-1,lg0=ci0>=0?channels[ci0].logo:"";
     if(x.coll&&lg0){po.classList.add("coll");po.style.background="radial-gradient(ellipse at 50% 35%,"+chColor(channels[ci0])+"aa,#141418 78%)";const im=el("img","clg");im.alt="";setLogo(im,lg0);try{plateIfNeeded(im,lg0)}catch(e){}im.onerror=()=>{im.remove();ph()};po.append(im);const d=el("div","ph");d.append(el("small",null,x.kind==="series"?"Série":"Collection"),document.createTextNode(x.title||""));po.append(d)}
     else if(x.poster&&!x.coll){const im=el("img");im.alt="";im.loading="lazy";im.decoding="async";im.onerror=()=>{im.remove();ph()};im.src=sb+x.poster;po.append(im)}else ph();
-    const A=catAiring(x);if(A.live)po.append(el("span","tag live","EN DIRECT"));
+    const A=x.coll?{}:catAiring(x);if(A.live)po.append(el("span","tag live","EN DIRECT"));
     const sub=[x.year,x.kind==="series"?x.n+" épisode"+(x.n>1?"s":""):x.kind==="videos"?x.n+" programme"+(x.n>1?"s":""):"",ch0?ch0.name:""].filter(Boolean).join(" · ");
     c.append(po,el("b",null,x.title||""),el("small",null,sub||"\u00a0"));
     c.onclick=()=>{CT.i=j;CT.zone="grid";catFiche(x)};g.append(c)});
@@ -3572,7 +3572,7 @@ document.addEventListener("keydown",e=>{
   else if(screen==="catalogue")ctKey(k);
 });
 
-let rsT=null;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(["home","guide","chaines"].includes(screen))refreshViews()},200)});
+let rsT=null;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(["home","guide","chaines"].includes(screen))refreshViews();if(screen==="catalogue")renderCat()},200)});
 /* Horloges et rafraîchissement */
 setInterval(()=>{
   const t=hhmm(Date.now());$("clk2").textContent=t;$("clock").textContent=t;
