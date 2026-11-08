@@ -2939,6 +2939,56 @@ def tidy_run(ids=None):
         TIDY.update(state="erreur", err=str(e))
 
 
+# ---------- Vidéoclub : chaque chaîne est un « univers » qu'on regarde à la demande ----------
+_vod = {"chans": [], "by": {}, "ok": set()}
+_EPNUM = re.compile(r"(?i)\bS(\d{1,2})\s?E(\d{1,3})\b|(?:^|·\s)E(\d{1,3})\b")
+
+
+def _vod_index(perch, info):
+    chans, by, ok = [], {}, set()
+    for num, name, exts in perch:
+        items = []
+        for e in exts:
+            it = info.get(e)
+            if not it:
+                continue
+            t = it.get("Type")
+            nm = it.get("Name") or ""
+            m = _EPNUM.search(nm)
+            se = (int(m.group(1)), int(m.group(2))) if m and m.group(1) else ((0, int(m.group(3))) if m and m.group(3) else None)
+            rt = it.get("RunTimeTicks") or 0
+            items.append({"jid": e, "title": nm, "year": it.get("ProductionYear"), "type": t,
+                          "img": _img(e, "Primary", 480) if (it.get("ImageTags") or {}).get("Primary") else "",
+                          "dur": int(rt / 10000) if rt else 0, "se": se, "desc": (it.get("Overview") or "")[:240],
+                          "genres": (it.get("Genres") or [])[:3]})
+            ok.add(e)
+        if not items:
+            continue
+        movies = sum(1 for x in items if x["type"] == "Movie")
+        eps = sum(1 for x in items if x["se"])
+        kind = "movies" if movies * 2 >= len(items) else "series" if eps * 2 >= len(items) else "videos"
+        if kind == "series":
+            items.sort(key=lambda x: (x["se"] or (999, 999), x["title"]))
+        else:
+            items.sort(key=lambda x: unicodedata.normalize("NFD", (x["title"] or "").lower()).encode("ascii", "ignore"))
+        posters = [x["img"] for x in items if x["img"] and x["type"] == "Movie"][:3] or [x["img"] for x in items if x["img"]][:3]
+        chans.append({"num": num, "name": name, "n": len(items), "kind": kind, "posters": posters})
+        by[str(num)] = {"num": num, "name": name, "kind": kind, "items": items}
+    _vod.update(chans=chans, by=by, ok=ok)
+
+
+def tv_vod_play(ext):
+    if not conf.get("jellyfin_key"):
+        raise RuntimeError("Studio n'est pas relié à Jellyfin")
+    ext = str(ext or "").replace("-", "").lower()
+    if not _vod["ok"]:
+        tv_catalog()
+    if ext not in _vod["ok"]:
+        raise RuntimeError("Ce programme n'est plus sur les chaînes")
+    it = next((x for c in _vod["by"].values() for x in c["items"] if x["jid"] == ext), {})
+    return dict(_jf_vod(ext), title=it.get("title") or "", start=int(time.time() * 1000), dur=it.get("dur") or 0, elapsed=0)
+
+
 # ---------- Catalogue : tout ce qui passe sur les chaînes, avec les affiches ----------
 _catalog = {"t": 0, "items": [], "busy": False}
 _catalog_lock = threading.Lock()
@@ -2948,6 +2998,7 @@ def _catalog_build():
     chans = sorted([c for c in (tn("/api/channels") or []) if c.get("id")], key=lambda c: float(c.get("number") or 0))
     seen = {}  # ext -> [{num, name, pid}]
     order = []
+    perch = []  # [(num, name, [ext…])] dans l'ordre des chaînes
 
     def prog(c):
         try:
@@ -2961,10 +3012,14 @@ def _catalog_build():
             continue
         num = c.get("number")
         num = int(num) if isinstance(num, (int, float)) and float(num).is_integer() else num
+        mine = []
+        perch.append((num, (c.get("name") or "").strip(), mine))
         for x in pr["lineup"]:
             e = x.get("ext")
             if x.get("type") != "content" or not e or x.get("state") not in ("", "ok"):
                 continue
+            if e not in mine:
+                mine.append(e)
             if e not in seen:
                 seen[e] = []
                 order.append(e)
@@ -2973,8 +3028,9 @@ def _catalog_build():
     info = {}
     ids = list(seen)
     for i in range(0, len(ids), 80):
-        for it in _jf_items("Ids=%s&Fields=Genres,ProductionYear,DateCreated" % ",".join(ids[i:i + 80])):
+        for it in _jf_items("Ids=%s&Fields=Genres,ProductionYear,DateCreated,Overview" % ",".join(ids[i:i + 80])):
             info[str(it.get("Id") or "").replace("-", "").lower()] = it
+    _vod_index(perch, info)
     out, groups = [], {}
     for e in order:
         it = info.get(e)
@@ -4835,6 +4891,21 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e)}, headers=cors)
         if u.path == "/api/tidy" and self.local():
             return self.send(200, {k: TIDY[k] for k in ("state", "done", "total", "err", "plan")})
+        if u.path in ("/tv/vod/chans", "/tv/vod/chan", "/tv/vod/play"):
+            cors = {"Access-Control-Allow-Origin": "*"}
+            qs = parse_qs(u.query)
+            try:
+                if u.path == "/tv/vod/play":
+                    return self.send(200, tv_vod_play((qs.get("ext") or [""])[0]), headers=cors)
+                tv_catalog()
+                if u.path == "/tv/vod/chans":
+                    return self.send(200, {"chans": _vod["chans"]}, headers=cors)
+                c = _vod["by"].get((qs.get("num") or [""])[0])
+                if not c:
+                    return self.send(404, {"error": "chaîne inconnue"}, headers=cors)
+                return self.send(200, c, headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
         if u.path == "/tv/catalog":
             cors = {"Access-Control-Allow-Origin": "*"}
             try:
