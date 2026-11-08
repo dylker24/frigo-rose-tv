@@ -2,6 +2,9 @@ name: Appli télé
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "dynamusique/**"
+      - ".github/workflows/dynamusique.yml"
   workflow_dispatch:
 permissions:
   contents: write

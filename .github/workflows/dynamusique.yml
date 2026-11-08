@@ -1,0 +1,60 @@
+name: Dynamusique
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dynamusique/**"
+      - ".github/workflows/dynamusique.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: dynamusique
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fabrication de Dynamusique.exe
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          pyinstaller --onefile --noconsole --name Dynamusique --icon dynamusique/icon.ico --add-data "dynamusique/page.html;." --add-data "dynamusique/icon.png;." dynamusique/dynamusique.py
+          Get-Item dist/Dynamusique.exe
+      - name: Test sur Windows
+        shell: pwsh
+        run: |
+          $env:DYN_NO_BROWSER = "1"
+          $p = Start-Process dist/Dynamusique.exe -ArgumentList "--silent" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep 2
+            try { $r = Invoke-WebRequest "http://127.0.0.1:8797/api/state" -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          $page = (Invoke-WebRequest "http://127.0.0.1:8797/" -UseBasicParsing).Content
+          Stop-Process -Id $p.Id -Force
+          if (-not $ok -or $page -notmatch "Qui écoute") { throw "Dynamusique ne répond pas" }
+          Write-Host "Dynamusique répond ✓"
+      - name: Publication
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dynamusique
+          name: Dynamusique
+          body: |
+            **Dynamusique** — la musique de Dylan et Léna.
+            Télécharge `Dynamusique.exe`, lance-le sur le PC, puis ouvre l'adresse affichée sur les téléphones (avec Tailscale).
+            Version ${{ github.run_number }}.
+          files: dist/Dynamusique.exe
+          make_latest: false
+          overwrite_files: true
+      - name: Rapport d'erreur
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh issue create --repo ${{ github.repository }} --title "Erreur Dynamusique ${{ github.run_number }}" --body "La fabrication de Dynamusique a raté, voir ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
