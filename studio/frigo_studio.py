@@ -1278,6 +1278,14 @@ def autopilot_loop():
                 autoconv_once()
             except Exception as e:
                 bglog("pilote auto : %s" % e)
+        if k % 6 == 3 and TIDY.get("state") not in ("prépare", "renomme", "tunarr"):
+            # toutes les heures : beaux titres pour les nouvelles vidéos (converties, téléchargées), puis réparation des chaînes
+            try:
+                if tidy_plan():
+                    tidy_run()
+                repair_all_channels()
+            except Exception as e:
+                bglog("beaux titres auto : %s" % e)
         k += 1
         time.sleep(600)
 
@@ -3343,6 +3351,26 @@ def _tnorm(t):
     return re.sub(r"[^a-z0-9]+", "", "".join(ch for ch in t if unicodedata.category(ch) != "Mn"))
 
 
+_SE_RX = re.compile(r"(?i)(?:^|[^a-z0-9])s(\d{1,2})\s?e\s?(\d{1,3})(?![0-9])|(?:^|[^0-9])(\d{1,2})x(\d{2,3})(?![0-9])")
+
+
+def _tkeys(title):
+    """Différentes façons de reconnaître la même vidéo : titre brut, beau titre, numéro d'épisode."""
+    t = title or ""
+    keys = [_tnorm(t)]
+    try:
+        n = nice_title(t)[0]
+        if n:
+            keys.append(_tnorm(n))
+    except Exception:
+        pass
+    m = _SE_RX.search(t)
+    if m:
+        se = (int(m.group(1) or m.group(3)), int(m.group(2) or m.group(4)))
+        keys.append("se:%d:%d" % se)
+    return [k for k in keys if k]
+
+
 def repair_ghosts(cid, remove_rest=False):
     """Programmes introuvables d'une chaîne : si la vidéo existe encore sous une nouvelle version (convertie, renommée…),
     on la remet À LA MÊME PLACE ; sinon on la retire seulement si remove_rest. Le programme en cours n'est pas coupé (tn_save)."""
@@ -3356,7 +3384,8 @@ def repair_ghosts(cid, remove_rest=False):
     for lib in {x["lib"] for x in g if x.get("lib")}:
         try:
             for c in tn_library_programs(lib, fresh=True):
-                cands.setdefault(_tnorm(c["title"]), []).append(c)
+                for k in _tkeys(c["title"]):
+                    cands.setdefault(k, []).append(c)
         except Exception:
             pass
     newraw, fixed, removed, titles = [], 0, 0, []
@@ -3365,7 +3394,11 @@ def repair_ghosts(cid, remove_rest=False):
         if not gx:
             newraw.append(it)
             continue
-        c = next((c for c in cands.get(_tnorm(gx["title"]), []) if c["id"] not in used and c.get("duration")), None)
+        c = None
+        for k in _tkeys(gx["title"]):
+            c = next((c for c in cands.get(k, []) if c["id"] not in used and c.get("duration")), None)
+            if c:
+                break
         if c:
             newraw.append({"type": "content", "id": c["id"], "duration": c["duration"]})
             used.add(c["id"])
