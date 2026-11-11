@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16132e">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Cahier de culture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,500;1,6..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: une nuit de grotte, des dates gravées en très grand ; chaque domaine a sa couleur (ocre = histoire, lagon = géo, mousse = animaux) */
+:root{
+  --bg:#16132e;
+  --surface:#211d42;
+  --surface-2:#2a2552;
+  --line:#3b356b;
+  --text:#fbf9ff;
+  --muted:#b7b0dc;
+  --ochre:#ff9b3d;
+  --pink:#ff5ca8;
+  --violet:#b38cff;
+  --lagoon:#38c9ff;
+  --moss:#7ee35b;
+  --ember:#ffd23f;
+  --good:#5ef0a0;
+  --bad:#ff5d6c;
+  --ink:#16132e;
+  --display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:18px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(900px 520px at 90% -10%, rgba(255,92,168,.22), transparent 60%),
+    radial-gradient(800px 480px at -10% 30%, rgba(56,201,255,.14), transparent 60%),
+    radial-gradient(900px 600px at 60% 120%, rgba(255,155,61,.16), transparent 60%);
+  background-attachment:fixed;
+  color:var(--text);font-family:var(--body);font-size:16px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--pink);outline-offset:3px;border-radius:10px}
+h1,h2,h3{font-family:var(--display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+img{max-width:100%;display:block}
+
+/* ---------- Header + nav ---------- */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px max(16px,4vw);
+  background:linear-gradient(var(--bg) 60%, transparent);}
+.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:var(--text)}
+.brand b{font-family:var(--display);font-size:22px;font-style:italic;font-weight:700}
+.brand span{font-size:12px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.tabs{display:flex;gap:4px;margin-left:auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.brand{white-space:nowrap}
+@media (max-width:1180px){.brand span{display:none}}
+.tabs a{white-space:nowrap;position:relative;padding:8px 14px;border-radius:999px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;transition:color .25s}
+.tabs a[aria-current="page"]{color:var(--bg)}
+.tabs a .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:middle;background:var(--c,var(--muted))}
+.tabs a[aria-current="page"] .dot{background:var(--bg)}
+.pill{position:absolute;inset:4px auto 4px 0;border-radius:999px;background:var(--ochre);transition:transform .45s cubic-bezier(.6,.05,.2,1),width .45s cubic-bezier(.6,.05,.2,1),background .45s;z-index:-1}
+.tabs{position:relative;isolation:isolate}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync[data-s="ok"] i{background:var(--good);box-shadow:0 0 0 4px rgba(127,207,143,.15)}
+.sync[data-s="busy"] i{background:var(--ochre);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.3}}
+
+main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
+
+@media (max-width:820px){
+  .tabs{position:fixed;left:12px;right:12px;bottom:12px;margin:0;justify-content:space-between;z-index:30;
+    background:rgba(26,23,19,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:5px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .tabs a{padding:9px 6px;font-size:12px;flex:1;text-align:center}
+  .tabs a .dot{display:block;margin:0 auto 3px}
+  .sync{margin-left:auto}
+}
+@media (max-width:520px){.brand span{display:none}.brand b{font-size:20px}}
+
+/* ---------- Entrées animées ---------- */
+.rise{animation:rise .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 55ms)}
+@keyframes rise{from{opacity:.001;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--c,var(--ochre));font-weight:700}
+.head{display:grid;gap:10px;padding:28px 0 26px}
+.head h1{font-size:clamp(44px,8vw,92px);line-height:.95}
+.head h1 em{font-style:italic;color:var(--c,var(--ochre))}
+.head p{max-width:60ch;color:var(--muted);margin:0;font-size:17px}
+.sec-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:44px 0 16px}
+.sec-title h2{font-size:clamp(26px,3.6vw,38px)}
+.sec-title small{color:var(--muted);font-size:14px}
+
+/* ---------- Accueil ---------- */
+.hero{position:relative;padding:36px 0 30px;display:grid;gap:8px;min-height:340px;align-content:center}
+.hero .eyebrow{display:flex;gap:10px;align-items:center}
+.hero .eyebrow::before{content:"";width:28px;height:1px;background:currentColor}
+.roller{font-family:var(--display);font-weight:700;font-size:clamp(96px,22vw,250px);line-height:.86;letter-spacing:-.03em;font-variant-numeric:lining-nums tabular-nums;
+  height:1em;overflow:hidden;display:flex;color:var(--text)}
+.roller .ch:nth-child(4n+1){color:var(--ochre)}.roller .ch:nth-child(4n+2){color:var(--pink)}.roller .ch:nth-child(4n+3){color:var(--lagoon)}.roller .ch:nth-child(4n+4){color:var(--moss)}
+.roller .ch{display:inline-block;animation:chIn .75s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k) * 60ms)}
+.roller.out .ch{animation:chOut .45s cubic-bezier(.6,0,.8,.2) both;animation-delay:calc(var(--k) * 35ms)}
+@keyframes chIn{from{transform:translateY(105%) rotate(6deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes chOut{to{transform:translateY(-105%) rotate(-4deg);opacity:0}}
+.roller-cap{font-family:var(--display);font-style:italic;font-size:clamp(22px,3vw,34px);min-height:1.4em;color:var(--text)}
+.roller-cap span{display:inline-block;animation:capIn .8s .25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes capIn{from{opacity:0;transform:translateX(-14px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+.hero-bar{display:flex;gap:6px;margin-top:18px}
+.hero-bar i{height:3px;flex:1;max-width:46px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
+.hero-bar i.on::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--ochre),var(--pink));transform-origin:left;animation:fill 4.2s linear both}
+.hero-bar i.done{background:var(--pink)}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:980px){.tiles{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:460px){.tiles{grid-template-columns:1fr}}
+.tile{position:relative;display:grid;gap:10px;padding:22px;border-radius:var(--r);background:var(--c);border:0;text-decoration:none;color:var(--ink);box-shadow:0 18px 40px -22px var(--c);overflow:hidden;min-height:190px;align-content:space-between;transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .35s}
+.tile::before{content:"";position:absolute;inset:-1px;background:radial-gradient(380px circle at var(--mx,50%) var(--my,0%), rgba(255,255,255,.35), transparent 55%);opacity:0;transition:opacity .35s}
+.tile:hover{transform:translateY(-6px) rotate(-1deg)}
+.tile:hover::before{opacity:1}
+.tile > *{position:relative}
+.tile .big{font-family:var(--display);font-size:64px;line-height:1;font-style:italic;color:var(--ink)}
+.tile h3{font-size:26px}
+.tile p{margin:0;color:rgba(22,19,46,.72);font-size:14px;font-weight:500}
+.meter{height:6px;border-radius:6px;background:rgba(22,19,46,.18);overflow:hidden}
+.meter b{display:block;height:100%;background:var(--ink);border-radius:4px;transform-origin:left;animation:grow 1.1s .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes grow{from{transform:scaleX(0)}}
+
+.fact{margin-top:14px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:22px 24px;border-radius:var(--r);background:linear-gradient(100deg,color-mix(in srgb,var(--c,var(--pink)) 26%, var(--surface)),var(--surface) 70%);border:1px solid color-mix(in srgb,var(--c,var(--pink)) 40%, var(--line))}
+.fact .q{font-family:var(--display);font-size:64px;line-height:.6;color:var(--c,var(--pink));font-style:italic;padding-top:18px}
+.fact p{margin:0;font-size:18px}
+.fact p span{display:inline-block;animation:capIn .6s cubic-bezier(.2,.8,.2,1) both}
+@media (max-width:560px){.fact{grid-template-columns:1fr}.fact .q{display:none}}
+
+/* ---------- Boutons, chips ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;transition:transform .2s,background .2s,border-color .2s}
+.btn:hover{transform:translateY(-1px);border-color:var(--muted)}
+.btn:active{transform:scale(.97)}
+.btn.solid{background:var(--c,var(--pink));color:var(--ink);border-color:transparent}
+.btn.on{background:color-mix(in srgb,var(--good) 18%, var(--surface));border-color:var(--good);color:var(--good)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;font-size:13px;font-weight:600;color:var(--muted);transition:all .25s}
+.chip[aria-pressed="true"]{background:var(--c,var(--pink));color:var(--ink);border-color:transparent}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:color-mix(in srgb,var(--c) 16%, transparent);color:var(--c)}
+
+/* ---------- Frise ---------- */
+.frise{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
+.seg{position:relative;text-align:left;border:1px solid color-mix(in srgb,var(--c) 45%, var(--line));background:color-mix(in srgb,var(--c) 12%, var(--surface));border-radius:14px;padding:16px 14px 18px;min-height:112px;display:grid;align-content:space-between;gap:10px;overflow:hidden;
+  transform-origin:left;animation:segIn .8s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 90ms);transition:border-color .3s,background .3s,transform .3s}
+@keyframes segIn{from{transform:scaleX(.2);opacity:0}to{transform:none;opacity:1}}
+.seg::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--c);transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.seg:hover{transform:translateY(-2px)}
+.seg[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:var(--ink);box-shadow:0 16px 36px -18px var(--c)}
+.seg[aria-pressed="true"] small,.seg[aria-pressed="true"] .n{color:var(--ink)}
+.seg[aria-pressed="true"]::after{transform:none}
+.seg b{font-family:var(--display);font-size:clamp(17px,2vw,24px);line-height:1.05}
+.seg small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.seg .n{font-family:var(--display);font-style:italic;color:var(--c);font-size:15px}
+.cuts{position:relative;height:34px;margin-top:6px;font-size:12px;color:var(--muted)}
+.cuts span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;text-align:center}
+.cuts span::before{content:"";display:block;width:1px;height:10px;background:var(--muted);opacity:.6;margin:0 auto 4px}
+@media (max-width:720px){
+  .frise{grid-template-columns:1fr;gap:8px}.seg{min-height:0;grid-template-columns:auto 1fr auto;align-items:center}
+  .cuts{display:none}
+}
+
+.chapter{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-top:22px}
+@media (max-width:900px){.chapter{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+.chapter .panel{animation:panelIn .6s cubic-bezier(.2,.8,.2,1) both}
+.chapter .panel:nth-child(2){animation-delay:.08s}
+@keyframes panelIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.chapter h2{font-size:clamp(34px,5vw,58px);line-height:1}
+.chapter .range{font-family:var(--display);font-style:italic;color:var(--c);font-size:20px;margin:6px 0 14px}
+.chapter .intro{font-size:18px;margin:0 0 18px;max-width:60ch}
+.pts{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.pts li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.pts li::before{content:"";width:7px;height:7px;border-radius:50%;margin-top:9px;background:var(--c,var(--ochre))}
+.pts strong{color:var(--text)}
+.pts li{color:#e2dcf5}
+.dates{list-style:none;margin:18px 0 0;padding:0;position:relative}
+.dates::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:var(--line)}
+.dates li{position:relative;display:grid;grid-template-columns:88px 1fr;gap:12px;padding:8px 0 8px 24px;animation:rise .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 70ms + .15s)}
+.dates li::before{content:"";position:absolute;left:0;top:15px;width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 25%, transparent)}
+.dates b{font-family:var(--display);font-size:20px;line-height:1.2;font-variant-numeric:tabular-nums}
+.dates span{color:#e2dcf5;font-size:15px}
+.people-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+
+/* ---------- Image slot ---------- */
+.slot{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:var(--surface-2);border:1px dashed var(--line);display:grid;place-items:center;text-align:center}
+.slot img{width:100%;height:100%;object-fit:cover}
+.slot .add{display:grid;gap:6px;justify-items:center;color:var(--muted);font-size:13px;padding:16px;background:none;border:0}
+.slot .add svg{opacity:.8}
+.slot .add:hover{color:var(--text)}
+.slot.has{border-style:solid}
+.slot .swap{position:absolute;right:10px;bottom:10px;padding:7px 12px;border-radius:999px;border:0;background:rgba(17,15,12,.75);backdrop-filter:blur(8px);font-size:12px;font-weight:600;opacity:0;transition:opacity .25s}
+.slot:hover .swap,.slot:focus-within .swap{opacity:1}
+@media (hover:none){.slot .swap{opacity:1}}
+
+/* ---------- Cartes fiches ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.card{position:relative;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:0;overflow:hidden;display:grid;grid-template-rows:auto 1fr;
+  transition:transform .4s cubic-bezier(.2,.8,.2,1),border-color .3s,box-shadow .4s}
+.card:hover{transform:translateY(-6px) rotate(-.4deg);border-color:color-mix(in srgb,var(--c) 55%, var(--line));box-shadow:0 22px 50px -20px color-mix(in srgb,var(--c) 45%, transparent)}
+.card .cover{aspect-ratio:5/4;position:relative;overflow:hidden;background:var(--surface-2)}
+.card .cover img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.card:hover .cover img{transform:scale(1.06)}
+.ph{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, transparent 2px 14px),
+    radial-gradient(circle at 25% 15%, rgba(255,255,255,.35), transparent 55%),
+    linear-gradient(150deg, var(--c), var(--c2,var(--violet)))}
+.ph .ini{font-family:var(--display);font-style:italic;font-weight:700;font-size:120px;line-height:1;color:var(--ink);opacity:.85;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.card:hover .ph .ini{transform:scale(1.08) rotate(-4deg)}
+.ph .hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--ink);font-weight:600;display:flex;gap:6px;align-items:center}
+.card-body{padding:16px 18px 20px;display:grid;gap:6px;align-content:start}
+.card .meta{font-size:12px;color:var(--c);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.card h3{font-size:24px;line-height:1.1}
+.card p{margin:0;font-size:14px;color:var(--muted)}
+.badge{position:absolute;top:12px;right:12px;padding:5px 10px 5px 8px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(17,15,12,.8);backdrop-filter:blur(8px);color:var(--good);display:flex;gap:5px;align-items:center;animation:pop .5s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+@media (max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:10px}.card h3{font-size:19px}.card p{display:none}.card-body{padding:12px 12px 14px}.ph .ini{font-size:78px}.ph .hint{display:none}.card.new{min-height:200px}}
+.card.new{border-style:dashed;display:grid;place-items:center;min-height:300px;color:var(--muted);gap:10px;align-content:center;justify-items:center}
+.card.new:hover{color:var(--text)}
+.card.new .plus{width:54px;height:54px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:28px;transition:transform .4s}
+.card.new:hover .plus{transform:rotate(90deg);border-color:var(--c)}
+
+/* ---------- Records ---------- */
+.records{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+@media (max-width:560px){.records{grid-template-columns:1fr 1fr;gap:10px}.rec{padding:16px}.rec b{font-size:24px!important}.rec span{font-size:13px}}
+.rec{padding:20px 22px;border-radius:var(--r);background:color-mix(in srgb,var(--c) 13%, var(--surface));border:1px solid color-mix(in srgb,var(--c) 38%, var(--line));display:grid;gap:4px}
+.rec small{color:var(--muted);font-size:13px}
+.rec b{font-family:var(--display);font-size:34px;line-height:1.05;color:var(--c)}
+.rec span{font-size:14px;color:#e2dcf5}
+
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.duo{grid-template-columns:1fr}}
+.cloud{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cloud span{padding:8px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-weight:600;font-size:14px}
+.cloud span em{font-style:normal;color:var(--muted);font-weight:400;margin-left:6px;font-size:13px}
+
+/* ---------- Flip cartes pays ---------- */
+.flips{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:16px}
+.flip{perspective:900px;height:132px;border:0;background:none;padding:0;text-align:left}
+.flip .in{position:relative;width:100%;height:100%;transition:transform .7s cubic-bezier(.3,1.3,.5,1);transform-style:preserve-3d}
+.flip.on .in{transform:rotateY(180deg)}
+.flip .f,.flip .b{position:absolute;inset:0;border-radius:16px;padding:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:grid;align-content:space-between;border:1px solid var(--line)}
+.flip .f{background:var(--surface)}
+.flip .b{background:var(--lagoon);border-color:var(--lagoon);color:var(--ink);transform:rotateY(180deg)}
+.flip .b small{color:rgba(22,19,46,.65)}
+.flip small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.flip strong{font-family:var(--display);font-size:24px;line-height:1.05}
+.flip .b strong{color:var(--ink)}
+.flip .trap{font-size:12px;color:var(--pink);font-weight:700}
+.flip .b .trap{color:var(--ink);font-weight:500}
+
+/* ---------- Quiz ---------- */
+.quiz{max-width:780px;margin:0 auto}
+.qbar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:6px 0 30px}
+.qbar b{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--ember));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.qnum{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.qq{font-size:clamp(28px,4.4vw,46px);line-height:1.08;margin:10px 0 26px;animation:panelIn .55s cubic-bezier(.2,.8,.2,1) both}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.opts{grid-template-columns:1fr}}
+.opt{text-align:left;padding:18px 20px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-size:17px;font-weight:600;display:flex;gap:14px;align-items:center;
+  animation:rise .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms + .1s);transition:border-color .25s,background .25s,transform .2s}
+.opt:hover:not([disabled]){border-color:var(--muted);transform:translateY(-2px)}
+.opt kbd{font-family:var(--display);font-style:italic;font-size:18px;color:var(--muted);width:20px}
+.opt[disabled]{cursor:default}
+.opt.ok{background:color-mix(in srgb,var(--good) 18%, var(--surface));border-color:var(--good);animation:okPop .5s cubic-bezier(.3,1.6,.5,1) both}
+.opt.ko{background:color-mix(in srgb,var(--bad) 16%, var(--surface));border-color:var(--bad);animation:shake .45s both}
+.opt.dim{opacity:.45}
+@keyframes okPop{40%{transform:scale(1.03)}}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.expl{margin-top:20px;padding:18px 20px;border-radius:16px;background:var(--surface-2);border-left:3px solid var(--c,var(--good));animation:panelIn .5s cubic-bezier(.2,.8,.2,1) both;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+.expl p{margin:0;max-width:56ch}
+.expl p b{color:var(--c)}
+.qstart{display:grid;gap:18px;justify-items:start;padding:20px 0}
+.score{font-family:var(--display);font-weight:700;font-size:clamp(120px,26vw,240px);line-height:.85;color:var(--ember);text-shadow:0 0 60px rgba(255,210,63,.35);font-variant-numeric:tabular-nums}
+.score small{font-size:.32em;color:var(--muted);font-style:italic}
+
+/* ---------- Feuille (modale) ---------- */
+.sheet-wrap{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;visibility:hidden}
+.sheet-wrap.open{visibility:visible}
+.scrim{position:absolute;inset:0;background:rgba(8,7,5,.7);backdrop-filter:blur(6px);opacity:0;transition:opacity .35s}
+.sheet-wrap.open .scrim{opacity:1}
+.sheet{position:relative;width:min(760px,100%);max-height:calc(100% - 20px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:24px;
+  transform:translateY(40px) scale(.97);opacity:0;transition:transform .5s cubic-bezier(.2,.9,.2,1),opacity .35s}
+.sheet-wrap.open .sheet{transform:none;opacity:1}
+.sheet .slot{aspect-ratio:16/9;border-radius:0;border:0;border-bottom:1px solid var(--line)}
+.sheet .ph .ini{font-size:180px}
+.sheet-body{padding:24px 28px 28px;display:grid;gap:14px}
+.sheet h2{font-size:clamp(34px,6vw,54px);line-height:1}
+.sheet .sub{font-family:var(--display);font-style:italic;font-size:20px;color:var(--c)}
+.rows{display:grid;gap:10px;margin:4px 0}
+.rows div{display:grid;grid-template-columns:130px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.rows dt{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;padding-top:3px}
+.rows dd{margin:0}
+@media (max-width:520px){.rows div{grid-template-columns:1fr;gap:2px}}
+.close{position:absolute;top:12px;right:12px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:rgba(17,15,12,.75);backdrop-filter:blur(8px);font-size:20px;line-height:1}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.form{display:grid;gap:14px;padding:28px}
+.form label{display:grid;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+.form input,.form textarea{font:inherit;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;resize:vertical}
+.form input:focus,.form textarea:focus{border-color:var(--c,var(--ochre));outline:none}
+
+.toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,20px);opacity:0;z-index:60;padding:11px 18px;border-radius:999px;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;transition:all .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.view{animation:viewIn .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes viewIn{from{opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#accueil"><b>Cahier de culture</b><span>Histoire · Géo · Animaux</span></a>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <span class="pill" id="pill"></span>
+    <a href="#accueil" data-r="accueil" style="--c:var(--text)"><span class="dot"></span>Accueil</a>
+    <a href="#histoire" data-r="histoire" style="--c:var(--ochre)"><span class="dot"></span>Histoire</a>
+    <a href="#personnages" data-r="personnages" style="--c:var(--pink)"><span class="dot"></span>Personnages</a>
+    <a href="#geo" data-r="geo" style="--c:var(--lagoon)"><span class="dot"></span>Géo</a>
+    <a href="#animaux" data-r="animaux" style="--c:var(--moss)"><span class="dot"></span>Animaux</a>
+    <a href="#quiz" data-r="quiz" style="--c:var(--ember)"><span class="dot"></span>Quiz</a>
+  </nav>
+  <div class="sync" id="sync" data-s="local" title="État de la sauvegarde"><i></i><span>Sur cet appareil</span></div>
+</header>
+
+<main id="view"></main>
+
+<div class="sheet-wrap" id="sheet" aria-hidden="true">
+  <div class="scrim" data-act="close"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" id="sheet-box"></div>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ================= CONTENU ================= */
+const PERIODS = [
+  {id:"prehistoire", title:"Préhistoire", range:"Origines → −3300", cut:"Écriture",
+   intro:"Tout ce qui se passe avant l’invention de l’écriture. La Dordogne en est un des grands centres mondiaux.",
+   points:[
+     ["Paléolithique","les humains sont chasseurs-cueilleurs et nomades. Homo sapiens apparaît en Afrique il y a environ 300 000 ans."],
+     ["Art des grottes","Lascaux et Rouffignac, avec ses « cent mammouths », sont des chefs-d’œuvre de la Préhistoire."],
+     ["Cro-Magnon","nom donné aux premiers Homo sapiens d’Europe, d’après l’abri découvert aux Eyzies en 1868."],
+     ["Néolithique","agriculture et élevage. Les humains deviennent sédentaires, bâtissent des villages et des menhirs (Carnac)."]
+   ],
+   dates:[["−300 000","Homo sapiens apparaît en Afrique"],["−18 000","Peintures de Lascaux"],["−13 000","Mammouths gravés à Rouffignac"],["−10 000","Début de l’agriculture au Proche-Orient"],["−3300","Écriture en Mésopotamie : fin de la Préhistoire"]],
+   hint:"peinture de Lascaux"},
+  {id:"antiquite", title:"Antiquité", range:"−3300 → 476", cut:"Chute de Rome",
+   intro:"De l’écriture en Mésopotamie à la chute de l’Empire romain d’Occident. Les grandes civilisations autour de la Méditerranée.",
+   points:[
+     ["Égypte","les pharaons, les hiéroglyphes, les pyramides de Gizeh."],
+     ["Grèce","la démocratie naît à Athènes, les Jeux olympiques, les philosophes Socrate, Platon, Aristote."],
+     ["Rome","une République, puis un Empire à partir d’Auguste."],
+     ["La Gaule","conquise par Jules César. Elle devient romaine : routes, villes, latin."],
+     ["Christianisme","né au Ier siècle, religion officielle de l’Empire à la fin du IVe siècle."]
+   ],
+   dates:[["−2560","Pyramide de Khéops"],["−753","Fondation légendaire de Rome"],["−508","Démocratie à Athènes"],["−52","Alésia : Vercingétorix se rend"],["−27","Auguste, premier empereur"],["476","Chute de Rome"]],
+   hint:"carte de l’Empire romain"},
+  {id:"moyen-age", title:"Moyen Âge", range:"476 → 1492", cut:"Colomb",
+   intro:"Mille ans de seigneurs, de châteaux forts et de cathédrales, où l’Église encadre toute la vie.",
+   points:[
+     ["Clovis","roi des Francs, baptisé vers 496. Les Francs donnent leur nom à la France."],
+     ["Féodalité","le seigneur protège, le paysan travaille la terre."],
+     ["Croisades","à partir de 1095, expéditions chrétiennes vers Jérusalem."],
+     ["Guerre de Cent Ans","contre l’Angleterre, 1337 → 1453. La Dordogne est en première ligne."],
+     ["Peste noire","1347 → 1352 : environ un tiers des Européens meurent."]
+   ],
+   dates:[["496","Baptême de Clovis"],["800","Charlemagne empereur"],["987","Hugues Capet roi"],["1095","Première croisade"],["1429","Jeanne d’Arc libère Orléans"],["1453","Fin de la guerre de Cent Ans"]],
+   hint:"château de Beynac"},
+  {id:"temps-modernes", title:"Temps modernes", range:"1492 → 1789", cut:"Révolution",
+   intro:"Les Européens découvrent le monde, les rois deviennent tout-puissants, puis les Lumières remettent tout en question.",
+   points:[
+     ["Grandes découvertes","Colomb atteint l’Amérique en 1492."],
+     ["Renaissance","Léonard de Vinci, et l’imprimerie de Gutenberg (vers 1450) qui diffuse les livres."],
+     ["Guerres de religion","catholiques contre protestants, apaisées par l’édit de Nantes d’Henri IV (1598)."],
+     ["Monarchie absolue","Louis XIV, Versailles, 72 ans de règne."],
+     ["Les Lumières","Voltaire, Rousseau, Montesquieu critiquent le pouvoir absolu."]
+   ],
+   dates:[["1492","Colomb en Amérique"],["1515","Marignan, François Ier"],["1598","Édit de Nantes"],["1643","Louis XIV roi à 4 ans"],["1715","Mort de Louis XIV"]],
+   hint:"château de Versailles"},
+  {id:"contemporaine", title:"Époque contemporaine", range:"1789 → aujourd’hui", cut:"",
+   intro:"La République s’installe, l’industrie transforme tout, deux guerres mondiales secouent le monde.",
+   points:[
+     ["Révolution","prise de la Bastille et Déclaration des droits de l’homme en 1789."],
+     ["Révolution industrielle","machine à vapeur, trains, usines au XIXe siècle."],
+     ["1848","abolition de l’esclavage en France et suffrage universel masculin."],
+     ["Guerres mondiales","1914 → 1918 (Verdun, 1916), puis 1939 → 1945 avec l’Occupation et la Shoah."],
+     ["Ve République","fondée par de Gaulle en 1958, toujours en place."]
+   ],
+   dates:[["1789","Prise de la Bastille, 14 juillet"],["1804","Napoléon sacré empereur"],["1815","Waterloo"],["1944","Débarquement, 6 juin"],["1958","Ve République"],["1969","Premiers pas sur la Lune"],["1989","Chute du mur de Berlin"],["2002","L’euro dans les porte-monnaie"]],
+   hint:"prise de la Bastille"}
+];
+
+const PCOL = ["var(--ochre)","var(--pink)","var(--violet)","var(--lagoon)","var(--moss)"];
+const PEOPLE = [
+  {id:"vercingetorix", title:"Vercingétorix", sub:"vers −80 → −46", period:"antiquite", tag:"Le chef gaulois qui a tenu tête à César",
+   rows:[["Rôle","Chef gaulois du peuple des Arvernes (l’Auvergne actuelle)."],["Fait marquant","Unit les Gaulois contre César, gagne à Gergovie, puis se rend à Alésia en −52."],["Fin","Emprisonné à Rome, exécuté en −46."],["À retenir","Premier « héros national » français, surtout mis en avant au XIXe siècle."]]},
+  {id:"cesar", title:"Jules César", sub:"−100 → −44", period:"antiquite", tag:"Le conquérant de la Gaule",
+   rows:[["Rôle","Général et homme politique romain."],["Fait marquant","Conquiert la Gaule de −58 à −51 et raconte tout dans La Guerre des Gaules."],["Fin","Assassiné au Sénat le 15 mars −44, les « ides de mars », notamment par Brutus."],["À retenir","Il n’a jamais été empereur. Le premier, c’est son fils adoptif Auguste."]]},
+  {id:"charlemagne", title:"Charlemagne", sub:"vers 747 → 814", period:"moyen-age", tag:"L’empereur à la barbe fleurie",
+   rows:[["Rôle","Roi des Francs, puis empereur d’Occident."],["Fait marquant","Couronné empereur par le pape à Rome le 25 décembre 800."],["Capitale","Aix-la-Chapelle, en Allemagne aujourd’hui."],["À retenir","Il n’a pas « inventé l’école », mais il a développé les écoles liées aux monastères."]]},
+  {id:"jeanne", title:"Jeanne d’Arc", sub:"vers 1412 → 1431", period:"moyen-age", tag:"La paysanne qui a sauvé le royaume",
+   rows:[["Rôle","Jeune paysanne de Domrémy qui dit entendre des voix lui demandant de sauver la France."],["Fait marquant","Libère Orléans en 1429 et fait sacrer Charles VII à Reims."],["Fin","Capturée, livrée aux Anglais, brûlée à Rouen le 30 mai 1431, à 19 ans."],["À retenir","Déclarée sainte en 1920."]]},
+  {id:"louis14", title:"Louis XIV", sub:"1638 → 1715", period:"temps-modernes", tag:"Le Roi-Soleil",
+   rows:[["Rôle","Roi de France, symbole de la monarchie absolue."],["Fait marquant","Roi à 4 ans en 1643, il règne 72 ans, le plus long règne de l’histoire de France."],["Versailles","Il y installe la cour pour mieux contrôler les nobles."],["À retenir","« L’État, c’est moi » lui est attribué, mais il ne l’a sans doute jamais dit."]]},
+  {id:"napoleon", title:"Napoléon Bonaparte", sub:"1769 → 1821", period:"contemporaine", tag:"Le général devenu empereur",
+   rows:[["Rôle","Général né à Ajaccio, prend le pouvoir en 1799, sacré empereur le 2 décembre 1804."],["Fait marquant","Le Code civil de 1804, base du droit français encore aujourd’hui. Victoire d’Austerlitz en 1805."],["Fin","Battu à Waterloo en 1815, exilé à Sainte-Hélène où il meurt en 1821."],["À retenir","Il n’était pas petit : environ 1,69 m, la moyenne de l’époque. Légende de la propagande anglaise."]]},
+  {id:"degaulle", title:"Charles de Gaulle", sub:"1890 → 1970", period:"contemporaine", tag:"L’homme du 18 juin",
+   rows:[["Rôle","Général, chef de la France libre pendant la Seconde Guerre mondiale."],["Fait marquant","L’appel du 18 juin 1940, à la radio de Londres, pour continuer le combat."],["Président","Fonde la Ve République en 1958, président de 1959 à 1969."],["À retenir","La Constitution de 1958 est toujours celle de la France."]]}
+];
+
+const ANIMALS = [
+  {id:"loup", title:"Loup gris", sub:"Mammifère", tag:"L’ancêtre de tous les chiens",
+   rows:[["Milieu","Forêts et montagnes"],["Alimentation","Carnivore"],["Taille","Environ 1,3 m de long, 30 à 50 kg"],["À retenir","Vit en meute familiale. Revenu naturellement en France par les Alpes en 1992, depuis l’Italie. Le chien descend du loup, domestiqué il y a au moins 15 000 ans."]]},
+  {id:"elephant", title:"Éléphant d’Afrique", sub:"Mammifère", tag:"Le géant des terres",
+   rows:[["Milieu","Savane et forêt"],["Alimentation","Herbivore, plus de 100 kg de plantes par jour"],["Taille","Jusqu’à 6 tonnes, le plus grand animal terrestre"],["À retenir","Grossesse d’environ 22 mois, la plus longue de tous les mammifères. Sa trompe compte des dizaines de milliers de muscles."]]},
+  {id:"pieuvre", title:"Pieuvre", sub:"Mollusque", tag:"Trois cœurs et du sang bleu",
+   rows:[["Milieu","Océans"],["Alimentation","Carnivore : crabes, coquillages, poissons"],["Taille","De quelques centimètres à plusieurs mètres selon l’espèce"],["À retenir","8 bras, 3 cœurs, sang bleu. Change de couleur en une fraction de seconde. Environ deux tiers de ses neurones sont dans ses bras."]]},
+  {id:"guepard", title:"Guépard", sub:"Mammifère", tag:"Le sprinteur de la savane",
+   rows:[["Milieu","Savane africaine"],["Alimentation","Carnivore : gazelles, impalas"],["Vitesse","Environ 110 km/h, sur de courtes distances"],["À retenir","Animal terrestre le plus rapide. Il ne rugit pas : il ronronne et pousse de petits cris aigus."]]},
+  {id:"manchot", title:"Manchot empereur", sub:"Oiseau", tag:"Le papa qui couve dans le blizzard",
+   rows:[["Milieu","Antarctique"],["Alimentation","Poissons, calmars, krill"],["Taille","Environ 1,2 m, le plus grand des manchots"],["À retenir","C’est le mâle qui couve l’œuf sur ses pattes pendant environ 2 mois d’hiver, sans manger. Il ne vole pas mais plonge à plus de 500 m."]]},
+  {id:"baleine", title:"Baleine bleue", sub:"Mammifère marin", tag:"Le plus grand animal ayant existé",
+   rows:[["Milieu","Tous les océans"],["Alimentation","Krill, plusieurs tonnes par jour"],["Taille","Jusqu’à environ 30 m et 150 tonnes"],["À retenir","Plus grande que n’importe quel dinosaure. Son cœur pèse autant qu’une petite voiture. C’est un mammifère : elle respire de l’air."]]},
+  {id:"mammouth", title:"Mammouth laineux", sub:"Mammifère disparu", tag:"La star des murs de Rouffignac",
+   rows:[["Milieu","Steppes glacées"],["Alimentation","Herbivore"],["Taille","Environ 3 m au garrot, jusqu’à 6 tonnes"],["À retenir","Il en restait encore, sur une île de l’Arctique, quand les pyramides d’Égypte ont été construites. Les hommes préhistoriques l’ont gravé à Rouffignac."]]}
+];
+
+const GEO_RECORDS = [
+  ["Plus haut sommet","8 849 m","L’Everest, entre le Népal et la Chine"],
+  ["Plus long fleuve","≈ 6 650 km","Le Nil, à égalité discutée avec l’Amazone"],
+  ["Plus grand pays","17 millions de km²","La Russie, 31 fois la France métropolitaine"],
+  ["Plus petit pays","0,44 km²","Le Vatican, au cœur de Rome"],
+  ["Pays le plus peuplé","Inde","Elle a dépassé la Chine en 2023"],
+  ["Plus grand océan","Pacifique","Il couvre environ un tiers de la planète"],
+  ["Plus grand désert chaud","Sahara","Grand comme les États-Unis"],
+  ["Population mondiale","8 milliards","Le cap a été passé fin 2022"]
+];
+const CONTINENTS = ["Afrique","Amérique","Antarctique","Asie","Europe","Océanie"];
+const OCEANS = [["Pacifique","le plus grand"],["Atlantique","entre l’Europe et l’Amérique"],["Indien","le plus chaud"],["Austral","autour de l’Antarctique"],["Arctique","le plus petit"]];
+const FRANCE = [
+  ["Régions","18","13 en métropole et 5 en outre-mer"],
+  ["Départements","101","La Dordogne porte le numéro 24, préfecture Périgueux"],
+  ["Mont Blanc","≈ 4 806 m","Le plus haut sommet d’Europe occidentale"],
+  ["Plus long fleuve","La Loire","Environ 1 000 km, de l’Ardèche à l’Atlantique"],
+  ["Grands fleuves","5","Loire, Seine, Rhône, Garonne, Rhin"],
+  ["Massifs","5","Alpes, Pyrénées, Massif central, Jura, Vosges"]
+];
+const COUNTRIES = [
+  ["Australie","Canberra","Océanie","Pas Sydney"],["Canada","Ottawa","Amérique","Pas Toronto"],["Brésil","Brasília","Amérique","Pas Rio"],
+  ["Turquie","Ankara","Asie","Pas Istanbul"],["États-Unis","Washington","Amérique","Pas New York"],["Maroc","Rabat","Afrique","Pas Casablanca"],
+  ["Suisse","Berne","Europe","Pas Genève ni Zurich"],["Nouvelle-Zélande","Wellington","Océanie","Pas Auckland"],["Nigeria","Abuja","Afrique","Pas Lagos"],
+  ["Inde","New Delhi","Asie","Pas Bombay"],["Vietnam","Hanoï","Asie","Pas Hô Chi Minh-Ville"],["Pakistan","Islamabad","Asie","Pas Karachi"],
+  ["Afrique du Sud","Pretoria","Afrique","Elle a 3 capitales : Pretoria, Le Cap, Bloemfontein"],["Kazakhstan","Astana","Asie","Pas Almaty"],
+  ["Espagne","Madrid","Europe",""],["Italie","Rome","Europe",""],["Allemagne","Berlin","Europe",""],["Royaume-Uni","Londres","Europe",""],
+  ["Portugal","Lisbonne","Europe",""],["Belgique","Bruxelles","Europe",""],["Pays-Bas","Amsterdam","Europe","Le gouvernement siège à La Haye"],
+  ["Pologne","Varsovie","Europe",""],["Grèce","Athènes","Europe",""],["Suède","Stockholm","Europe",""],["Norvège","Oslo","Europe",""],
+  ["Russie","Moscou","Europe",""],["Chine","Pékin","Asie",""],["Japon","Tokyo","Asie",""],["Corée du Sud","Séoul","Asie",""],
+  ["Égypte","Le Caire","Afrique",""],["Sénégal","Dakar","Afrique",""],["Argentine","Buenos Aires","Amérique",""],["Mexique","Mexico","Amérique",""],["Pérou","Lima","Amérique",""]
+];
+const ANIMAL_RECORDS = [
+  ["Plus grand animal","≈ 30 m","La baleine bleue"],
+  ["Plus rapide sur terre","≈ 110 km/h","Le guépard"],
+  ["Plus rapide tout court","+ de 300 km/h","Le faucon pèlerin, en piqué"],
+  ["Plus grand animal terrestre","≈ 6 t","L’éléphant d’Afrique"],
+  ["Plus haut","≈ 5,5 m","La girafe"],
+  ["Plus dangereux pour l’homme","Le moustique","Il transmet le paludisme et d’autres maladies"]
+];
+const CLASSES = [["Mammifères","poils, allaitent leurs petits","loup, baleine, chauve-souris"],["Oiseaux","plumes, pondent des œufs","manchot, aigle, poule"],["Reptiles","écailles, sang froid","serpent, tortue, crocodile"],["Amphibiens","peau nue, vie dans l’eau puis sur terre","grenouille, salamandre"],["Poissons","nageoires, branchies","requin, saumon, thon"]];
+
+const HERO = [["−52","Alésia : la Gaule devient romaine"],["800","Charlemagne est couronné empereur"],["1429","Jeanne d’Arc libère Orléans"],["1492","Christophe Colomb atteint l’Amérique"],["1789","Le peuple prend la Bastille"],["1804","Napoléon est sacré empereur"],["1944","Débarquement en Normandie"],["1969","Premiers pas sur la Lune"]];
+
+const FACTS = [
+  "Cléopâtre a vécu plus près de nous que de la construction de la pyramide de Khéops.",
+  "Il restait encore des mammouths quand les pyramides d’Égypte ont été construites.",
+  "Napoléon mesurait environ 1,69 m, la taille moyenne de son époque.",
+  "Une pieuvre a trois cœurs et du sang bleu.",
+  "Louis XIV est devenu roi à 4 ans et a régné 72 ans.",
+  "Le manchot empereur mâle jeûne environ deux mois pour couver son œuf.",
+  "La guerre de Cent Ans a duré 116 ans, de 1337 à 1453.",
+  "La France a des frontières avec le Brésil, grâce à la Guyane."
+];
+
+const QUIZ = [
+  ["En quelle année Vercingétorix se rend-il à Alésia ?","−52",["52","−753","476"],"La défaite d’Alésia en −52 fait de la Gaule une province romaine.","h"],
+  ["En quelle année Charlemagne est-il couronné empereur ?","800",["987","496","1515"],"Le 25 décembre 800, à Rome, par le pape.","h"],
+  ["Qui a fait sacrer Charles VII à Reims ?","Jeanne d’Arc",["Charlemagne","Clovis","Louis XIV"],"En 1429, juste après avoir libéré Orléans.","h"],
+  ["Combien de temps a duré le règne de Louis XIV ?","72 ans",["45 ans","54 ans","30 ans"],"Roi à 4 ans en 1643, il meurt en 1715.","h"],
+  ["Quel événement marque la fin du Moyen Âge ?","Colomb atteint l’Amérique",["La prise de la Bastille","La chute de Rome","Le sacre de Napoléon"],"On retient 1492 comme date de fin.","h"],
+  ["Où Napoléon subit-il sa défaite finale en 1815 ?","Waterloo",["Austerlitz","Marignan","Verdun"],"Austerlitz, en 1805, était au contraire sa grande victoire.","h"],
+  ["En quelle année de Gaulle lance-t-il son appel depuis Londres ?","1940",["1944","1958","1914"],"L’appel du 18 juin 1940.","h"],
+  ["Quand la Ve République est-elle fondée ?","1958",["1945","1968","1848"],"Sa Constitution est toujours en vigueur.","h"],
+  ["Quelle grotte de Dordogne est surnommée « la grotte aux cent mammouths » ?","Rouffignac",["Lascaux","Chauvet","Font-de-Gaume"],"Plus de 150 mammouths y sont dessinés ou gravés.","h"],
+  ["Qu’est-ce qui marque la fin de la Préhistoire ?","L’invention de l’écriture",["La découverte du feu","L’agriculture","La roue"],"Vers −3300 en Mésopotamie.","h"],
+  ["Qui fut le premier empereur romain ?","Auguste",["Jules César","Néron","Constantin"],"César n’a jamais porté ce titre.","h"],
+  ["Combien de temps a duré la guerre de Cent Ans ?","116 ans",["100 ans","99 ans","130 ans"],"De 1337 à 1453.","h"],
+  ["Quel jour a lieu la prise de la Bastille ?","14 juillet 1789",["4 août 1789","14 juillet 1790","11 novembre 1789"],"C’est devenu la fête nationale.","h"],
+  ["Quelle est la capitale de l’Australie ?","Canberra",["Sydney","Melbourne","Perth"],"Choisie pour départager Sydney et Melbourne.","g"],
+  ["Quelle est la capitale du Canada ?","Ottawa",["Toronto","Montréal","Vancouver"],"Toronto est la plus grande ville, pas la capitale.","g"],
+  ["Quelle est la capitale de la Turquie ?","Ankara",["Istanbul","Izmir","Antalya"],"Istanbul est la plus grande ville.","g"],
+  ["Quelle est la capitale du Brésil ?","Brasília",["Rio de Janeiro","São Paulo","Salvador"],"Construite exprès, inaugurée en 1960.","g"],
+  ["Quel est le plus haut sommet du monde ?","L’Everest",["Le K2","Le mont Blanc","Le Kilimandjaro"],"8 849 m, entre le Népal et la Chine.","g"],
+  ["Quel est le plus grand océan ?","Pacifique",["Atlantique","Indien","Arctique"],"Il couvre environ un tiers de la planète.","g"],
+  ["Quel est le plus long fleuve de France ?","La Loire",["La Seine","Le Rhône","La Garonne"],"Environ 1 000 km.","g"],
+  ["Quel est le pays le plus peuplé du monde ?","L’Inde",["La Chine","Les États-Unis","L’Indonésie"],"Elle a dépassé la Chine en 2023.","g"],
+  ["Quel est le plus petit pays du monde ?","Le Vatican",["Monaco","Saint-Marin","Le Luxembourg"],"0,44 km², au cœur de Rome.","g"],
+  ["Combien la France compte-t-elle de régions, outre-mer compris ?","18",["13","22","101"],"13 en métropole et 5 en outre-mer.","g"],
+  ["Combien de cœurs a une pieuvre ?","3",["1","2","8"],"Et son sang est bleu.","a"],
+  ["Quel est l’animal terrestre le plus rapide ?","Le guépard",["Le lion","L’antilope","Le lévrier"],"Environ 110 km/h sur de courtes distances.","a"],
+  ["Quel est le plus grand animal ayant jamais existé ?","La baleine bleue",["Le diplodocus","Le mégalodon","L’éléphant d’Afrique"],"Jusqu’à environ 30 m et 150 tonnes.","a"],
+  ["Chez le manchot empereur, qui couve l’œuf ?","Le mâle",["La femelle","Les deux à tour de rôle","Personne, l’œuf est enterré"],"Environ 2 mois sur ses pattes, sans manger.","a"],
+  ["Quel animal tue le plus d’humains ?","Le moustique",["Le requin","Le serpent","Le crocodile"],"À cause des maladies qu’il transmet.","a"],
+  ["En quelle année le loup est-il revenu naturellement en France ?","1992",["1950","2010","1975"],"Par les Alpes, depuis l’Italie.","a"],
+  ["Le dauphin est un…","Mammifère",["Poisson","Amphibien","Reptile"],"Il respire de l’air et allaite ses petits.","a"],
+  ["À quelle époque restait-il encore des mammouths ?","Pendant la construction des pyramides",["Au temps de Jules César","Sous Charlemagne","Pendant la guerre de Cent Ans"],"Les derniers vivaient sur une île de l’Arctique.","a"]
+];
+
+/* ================= ÉTAT ================= */
+const DEFAULT = {known:{}, images:{}, custom:[], best:0, updated:0};
+let state = structuredClone(DEFAULT);
+try{ const s = JSON.parse(localStorage.getItem("cahier-culture") || "null"); if(s) state = Object.assign(structuredClone(DEFAULT), s); }catch(e){}
+
+let dbRef = null, assetsApi = null, lastRemote = "", writing = false, again = false, saveTimer = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function setSync(s, label){ const el = $("#sync"); el.dataset.s = s; el.querySelector("span").textContent = label; }
+function saveLocal(){ try{ localStorage.setItem("cahier-culture", JSON.stringify(state)); }catch(e){} }
+function save(){
+  state.updated = Date.now();
+  saveLocal();
+  if(!dbRef) return;
+  clearTimeout(saveTimer);
+  setSync("busy","Sauvegarde…");
+  saveTimer = setTimeout(push, 600);
+}
+async function push(){
+  if(writing){ again = true; return; }
+  writing = true;
+  const body = JSON.parse(JSON.stringify(state));
+  lastRemote = JSON.stringify(body);
+  try{ await dbRef.set(body); setSync("ok","Synchronisé"); }
+  catch(e){ setSync("local","Sur cet appareil"); }
+  writing = false;
+  if(again){ again = false; push(); }
+}
+
+(async function connect(){
+  if(!window.claude || !window.claude.use){ return; }
+  try{
+    const [db, user, assets] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("assets")]);
+    assetsApi = assets;
+    if(!db || !user) return;
+    const uid = await user.id();
+    if(!uid) return;
+    dbRef = db.doc("data/users/" + uid + "/cahier");
+    setSync("busy","Connexion…");
+    const t = setTimeout(() => setSync("local","Hors ligne"), 10000);
+    let first = true;
+    dbRef.onSnapshot(snap => {
+      if(!snap.metadata.fromCache) clearTimeout(t);
+      if(snap.metadata.hasPendingWrites) return;
+      const d = snap.exists ? snap.data() : null;
+      if(first){
+        first = false;
+        if(!d || (d.updated || 0) < (state.updated || 0)){ if(state.updated) push(); else setSync("ok","Synchronisé"); return; }
+      }
+      if(!d) return;
+      const str = JSON.stringify(d);
+      if(str === lastRemote){ setSync("ok","Synchronisé"); return; }
+      lastRemote = str;
+      state = Object.assign(structuredClone(DEFAULT), JSON.parse(str));
+      saveLocal();
+      setSync("ok","Synchronisé");
+      render(true);
+    }, () => { clearTimeout(t); setSync("local","Sur cet appareil"); dbRef = null; });
+  }catch(e){ setSync("local","Sur cet appareil"); }
+})();
+
+/* ================= FICHES ================= */
+function allFiches(){
+  const P = PERIODS.map((p, i) => ({...p, cat:"histoire", c:PCOL[i]}));
+  const H = PEOPLE.map(p => ({...p, cat:"perso", c:"var(--pink)"}));
+  const A = ANIMALS.map(a => ({...a, cat:"animal", c:"var(--moss)"}));
+  const C = state.custom.map(c => ({...c, c: c.cat === "animal" ? "var(--moss)" : "var(--pink)", isCustom:true}));
+  return [...P, ...H, ...A, ...C];
+}
+const getFiche = id => allFiches().find(f => f.id === id);
+const imgOf = id => state.images[id] && state.images[id].src;
+const initial = t => esc((t || "?").replace(/^(L’|L'|Le |La )/,"").trim().charAt(0).toUpperCase());
+
+const ICON_IMG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
+const ICON_OK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>';
+
+function slot(id, hint){
+  const src = imgOf(id);
+  if(src) return `<div class="slot has"><img src="${esc(src)}" alt=""><button class="swap" data-act="img" data-id="${id}">Changer l’image</button></div>`;
+  return `<div class="slot"><button class="add" data-act="img" data-id="${id}">${ICON_IMG}<span>Ajouter une image${hint ? `<br><small>${esc(hint)}</small>` : ""}</span></button></div>`;
+}
+
+function card(f, i){
+  const src = imgOf(f.id);
+  return `<button class="card rise" style="--i:${i};--c:${f.c};--c2:${f.cat === "animal" ? "var(--lagoon)" : "var(--violet)"}" data-act="open" data-id="${f.id}">
+    <div class="cover">${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : `<div class="ph"><span class="ini">${initial(f.title)}</span><span class="hint">${ICON_IMG.replace('26','14').replace('26','14')} Ajoute une image</span></div>`}</div>
+    <div class="card-body"><span class="meta">${esc(f.sub)}</span><h3>${esc(f.title)}</h3><p>${esc(f.tag || "")}</p></div>
+    ${state.known[f.id] ? `<span class="badge">${ICON_OK} Maîtrisé</span>` : ""}
+  </button>`;
+}
+function newCard(cat, i){
+  return `<button class="card new rise" style="--i:${i};--c:${cat === "animal" ? "var(--moss)" : "var(--pink)"}" data-act="new" data-cat="${cat}"><span class="plus">+</span><b>Nouvelle fiche</b><small>Ajoute ${cat === "animal" ? "un animal" : "un personnage"}</small></button>`;
+}
+
+/* ================= VUES ================= */
+let route = "accueil", selPeriod = "prehistoire", geoFilter = "Tous", flipped = new Set(), quiz = null;
+
+function counts(){
+  const f = allFiches();
+  const by = cat => { const l = f.filter(x => x.cat === cat); return [l.filter(x => state.known[x.id]).length, l.length]; };
+  return {h:by("histoire"), p:by("perso"), a:by("animal")};
+}
+
+function vAccueil(){
+  const c = counts();
+  const tile = (href, c1, big, title, txt, k, i) => `<a class="tile rise" href="#${href}" style="--c:${c1};--i:${i}"><span class="big">${big}</span><div><h3>${title}</h3><p>${txt}</p></div><div class="meter"><b style="width:${k[1] ? Math.max(4, k[0]/k[1]*100) : 0}%"></b></div></a>`;
+  return `
+  <section class="hero">
+    <div class="eyebrow rise">Une date à retenir</div>
+    <div class="roller" id="roller" aria-live="polite"></div>
+    <div class="roller-cap" id="roller-cap"></div>
+    <div class="hero-bar" id="hero-bar">${HERO.map(() => "<i></i>").join("")}</div>
+  </section>
+  <div class="tiles">
+    ${tile("histoire","var(--ochre)","5","Histoire",`${c.h[0]} période${c.h[0] > 1 ? "s" : ""} maîtrisée${c.h[0] > 1 ? "s" : ""} sur ${c.h[1]}`, c.h, 1)}
+    ${tile("personnages","var(--pink)", c.p[1],"Personnages",`${c.p[0]} sur ${c.p[1]} maîtrisés`, c.p, 2)}
+    ${tile("geo","var(--lagoon)", COUNTRIES.length,"Géographie","Records, France, pays et capitales", [1,1], 3)}
+    ${tile("animaux","var(--moss)", c.a[1],"Animaux",`${c.a[0]} sur ${c.a[1]} maîtrisés`, c.a, 4)}
+  </div>
+  <div class="fact rise" style="--i:5"><span class="q">“</span><p id="fact"><span>${esc(FACTS[Math.floor(Math.random()*FACTS.length)])}</span></p><button class="btn" data-act="fact">Une autre</button></div>
+  <div class="fact rise" style="--i:6;--c:var(--ember)"><span class="q">?</span><p>Ton meilleur score au quiz : <b>${state.best}/10</b></p><a class="btn solid" style="--c:var(--ember);text-decoration:none" href="#quiz">Lancer le quiz</a></div>`;
+}
+
+function vHistoire(){
+  const p = PERIODS.find(x => x.id === selPeriod);
+  const ppl = PEOPLE.filter(x => x.period === p.id);
+  return `
+  <section class="head" style="--c:${PCOL[PERIODS.indexOf(p)]}"><span class="eyebrow rise">Cinq périodes, de Lascaux à l’euro</span><h1 class="rise" style="--i:1">L’<em>Histoire</em></h1><p class="rise" style="--i:2">Touche une période pour ouvrir son chapitre. Les quatre événements sous la frise sont les frontières à connaître par cœur.</p></section>
+  <div class="frise" role="group" aria-label="Frise chronologique">
+    ${PERIODS.map((x, i) => `<button class="seg" style="--i:${i};--c:${PCOL[i]}" data-act="period" data-id="${x.id}" aria-pressed="${x.id === p.id}"><span class="n">${["I","II","III","IV","V"][i]}</span><b>${x.title}</b><small>${x.range}</small></button>`).join("")}
+  </div>
+  <div class="cuts" aria-hidden="true">${PERIODS.slice(0, 4).map((x, i) => `<span style="left:calc(${(i + 1) * 20}% + ${(6 * i + 3 - 4.8 * (i + 1)).toFixed(1)}px)">${x.cut}</span>`).join("")}</div>
+  <div class="chapter" id="chapter" style="--c:${PCOL[PERIODS.indexOf(p)]}">
+    <article class="panel">
+      <h2>${p.title}</h2>
+      <div class="range">${p.range}</div>
+      <p class="intro">${p.intro}</p>
+      <ul class="pts">${p.points.map(([k, v]) => `<li><span><strong>${k}</strong> : ${v}</span></li>`).join("")}</ul>
+      ${ppl.length ? `<div class="people-row">${ppl.map(x => `<button class="chip" data-act="open" data-id="${x.id}">${x.title}</button>`).join("")}</div>` : ""}
+      <div class="actions" style="margin-top:22px">${knownBtn(p.id)}</div>
+    </article>
+    <aside class="panel">
+      ${slot(p.id, p.hint)}
+      <ol class="dates">${p.dates.map(([d, t], i) => `<li style="--i:${i}"><b>${d}</b><span>${t}</span></li>`).join("")}</ol>
+    </aside>
+  </div>`;
+}
+
+function vPersonnages(){
+  const list = [...PEOPLE.map(p => ({...p, cat:"perso", c:"var(--pink)"})), ...state.custom.filter(c => c.cat === "perso").map(c => ({...c, c:"var(--pink)"}))];
+  return `
+  <section class="head" style="--c:var(--pink)"><span class="eyebrow rise">De la Gaule à la Ve République</span><h1 class="rise" style="--i:1">Les <em>personnages</em></h1><p class="rise" style="--i:2">Ouvre une fiche pour lire l’essentiel, ajouter un portrait et la marquer comme maîtrisée.</p></section>
+  <div class="grid">${list.map((f, i) => card(f, i)).join("")}${newCard("perso", list.length)}</div>`;
+}
+
+function vGeo(){
+  const conts = ["Tous","Europe","Amérique","Asie","Afrique","Océanie","Pièges"];
+  const list = COUNTRIES.filter(c => geoFilter === "Tous" || (geoFilter === "Pièges" ? c[3] && c[3].startsWith("Pas") || c[0] === "Afrique du Sud" : c[2] === geoFilter));
+  return `
+  <section class="head" style="--c:var(--lagoon)"><span class="eyebrow rise">Le monde en chiffres</span><h1 class="rise" style="--i:1">La <em>géographie</em></h1><p class="rise" style="--i:2">Les records à connaître, la France, puis les capitales en cartes à retourner.</p></section>
+  <div class="sec-title"><h2>Records du monde</h2></div>
+  <div class="records">${GEO_RECORDS.map(([k, v, d], i) => `<div class="rec rise" style="--i:${i};--c:var(--lagoon)"><small>${k}</small><b>${v}</b><span>${d}</span></div>`).join("")}</div>
+  <div class="sec-title"><h2>Continents et océans</h2><small>6 continents, 5 océans</small></div>
+  <div class="duo">
+    <div class="panel rise" style="--i:1"><span class="eyebrow" style="--c:var(--lagoon)">Continents</span><div class="cloud">${CONTINENTS.map(c => `<span>${c}</span>`).join("")}</div></div>
+    <div class="panel rise" style="--i:2"><span class="eyebrow" style="--c:var(--lagoon)">Océans</span><div class="cloud">${OCEANS.map(([o, d]) => `<span>${o}<em>${d}</em></span>`).join("")}</div></div>
+  </div>
+  <div class="sec-title"><h2>La France</h2></div>
+  <div class="records">${FRANCE.map(([k, v, d], i) => `<div class="rec rise" style="--i:${i};--c:var(--lagoon)"><small>${k}</small><b>${v}</b><span>${d}</span></div>`).join("")}</div>
+  <div class="sec-title"><h2>Pays et capitales</h2><small id="flipcount">${flipped.size} retournée${flipped.size > 1 ? "s" : ""}</small></div>
+  <div class="chips" style="--c:var(--lagoon)">${conts.map(c => `<button class="chip" data-act="cont" data-v="${c}" aria-pressed="${c === geoFilter}">${c}</button>`).join("")}<button class="chip" data-act="flipall">Tout retourner</button></div>
+  <div class="flips">${list.map(([p, cap, cont, tip], i) => `<button class="flip rise${flipped.has(p) ? " on" : ""}" style="--i:${Math.min(i, 14)}" data-act="flip" data-v="${esc(p)}" aria-label="${esc(p)}, toucher pour voir la capitale">
+    <span class="in"><span class="f"><small>${cont}</small><strong>${p}</strong>${tip && tip.startsWith("Pas") ? `<span class="trap">Piège</span>` : `<span class="trap" style="color:var(--muted);font-weight:400">Capitale ?</span>`}</span>
+    <span class="b"><small>Capitale</small><strong>${cap}</strong><span class="trap">${esc(tip)}</span></span></span></button>`).join("")}</div>`;
+}
+
+function vAnimaux(){
+  const list = [...ANIMALS.map(a => ({...a, cat:"animal", c:"var(--moss)"})), ...state.custom.filter(c => c.cat === "animal").map(c => ({...c, c:"var(--moss)"}))];
+  return `
+  <section class="head" style="--c:var(--moss)"><span class="eyebrow rise">Records, familles et fiches</span><h1 class="rise" style="--i:1">Les <em>animaux</em></h1><p class="rise" style="--i:2">Environ 95 % des espèces animales sont des invertébrés : insectes, araignées, mollusques, crustacés. Les vertébrés se rangent en cinq grandes familles.</p></section>
+  <div class="sec-title"><h2>Les records</h2></div>
+  <div class="records">${ANIMAL_RECORDS.map(([k, v, d], i) => `<div class="rec rise" style="--i:${i};--c:var(--moss)"><small>${k}</small><b>${v}</b><span>${d}</span></div>`).join("")}</div>
+  <div class="sec-title"><h2>Les 5 familles de vertébrés</h2></div>
+  <div class="records">${CLASSES.map(([k, v, d], i) => `<div class="rec rise" style="--i:${i};--c:var(--moss)"><b style="font-size:26px">${k}</b><span>${v}</span><small>${d}</small></div>`).join("")}</div>
+  <div class="sec-title"><h2>Les fiches</h2><small>${list.filter(x => state.known[x.id]).length} sur ${list.length} maîtrisées</small></div>
+  <div class="grid">${list.map((f, i) => card(f, i)).join("")}${newCard("animal", list.length)}</div>`;
+}
+
+function vQuiz(){
+  if(!quiz){
+    return `<div class="quiz"><section class="qstart"><span class="eyebrow rise" style="--c:var(--ember)">10 questions au hasard</span><h1 class="rise" style="--i:1;font-size:clamp(48px,9vw,96px);line-height:.95">Teste ta <em style="color:var(--ember)">culture</em></h1><p class="rise" style="--i:2;color:var(--muted);margin:0">Histoire, géo et animaux mélangés. Meilleur score : <b style="color:var(--text)">${state.best}/10</b></p><button class="btn solid rise" style="--i:3;--c:var(--ember);font-size:16px;padding:14px 24px" data-act="qstart">C’est parti</button></section></div>`;
+  }
+  if(quiz.i >= quiz.qs.length){
+    const s = quiz.score;
+    const msg = s === 10 ? "Sans faute. Impressionnant." : s >= 8 ? "Très solide, tu y es presque." : s >= 5 ? "Bonne base, encore quelques révisions." : "Chaque erreur, c’est une date de plus pour la prochaine fois.";
+    return `<div class="quiz"><section class="qstart"><span class="eyebrow" style="--c:var(--ember)">Résultat</span><div class="score"><span id="score-n">0</span><small>/10</small></div><h2 class="rise" style="font-size:34px">${msg}</h2>${s > (quiz.prevBest || 0) ? `<span class="tag rise" style="--c:var(--good);--i:1">Nouveau record</span>` : ""}<button class="btn solid rise" style="--i:2;--c:var(--ember)" data-act="qstart">Rejouer</button></section></div>`;
+  }
+  const q = quiz.qs[quiz.i];
+  const c = q.k === "h" ? "var(--ochre)" : q.k === "g" ? "var(--lagoon)" : "var(--moss)";
+  const label = q.k === "h" ? "Histoire" : q.k === "g" ? "Géographie" : "Animaux";
+  return `<div class="quiz">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="qnum">Question ${quiz.i + 1} / ${quiz.qs.length}</span><span class="tag" style="--c:${c}">${label}</span></div>
+    <div class="qbar"><b style="width:${quiz.i / quiz.qs.length * 100}%"></b></div>
+    <h2 class="qq">${esc(q.q)}</h2>
+    <div class="opts">${q.opts.map((o, i) => `<button class="opt" style="--i:${i}" data-act="qans" data-i="${i}"><kbd>${"abcd"[i]}</kbd>${esc(o)}</button>`).join("")}</div>
+    <div id="expl"></div>
+  </div>`;
+}
+
+/* ================= RENDU ================= */
+const VIEWS = {accueil:vAccueil, histoire:vHistoire, personnages:vPersonnages, geo:vGeo, animaux:vAnimaux, quiz:vQuiz};
+let heroTimer = null;
+
+function render(soft){
+  const v = $("#view");
+  const y = window.scrollY;
+  v.className = soft ? "" : "view";
+  v.innerHTML = VIEWS[route]();
+  if(soft){ v.querySelectorAll(".rise,.seg,.card,.flip,.opt,.dates li").forEach(e => e.style.animation = "none"); window.scrollTo(0, y); }
+  if(route === "accueil") startHero(); else clearTimeout(heroTimer);
+  if(route === "quiz" && quiz && quiz.i >= quiz.qs.length) countUp();
+  bindGlow();
+  if(sheetId && soft) openSheet(sheetId, true);
+}
+
+function navUpdate(){
+  const links = [...document.querySelectorAll("#tabs a")];
+  links.forEach(a => a.setAttribute("aria-current", a.dataset.r === route ? "page" : "false"));
+  const a = links.find(x => x.dataset.r === route), pill = $("#pill");
+  if(a){ pill.style.width = a.offsetWidth + "px"; pill.style.transform = `translateX(${a.offsetLeft - 4}px)`; pill.style.background = getComputedStyle(a).getPropertyValue("--c"); pill.style.left = "4px"; }
+}
+
+function go(){
+  const h = location.hash.replace("#","");
+  route = VIEWS[h] ? h : "accueil";
+  navUpdate();
+  render();
+  window.scrollTo({top:0});
+}
+window.addEventListener("hashchange", go);
+window.addEventListener("resize", navUpdate);
+
+/* Date qui défile */
+let heroI = 0;
+function startHero(){
+  clearTimeout(heroTimer);
+  const show = () => {
+    const r = $("#roller"), cap = $("#roller-cap"), bar = $("#hero-bar");
+    if(!r) return;
+    const [d, t] = HERO[heroI];
+    r.classList.remove("out");
+    r.innerHTML = [...d].map((ch, k) => `<span class="ch" style="--k:${k}">${ch === " " ? "&nbsp;" : esc(ch)}</span>`).join("");
+    cap.innerHTML = `<span>${esc(t)}</span>`;
+    [...bar.children].forEach((b, k) => { b.className = k < heroI ? "done" : k === heroI ? "on" : ""; });
+    heroTimer = setTimeout(() => {
+      r.classList.add("out");
+      heroTimer = setTimeout(() => { heroI = (heroI + 1) % HERO.length; show(); }, 420);
+    }, 3800);
+  };
+  show();
+}
+
+function bindGlow(){
+  document.querySelectorAll(".tile").forEach(t => t.addEventListener("pointermove", e => {
+    const r = t.getBoundingClientRect();
+    t.style.setProperty("--mx", (e.clientX - r.left) + "px");
+    t.style.setProperty("--my", (e.clientY - r.top) + "px");
+  }));
+}
+
+function countUp(){
+  const el = $("#score-n"); if(!el) return;
+  const target = quiz.score; let n = 0;
+  const step = () => { el.textContent = n; if(n < target){ n++; setTimeout(step, 90); } };
+  setTimeout(step, 250);
+}
+
+function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 2200); }
+
+/* ================= FEUILLE ================= */
+let sheetId = null;
+function knownBtn(id){
+  const on = !!state.known[id];
+  return `<button class="btn${on ? " on" : ""}" data-act="known" data-id="${id}" aria-pressed="${on}">${on ? ICON_OK + " Maîtrisé" : "Je maîtrise"}</button>`;
+}
+function openSheet(id, refresh){
+  const f = getFiche(id); if(!f) return;
+  sheetId = id;
+  const box = $("#sheet-box");
+  box.style.setProperty("--c", f.c); box.style.setProperty("--c2", f.cat === "animal" ? "var(--lagoon)" : "var(--violet)");
+  const src = imgOf(id);
+  box.innerHTML = `
+    <button class="close" data-act="close" aria-label="Fermer">×</button>
+    ${src ? `<div class="slot has"><img src="${esc(src)}" alt=""><button class="swap" data-act="img" data-id="${id}">Changer l’image</button></div>`
+          : `<div class="slot" style="position:relative"><div class="ph"><span class="ini">${initial(f.title)}</span></div><button class="add btn" style="position:absolute;left:16px;bottom:16px;display:flex;background:rgba(17,15,12,.8);color:var(--text)" data-act="img" data-id="${id}">${ICON_IMG.replace('26','16').replace('26','16')} Ajouter une image</button></div>`}
+    <div class="sheet-body">
+      <div><div class="sub">${esc(f.sub)}</div><h2 id="sheet-title">${esc(f.title)}</h2></div>
+      ${f.tag ? `<p style="margin:0;color:var(--muted);font-size:17px">${esc(f.tag)}</p>` : ""}
+      <dl class="rows">${(f.rows || []).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      <div class="actions">${knownBtn(id)}${src ? `<button class="btn" data-act="rmimg" data-id="${id}">Retirer l’image</button>` : ""}${f.isCustom ? `<button class="btn" data-act="delcustom" data-id="${id}" style="color:var(--bad)">Supprimer la fiche</button>` : ""}</div>
+    </div>`;
+  const w = $("#sheet");
+  if(!refresh){ w.classList.add("open"); w.setAttribute("aria-hidden","false"); setTimeout(() => box.querySelector(".close").focus(), 50); }
+}
+function closeSheet(){ sheetId = null; const w = $("#sheet"); w.classList.remove("open"); w.setAttribute("aria-hidden","true"); }
+
+function openForm(cat){
+  sheetId = null;
+  const box = $("#sheet-box");
+  box.style.setProperty("--c", cat === "animal" ? "var(--moss)" : "var(--pink)");
+  const isA = cat === "animal";
+  box.innerHTML = `<button class="close" data-act="close" aria-label="Fermer">×</button>
+  <form class="form" id="newform" data-cat="${cat}">
+    <span class="eyebrow">Nouvelle fiche</span>
+    <h2 style="font-size:36px">${isA ? "Un animal" : "Un personnage"}</h2>
+    <label for="f-title">Nom<input id="f-title" required maxlength="60" placeholder="${isA ? "Ex. Lynx boréal" : "Ex. Cléopâtre"}"></label>
+    <label for="f-sub">${isA ? "Famille" : "Dates"}<input id="f-sub" maxlength="40" placeholder="${isA ? "Ex. Mammifère" : "Ex. −69 → −30"}"></label>
+    <label for="f-tag">En une phrase<input id="f-tag" maxlength="80" placeholder="${isA ? "Ex. Le fantôme des forêts" : "Ex. La dernière reine d’Égypte"}"></label>
+    ${(isA ? ["Milieu","Alimentation","Taille","À retenir"] : ["Rôle","Fait marquant","Fin","À retenir"]).map((k, i) => `<label for="f-r${i}">${k}<textarea id="f-r${i}" rows="2" maxlength="400"></textarea></label>`).join("")}
+    <div class="actions"><button class="btn solid" type="submit">Créer la fiche</button><button class="btn" type="button" data-act="close">Annuler</button></div>
+  </form>`;
+  const w = $("#sheet"); w.classList.add("open"); w.setAttribute("aria-hidden","false");
+  setTimeout(() => $("#f-title").focus(), 60);
+}
+
+document.addEventListener("submit", e => {
+  if(e.target.id !== "newform") return;
+  e.preventDefault();
+  const cat = e.target.dataset.cat, isA = cat === "animal";
+  const keys = isA ? ["Milieu","Alimentation","Taille","À retenir"] : ["Rôle","Fait marquant","Fin","À retenir"];
+  const f = {id:"c-" + Date.now().toString(36), cat, title:$("#f-title").value.trim(), sub:$("#f-sub").value.trim(), tag:$("#f-tag").value.trim(),
+    rows:keys.map((k, i) => [k, $("#f-r" + i).value.trim()]).filter(r => r[1])};
+  if(!f.title) return;
+  state.custom.push(f); save();
+  closeSheet(); render(true);
+  setTimeout(() => openSheet(f.id), 380);
+  toast("Fiche créée");
+});
+
+/* ================= IMAGES ================= */
+let imgTarget = null;
+$("#file").addEventListener("change", async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if(!file || !imgTarget) return;
+  const id = imgTarget;
+  toast("Image en cours d’ajout…");
+  try{
+    const blob = await shrink(file, 1400, .85);
+    let src;
+    if(assetsApi){ const a = await assetsApi.upload(blob); src = a.url || ("/_blob/" + a.id); state.images[id] = {src, asset:a.id}; }
+    else { src = await toDataURL(await shrink(file, 900, .78)); state.images[id] = {src}; }
+    save(); render(true); if(sheetId === id) openSheet(id, true);
+    toast("Image ajoutée");
+  }catch(err){ toast("L’image n’a pas pu être ajoutée, réessaie avec une photo plus légère"); }
+});
+function shrink(file, max, q){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? res(b) : rej(), "image/jpeg", q);
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+const toDataURL = b => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+
+/* ================= ACTIONS ================= */
+const shuffle = a => { a = [...a]; for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act]"); if(!t) return;
+  const act = t.dataset.act, id = t.dataset.id;
+  if(act === "open") openSheet(id);
+  else if(act === "close") closeSheet();
+  else if(act === "new") openForm(t.dataset.cat);
+  else if(act === "period"){ selPeriod = id; const y = scrollY; render(); scrollTo(0, y); document.querySelectorAll(".seg,.head .rise").forEach(s => s.style.animation = "none"); }
+  else if(act === "known"){
+    state.known[id] = !state.known[id]; if(!state.known[id]) delete state.known[id];
+    save(); render(true); if(sheetId) openSheet(sheetId, true);
+    if(state.known[id]) toast("Bien joué, fiche maîtrisée");
+  }
+  else if(act === "img"){ imgTarget = id; $("#file").click(); }
+  else if(act === "rmimg"){ delete state.images[id]; save(); render(true); openSheet(id, true); }
+  else if(act === "delcustom"){
+    if(t.dataset.confirm !== "1"){ t.dataset.confirm = "1"; t.textContent = "Confirmer la suppression"; return; }
+    state.custom = state.custom.filter(c => c.id !== id); delete state.known[id]; delete state.images[id];
+    save(); closeSheet(); render(true); toast("Fiche supprimée");
+  }
+  else if(act === "fact"){ const p = $("#fact"); const cur = p.textContent; let n; do{ n = FACTS[Math.floor(Math.random()*FACTS.length)]; }while(n === cur); p.innerHTML = `<span>${esc(n)}</span>`; }
+  else if(act === "cont"){ geoFilter = t.dataset.v; const y = scrollY; render(); scrollTo(0, y); document.querySelectorAll("#view .rise:not(.flip)").forEach(s => s.style.animation = "none"); }
+  else if(act === "flip"){
+    const k = t.dataset.v; t.classList.toggle("on");
+    t.classList.contains("on") ? flipped.add(k) : flipped.delete(k);
+    $("#flipcount").textContent = `${flipped.size} retournée${flipped.size > 1 ? "s" : ""}`;
+  }
+  else if(act === "flipall"){
+    const cards = [...document.querySelectorAll(".flip")]; const allOn = cards.every(c => c.classList.contains("on"));
+    cards.forEach((c, i) => setTimeout(() => { c.classList.toggle("on", !allOn); allOn ? flipped.delete(c.dataset.v) : flipped.add(c.dataset.v); $("#flipcount").textContent = `${flipped.size} retournée${flipped.size > 1 ? "s" : ""}`; }, i * 35));
+  }
+  else if(act === "qstart"){
+    quiz = {i:0, score:0, prevBest:state.best, qs: shuffle(QUIZ).slice(0, 10).map(([q, a, w, ex, k]) => ({q, a, ex, k, opts: shuffle([a, ...w])}))};
+    render(); scrollTo({top:0});
+  }
+  else if(act === "qans"){
+    const q = quiz.qs[quiz.i], pick = q.opts[+t.dataset.i], ok = pick === q.a;
+    document.querySelectorAll(".opt").forEach(b => { b.disabled = true; const o = q.opts[+b.dataset.i]; b.style.animationDelay = "0s"; if(o === q.a) b.classList.add("ok"); else if(b === t) b.classList.add("ko"); else b.classList.add("dim"); });
+    if(ok) quiz.score++;
+    const last = quiz.i === quiz.qs.length - 1;
+    $("#expl").innerHTML = `<div class="expl" style="--c:${ok ? "var(--good)" : "var(--bad)"}"><p><b>${ok ? "Bonne réponse." : "Raté, c’était : " + esc(q.a) + "."}</b> ${esc(q.ex)}</p><button class="btn solid" style="--c:var(--ember)" data-act="qnext">${last ? "Voir mon score" : "Question suivante"}</button></div>`;
+    document.querySelector(".qbar b").style.width = ((quiz.i + 1) / quiz.qs.length * 100) + "%";
+    setTimeout(() => $("#expl .btn").focus({preventScroll:false}), 50);
+  }
+  else if(act === "qnext"){
+    quiz.i++;
+    if(quiz.i >= quiz.qs.length && quiz.score > state.best){ state.best = quiz.score; save(); }
+    render(); scrollTo({top:0});
+  }
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && $("#sheet").classList.contains("open")) closeSheet();
+  if(route === "quiz" && quiz && "abcd".includes(e.key) && e.key.length === 1){ const b = document.querySelector(`.opt[data-i="${"abcd".indexOf(e.key)}"]:not([disabled])`); if(b) b.click(); }
+});
+
+go();
+</script>
+</body>
+</html>
