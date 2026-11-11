@@ -6,3 +6,4 @@ L'appli télé de Frigo Rosé TV (Fire TV / Google TV).
 - `android/` : la petite appli Android qui ouvre Frigo Rosé TV en plein écran, avec une copie de secours intégrée.
 - Installer sur la télé avec Downloader : `dylker24.github.io/frigo-rose-tv/tv.apk`
 - `dynamusique/` : **Dynamusique**, la musique de Dylan et Léna (voir `dynamusique/README.md`).
+- `web/totoche/` : **Inspecteur Totoche**, jeu d'enquête sur téléphone (épisodes). Jouer : https://dylker24.github.io/frigo-rose-tv/totoche/

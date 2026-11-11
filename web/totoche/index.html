@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Inspecteur Totoche</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inspecteur Totoche">
+<meta name="theme-color" content="#0b0b0f">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#000;color:#f2f2f7;font-family:Inter,system-ui,sans-serif;overflow:hidden}
+#app{position:fixed;inset:0;max-width:480px;margin:0 auto;background:#0b0b0f;overflow:hidden}
+.status{position:absolute;top:0;left:0;right:0;height:38px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:14px;font-weight:600;z-index:20;pointer-events:none}
+.status .bat{display:flex;gap:6px;align-items:center;font-size:12px}
+.batt{width:24px;height:11px;border:1.5px solid #fff9;border-radius:3px;position:relative}
+.batt i{position:absolute;left:1px;top:1px;bottom:1px;width:5px;background:#ff453a;border-radius:1px}
+#screen{position:absolute;inset:0;overflow:hidden}
+.page{position:absolute;inset:0;padding-top:38px;display:flex;flex-direction:column;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:30px}
+.hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #ffffff12;background:#0b0b0fcc;backdrop-filter:blur(10px)}
+.hdr h2{font-size:17px;font-weight:700;flex:1;text-align:center;margin-right:44px}
+.back{color:#e8a33d;font-size:16px;background:none;border:0;padding:6px 4px;min-width:44px;text-align:left;cursor:pointer;font-family:inherit}
+.big{font-size:32px;font-weight:800;padding:14px 18px 6px}
+button{font-family:inherit}
+
+/* intro */
+.intro{background:radial-gradient(ellipse at top,#2a1a10 0%,#0b0b0f 65%);justify-content:center;padding:30px 28px;gap:18px}
+.intro .tag{font-family:'Special Elite',monospace;color:#e8a33d;letter-spacing:3px;font-size:13px}
+.intro h1{font-size:46px;font-weight:800;line-height:1;letter-spacing:-1.5px}
+.intro p{color:#c7c7cc;line-height:1.55;font-size:15.5px}
+.intro .file{font-family:'Special Elite',monospace;background:#f3ead8;color:#2b2118;padding:16px;border-radius:4px;transform:rotate(-1deg);font-size:13.5px;line-height:1.6;box-shadow:0 10px 30px #0008}
+.cta{background:#e8a33d;color:#1a1208;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;width:100%}
+.ghost{background:#ffffff14;color:#fff;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+
+/* lock */
+.lock{align-items:center;padding-top:60px}
+.lock .wall{position:absolute;inset:0;z-index:-1}
+.lock .time{font-size:78px;font-weight:300;letter-spacing:-2px;margin-top:10px;text-shadow:0 2px 20px #0008}
+.lock .date{font-size:17px;font-weight:500;opacity:.9}
+.lnotifs{width:92%;margin-top:22px;display:flex;flex-direction:column;gap:8px}
+.ln{background:#1c1c1ecc;backdrop-filter:blur(14px);border-radius:16px;padding:10px 13px;font-size:14px}
+.ln b{font-size:13px}.ln span{opacity:.6;font-size:12px;float:right}
+.pin{margin-top:auto;margin-bottom:30px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.dots{display:flex;gap:16px}.dots i{width:13px;height:13px;border-radius:50%;border:1.5px solid #fff}
+.dots i.on{background:#fff}
+.keys{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+.keys button{height:72px;border-radius:50%;border:0;background:#ffffff26;backdrop-filter:blur(10px);color:#fff;font-size:30px;font-weight:400;cursor:pointer}
+.keys button:active{background:#ffffff55}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+
+/* home */
+.home{background:linear-gradient(160deg,#1d2a3a,#2a1a22 60%,#120e0c)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 8px;padding:30px 18px}
+.icon{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;position:relative;background:none;border:0;color:#fff}
+.icon .ic{width:60px;height:60px;border-radius:15px;display:grid;place-items:center;font-size:30px;box-shadow:0 4px 12px #0005}
+.icon small{font-size:11.5px}
+.badge{position:absolute;top:-6px;right:8px;background:#ff3b30;border-radius:12px;min-width:21px;height:21px;font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 6px}
+.dock{margin:auto 12px 44px;background:#ffffff1f;backdrop-filter:blur(16px);border-radius:28px;padding:14px 8px;display:grid;grid-template-columns:repeat(4,1fr)}
+.homehint{margin:0 18px;padding:12px 14px;background:#00000055;border-radius:14px;font-size:13px;color:#ddd;line-height:1.45}
+
+/* lists */
+.row{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid #ffffff10;cursor:pointer}
+.row:active{background:#ffffff0a}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:20px;flex-shrink:0;font-weight:700}
+.row .m{flex:1;min-width:0}
+.row .t{display:flex;justify-content:space-between;font-weight:600;font-size:15.5px}
+.row .t span{font-weight:400;font-size:13px;color:#8e8e93}
+.row .p{color:#8e8e93;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.unread{width:9px;height:9px;border-radius:50%;background:#e8a33d;flex-shrink:0}
+
+/* chat */
+.chat{padding:12px 12px 30px;display:flex;flex-direction:column;gap:5px}
+.day{text-align:center;font-size:12px;color:#8e8e93;margin:14px 0 6px;font-weight:600}
+.b{max-width:78%;padding:9px 13px;border-radius:19px;font-size:15.5px;line-height:1.38}
+.b.in{background:#26262a;align-self:flex-start;border-bottom-left-radius:6px}
+.b.out{background:#c9822a;color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.b small{display:block;font-size:11px;opacity:.6;margin-top:3px}
+.read{align-self:flex-end;font-size:11px;color:#8e8e93;margin-top:-2px}
+
+/* photos */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.pgrid div{aspect-ratio:1;overflow:hidden;cursor:pointer;background:#222}
+.pgrid svg,.pv svg{width:100%;height:100%;display:block}
+.pv{background:#000}
+.pv .img{width:100%;aspect-ratio:1}
+.meta{padding:16px 18px;display:flex;flex-direction:column;gap:6px;font-size:14.5px;color:#c7c7cc}
+.meta b{color:#fff;font-size:16px}
+
+/* notes */
+.note{padding:6px 20px 30px;font-size:16px;line-height:1.6;white-space:pre-wrap}
+.note h3{font-size:24px;margin-bottom:8px}
+.lockbox{margin:30px 20px;padding:24px;border-radius:18px;background:#1c1c1e;text-align:center;display:flex;flex-direction:column;gap:12px}
+input.txt{width:100%;padding:14px;border-radius:12px;border:1px solid #ffffff22;background:#0b0b0f;color:#fff;font-size:17px;text-align:center;font-family:inherit;text-transform:uppercase;letter-spacing:2px}
+.err{color:#ff6961;font-size:13.5px;min-height:18px}
+
+/* calls */
+.seg{display:flex;margin:10px 16px;background:#1c1c1e;border-radius:10px;padding:2px}
+.seg button{flex:1;padding:8px;border:0;background:none;color:#fff;border-radius:8px;font-size:14px;font-weight:600}
+.seg button.on{background:#3a3a3c}
+.miss{color:#ff453a}
+.vm{padding:14px 16px;border-bottom:1px solid #ffffff10}
+.vm .tr{margin-top:8px;font-size:14.5px;color:#d1d1d6;line-height:1.5;font-style:italic;background:#1c1c1e;padding:12px;border-radius:12px}
+
+/* map */
+.map svg{width:100%;display:block}
+.tl{padding:6px 18px 30px}
+.tli{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #ffffff10}
+.tli .n{width:28px;height:28px;border-radius:50%;background:#e8a33d;color:#1a1208;font-weight:800;display:grid;place-items:center;flex-shrink:0;font-size:14px}
+.tli .n.red{background:#ff453a;color:#fff}
+.tli b{display:block}.tli span{color:#8e8e93;font-size:13.5px}
+
+/* enquete */
+.enq{background:#f3ead8;color:#2b2118}
+.enq .hdr{background:#e9dcc2;border-color:#0001}
+.enq .back{color:#9a4a12}
+.enq h2{font-family:'Special Elite',monospace}
+.card{margin:14px 16px;background:#fffaf0;border-radius:6px;padding:16px;box-shadow:0 2px 8px #0002;border-left:4px solid #9a4a12}
+.card h4{font-family:'Special Elite',monospace;font-size:13px;color:#9a4a12;letter-spacing:1px;margin-bottom:6px}
+.card p{font-weight:600;font-size:16px;margin-bottom:12px;line-height:1.35}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opts button{text-align:left;padding:12px 14px;border-radius:10px;border:1.5px solid #2b211822;background:#fff;font-size:15px;color:#2b2118;cursor:pointer}
+.opts button.ok{background:#2e7d4f;color:#fff;border-color:#2e7d4f}
+.opts button.no{background:#f6d5d0;border-color:#c0392b55;text-decoration:line-through;opacity:.7}
+.solved{font-family:'Special Elite',monospace;color:#2e7d4f;font-size:15px}
+.stats{display:flex;justify-content:space-around;margin:12px 16px;font-family:'Special Elite',monospace;font-size:13px}
+.enq .cta{background:#9a4a12;color:#fff}
+.enq .ghost{background:#2b211812;color:#2b2118}
+.hintbox{margin:0 16px 10px;padding:12px 14px;background:#fff3c4;border-radius:8px;font-size:14px;line-height:1.45}
+
+/* menu */
+.menu{background:#0b0b0f;padding:50px 22px 30px;overflow-y:auto}
+.menu .brand{font-family:'Special Elite',monospace;color:#e8a33d;font-size:12px;letter-spacing:4px}
+.menu h1{font-size:44px;font-weight:800;line-height:.95;letter-spacing:-1.5px;margin:10px 0 6px}
+.menu h1 span{color:#e8a33d}
+.menu .sub{color:#8e8e93;font-size:14.5px;margin-bottom:28px}
+.ep{flex-shrink:0;position:relative;border-radius:22px;overflow:hidden;margin-bottom:16px;cursor:pointer;background:#16161b;border:1px solid #ffffff10;text-align:left;width:100%;color:#fff;padding:0;display:block}
+.ep .cov{height:150px;position:relative;overflow:hidden}
+.ep .cov svg{width:100%;height:100%;display:block}
+.ep .cov:after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 30%,#16161b)}
+.ep .inf{padding:2px 18px 18px}
+.ep .num{font-family:'Special Elite',monospace;color:#e8a33d;font-size:12px;letter-spacing:2px}
+.ep h3{font-size:24px;font-weight:800;margin:4px 0}
+.ep p{color:#a1a1a6;font-size:14px;line-height:1.45}
+.ep .st{position:absolute;top:12px;right:12px;z-index:2;background:#000a;backdrop-filter:blur(8px);padding:6px 11px;border-radius:20px;font-size:12.5px;font-weight:700}
+.ep.locked{opacity:.45;cursor:default}
+.ep.locked .cov{background:repeating-linear-gradient(45deg,#1c1c22 0 14px,#18181d 14px 28px);display:grid;place-items:center;font-size:34px}
+.ep.locked .cov:after{display:none}
+.tomenu{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:#ffffff26;backdrop-filter:blur(10px);border:0;color:#fff;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;z-index:5}
+.mini{background:none;border:0;color:#8e8e93;font-size:14px;cursor:pointer;align-self:flex-start;padding:4px 0}
+
+/* banner */
+#banner{position:absolute;top:8px;left:8px;right:8px;z-index:50;background:#2c2c2eee;backdrop-filter:blur(16px);border-radius:18px;padding:12px 14px;display:flex;gap:11px;transform:translateY(-130%);transition:transform .35s cubic-bezier(.2,.9,.3,1.2);cursor:pointer;box-shadow:0 10px 30px #0008}
+#banner.show{transform:none}
+#banner .av{width:38px;height:38px;font-size:18px}
+#banner b{font-size:14px;display:block}#banner div div{font-size:14px;color:#e5e5ea;line-height:1.35}
+
+/* ending */
+.end{background:radial-gradient(ellipse at top,#10301f,#0b0b0f 70%);padding:40px 26px;justify-content:center;gap:16px;text-align:center}
+.end h1{font-size:38px;font-weight:800;line-height:1.05}
+.end p{color:#c7c7cc;line-height:1.55}
+.end .stamp{font-family:'Special Elite',monospace;border:3px solid #4cd38a;color:#4cd38a;display:inline-block;padding:6px 14px;transform:rotate(-6deg);font-size:22px;margin:0 auto;letter-spacing:2px}
+.typing{display:flex;gap:4px;padding:12px 14px;background:#26262a;border-radius:19px;align-self:flex-start;width:fit-content}
+.typing i{width:7px;height:7px;border-radius:50%;background:#8e8e93;animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{50%{opacity:.25}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="status"><span id="clock">02:07</span><span class="bat">4G <span id="battxt">12%</span><span class="batt"><i></i></span></span></div>
+  <div id="screen"></div>
+  <div id="banner"></div>
+</div>
+
+<script>
+// ============ ASSETS (photos en SVG) ============
+const PH = {
+pepite:`<svg viewBox="0 0 300 300"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6c99b"/><stop offset="1" stop-color="#d9825b"/></linearGradient></defs><rect width="300" height="300" fill="url(#g1)"/><circle cx="40" cy="50" r="5" fill="#fff8"/><circle cx="250" cy="40" r="7" fill="#fff6"/><circle cx="270" cy="120" r="4" fill="#fff8"/><ellipse cx="150" cy="270" rx="120" ry="30" fill="#0002"/><ellipse cx="150" cy="185" rx="78" ry="70" fill="#c88a4a"/><ellipse cx="84" cy="150" rx="26" ry="50" fill="#8a5a2b" transform="rotate(20 84 150)"/><ellipse cx="216" cy="150" rx="26" ry="50" fill="#8a5a2b" transform="rotate(-20 216 150)"/><ellipse cx="150" cy="210" rx="40" ry="30" fill="#f1d3ae"/><circle cx="122" cy="168" r="9" fill="#2b1a10"/><circle cx="178" cy="168" r="9" fill="#2b1a10"/><circle cx="125" cy="165" r="3" fill="#fff"/><circle cx="181" cy="165" r="3" fill="#fff"/><ellipse cx="150" cy="198" rx="13" ry="9" fill="#2b1a10"/><path d="M140 218 q10 12 20 0" stroke="#2b1a10" stroke-width="3" fill="none"/><path d="M118 112 l32 -40 l32 40z" fill="#5b8def"/><circle cx="150" cy="70" r="7" fill="#ffd34d"/><rect x="200" y="225" width="70" height="40" rx="4" fill="#fff"/><rect x="200" y="225" width="70" height="12" fill="#f28fb0"/><rect x="233" y="205" width="4" height="20" fill="#5b8def"/><path d="M235 196 q5 5 0 10 q-5 -5 0 -10" fill="#ffb02e"/><text x="235" y="256" font-family="Inter" font-weight="800" font-size="15" fill="#c2185b" text-anchor="middle">14·03</text></svg>`,
+colo:`<svg viewBox="0 0 300 300"><rect width="300" height="300" fill="#141820"/><path d="M0 0 h300 v300 h-300z M150 60 q-90 10 -110 150 h220 q-20 -140 -110 -150z" fill="#2a2f38"/><path d="M150 0 l-40 300 h80z" fill="#ffe9a8" opacity=".18"/><path d="M60 300 q30 -60 90 -70 q60 10 90 70z" fill="#3a3226"/><g fill="#ffcf9e"><circle cx="128" cy="190" r="13"/><circle cx="172" cy="188" r="13"/></g><rect x="116" y="203" width="24" height="40" rx="8" fill="#e85d75"/><rect x="160" y="201" width="24" height="42" rx="8" fill="#4aa3df"/><path d="M118 184 q10 -14 22 -2" stroke="#5a3a1a" stroke-width="7" fill="none"/><path d="M160 182 q12 -14 24 0" stroke="#e8b04a" stroke-width="7" fill="none"/><text x="150" y="285" fill="#fff9" font-family="Inter" font-size="13" text-anchor="middle">colo été 2016 ✨</text></svg>`,
+carte:`<svg viewBox="0 0 300 300"><rect width="300" height="300" fill="#6b4f3a"/><rect width="300" height="300" fill="url(#wood)" opacity=".3"/><g transform="rotate(-6 150 150)"><rect x="35" y="85" width="230" height="135" rx="6" fill="#fdfbf6"/><rect x="35" y="85" width="8" height="135" fill="#1f4e5f"/><text x="58" y="118" font-family="Inter" font-weight="800" font-size="17" fill="#1f4e5f">IMMOBILIER VÉZÈRE</text><text x="58" y="136" font-family="Inter" font-size="10" fill="#6a7a80">Transactions · Estimations · Le Bugue</text><text x="58" y="166" font-family="Inter" font-weight="700" font-size="15" fill="#222">Serge LAFON</text><text x="58" y="181" font-family="Inter" font-size="10" fill="#555">Gérant</text><text x="58" y="199" font-family="Inter" font-size="10.5" fill="#333">Agence : 05 53 07 41 18</text><text x="58" y="213" font-family="Inter" font-size="10.5" fill="#333">Portable : 06 71 48 22 90</text></g><path d="M200 230 q30 20 70 10" stroke="#fff3" stroke-width="20" fill="none"/></svg>`,
+doc:`<svg viewBox="0 0 300 300"><rect width="300" height="300" fill="#3b3f46"/><g transform="rotate(3 150 150)"><rect x="45" y="25" width="210" height="260" fill="#f7f7f2"/><text x="60" y="52" font-family="Inter" font-weight="800" font-size="10" fill="#222">RAPPORT DE DIAGNOSTIC</text><text x="60" y="66" font-family="Inter" font-size="8" fill="#555">Bien : Maison — Mme DELPECH — Rouffignac</text><g fill="#ccc"><rect x="60" y="80" width="170" height="4"/><rect x="60" y="90" width="150" height="4"/><rect x="60" y="100" width="165" height="4"/></g><text x="60" y="126" font-family="Inter" font-size="9" fill="#222">Termites : <tspan font-weight="800" fill="#b00">PRÉSENCE</tspan></text><text x="60" y="142" font-family="Inter" font-size="9" fill="#222">Toiture : <tspan font-weight="800" fill="#b00">À REFAIRE</tspan></text><text x="60" y="158" font-family="Inter" font-size="9" fill="#222">Estimation : 62 000 €</text><g fill="#ccc"><rect x="60" y="175" width="170" height="4"/><rect x="60" y="185" width="120" height="4"/></g><text x="60" y="215" font-family="Inter" font-size="8" fill="#555">Diagnostiqueur : SCI LAFON & FILS</text><ellipse cx="110" cy="134" rx="62" ry="22" fill="none" stroke="#e00" stroke-width="2.5"/><text x="180" y="255" font-family="Special Elite" font-size="22" fill="#e00" transform="rotate(-10 180 255)">FAUX ??</text></g></svg>`,
+sechoir:`<svg viewBox="0 0 300 300"><defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3a67"/><stop offset=".6" stop-color="#e2875a"/><stop offset="1" stop-color="#f3c178"/></linearGradient></defs><rect width="300" height="300" fill="url(#sk)"/><path d="M0 210 q80 -30 160 -10 q80 15 140 -5 v105 h-300z" fill="#3e4a2a"/><path d="M40 125 l90 -45 l130 45 v95 h-220z" fill="#4a2f22"/><path d="M30 128 l100 -55 l140 55" stroke="#2a1a12" stroke-width="10" fill="none"/><g stroke="#2a1a12" stroke-width="3">${Array.from({length:16},(_,i)=>`<line x1="${52+i*13}" y1="132" x2="${52+i*13}" y2="218"/>`).join('')}</g><rect x="130" y="165" width="34" height="53" fill="#1a0f0a"/><circle cx="158" cy="192" r="2.5" fill="#c9a24a"/><path d="M0 230 q150 -20 300 10 v60 h-300z" fill="#2e3a1f"/><text x="150" y="285" fill="#fffc" font-family="Inter" font-size="12" text-anchor="middle">le séchoir 🤔</text></svg>`,
+soiree:`<svg viewBox="0 0 300 300"><rect width="300" height="300" fill="#1a0b2e"/><g>${Array.from({length:30},(_,i)=>`<rect x="${(i*53)%300}" y="${(i*37)%200}" width="6" height="10" fill="${['#ff5fa2','#5fd3ff','#ffd35f','#8aff5f'][i%4]}" transform="rotate(${i*25} ${(i*53)%300} ${(i*37)%200})"/>`).join('')}</g><circle cx="115" cy="175" r="48" fill="#ffcf9e"/><circle cx="195" cy="170" r="46" fill="#f2b98a"/><path d="M70 160 q40 -80 95 -10" fill="#5a3a1a"/><path d="M150 150 q45 -75 95 5 q-30 -20 -95 -5" fill="#e8b04a"/><circle cx="100" cy="172" r="5" fill="#222"/><circle cx="130" cy="172" r="5" fill="#222"/><circle cx="180" cy="168" r="5" fill="#222"/><circle cx="210" cy="168" r="5" fill="#222"/><path d="M100 195 q15 15 30 0" stroke="#222" stroke-width="4" fill="none"/><path d="M180 192 q15 15 30 0" stroke="#222" stroke-width="4" fill="none"/><rect x="0" y="240" width="300" height="60" fill="#0006"/><text x="150" y="276" fill="#fff" font-family="Inter" font-weight="700" font-size="16" text-anchor="middle">BEST FRIENDS 4EVER 💜</text></svg>`
+};
+
+// ============ DONNÉES DU SCÉNARIO ============
+const C = {
+  margaux:{name:'Margaux 🦋',av:'M',col:'#7d5fff'},
+  theo:{name:'Théo',av:'T',col:'#4a6fa5'},
+  maman:{name:'Maman 💛',av:'👩',col:'#e8a33d'},
+  serge:{name:'Serge Agence',av:'S',col:'#1f4e5f'},
+  inconnu:{name:'06 71 48 22 90',av:'?',col:'#555'},
+  roux:{name:'Adj. Roux 🚓',av:'👮',col:'#2c5aa0'}
+};
+const THREADS = {
+  inconnu:[
+    ['Samedi'],
+    ['in','Je sais ce que tu as photographié jeudi.','17:02'],
+    ['out','C’est qui ??','17:05'],
+    ['in','Quelqu’un qui préfère qu’on règle ça calmement. Ce soir, 23h, aux Combes. Viens seule.','17:11'],
+    ['out','Je viendrai. Mais j’ai des copies, au cas où.','17:30'],
+    ['out','je suis devant','23:01'],
+    ['read','Lu 23:02']
+  ],
+  margaux:[
+    ['Lundi'],
+    ['in','10 ANS D’AMITIÉ AUJOURD’HUI 😭😭 depuis la colo à Proumeyssac, tu te rends compte ??','09:12'],
+    ['out','les meilleures années de ma vie avec toi ❤️','09:20'],
+    ['Vendredi'],
+    ['out','faut que je te parle d’un truc chelou au taf','18:40'],
+    ['in','quoi ?? raconte','18:41'],
+    ['out','pas par message. demain je te dis tout','18:52'],
+    ['Samedi'],
+    ['in','tu viens à Périgueux ce soir ? Théo sera là, désolée 🙄','19:40'],
+    ['out','nan j’ai un truc à régler. je vous rejoins peut-être après','19:44'],
+    ['in','Théo est là depuis 21h, il saoule tout le monde à parler de toi 😩 il bouge pas du canapé','22:15'],
+    ['in','t’es où ??','23:58'],
+    ['Dimanche'],
+    ['in','Chloé réponds stp','01:12'],
+    ['in','j’ai appelé ta mère. j’ai trop peur','09:30']
+  ],
+  theo:[
+    ['Vendredi'],
+    ['in','Tu peux pas me bloquer de partout et faire comme si j’existais plus','14:03'],
+    ['out','Théo c’est fini. Lâche-moi.','14:20'],
+    ['in','Tu vas le regretter.','14:21'],
+    ['Samedi'],
+    ['in','Margaux dit que tu viens pas ce soir ? sérieux…','21:30']
+  ],
+  serge:[
+    ['Jeudi'],
+    ['in','Chloé, j’ai vu que tu as ouvert le dossier de Mme Delpech. Ce n’est pas ton travail.','19:02'],
+    ['out','Désolée, je faisais le classement.','19:15'],
+    ['Vendredi'],
+    ['in','Pas de souci. Passe me voir lundi, on en parlera. Bon week-end.','17:45']
+  ],
+  maman:[
+    ['Samedi'],
+    ['in','Tu passes manger demain midi ? Pépite fait que t’attendre devant la porte 🐶','18:02'],
+    ['out','oui promis ❤️ bisous','18:10'],
+    ['Dimanche'],
+    ['in','Chloé ??','12:30'],
+    ['in','Ma chérie rappelle-moi je t’en supplie 😟','14:05']
+  ]
+};
+const PREVIEW = {inconnu:'je suis devant',margaux:'j’ai appelé ta mère. j’ai trop peur',theo:'Margaux dit que tu viens pas ce soir ?',serge:'Passe me voir lundi, on en parlera.',maman:'Ma chérie rappelle-moi je t’en supplie 😟'};
+const TIMES = {inconnu:'Samedi',margaux:'Dimanche',theo:'Samedi',serge:'Vendredi',maman:'Dimanche'};
+
+const PHOTOS = [
+  {k:'sechoir',d:'Vendredi · 17:20',l:'Les Combes, Rouffignac'},
+  {k:'doc',d:'Jeudi · 18:47',l:'Immobilier Vézère, Le Bugue'},
+  {k:'carte',d:'Lundi · 10:05',l:'Immobilier Vézère, Le Bugue'},
+  {k:'soiree',d:'12 octobre · 01:14',l:'Périgueux'},
+  {k:'pepite',d:'14 mars · 15:30',l:'Rouffignac'},
+  {k:'colo',d:'Juillet 2016',l:'Gouffre de Proumeyssac, Audrix'}
+];
+
+const QUESTIONS = [
+  {id:'q1',t:'À qui appartient le numéro 06 71 48 22 90 ?',o:['Théo','Margaux','Serge Lafon','Un inconnu de passage'],a:2,
+   ok:'Sa carte de visite le trahit. Le patron de Chloé lui a donné rendez-vous en cachette.'},
+  {id:'q2',t:'Pourquoi Chloé était-elle en danger ?',o:['Elle avait quitté Théo','Elle s’était disputée avec Margaux','Elle avait des preuves d’une arnaque','Elle devait de l’argent'],a:2,
+   ok:'Les faux diagnostics : Serge faisait baisser le prix des maisons de personnes âgées pour les racheter.'},
+  {id:'q3',t:'Où se trouve Chloé ?',o:['Au gouffre de Proumeyssac','Chez Théo à Périgueux','À l’agence au Bugue','Dans le vieux séchoir à tabac des Combes','Au bord de la D32'],a:3,
+   ok:'Dernier signal aux Combes, puis le téléphone a été jeté sur la D32. Elle n’a jamais quitté les Combes.'}
+];
+const HINTS = [
+  'Le code du téléphone, c’est l’anniversaire de Pépite. Regarde bien le fond d’écran.',
+  'Le numéro sans nom… Va voir dans les Photos, il y a une carte de visite.',
+  'La note verrouillée : « là où tout a commencé avec Margaux ». Lis ses messages de lundi.',
+  'Ouvre Plans : regarde où était le téléphone avant d’être retrouvé sur la D32. Et revois la photo du vendredi.'
+];
+
+// ============ ÉTAT ============
+const KEY='totoche-ep1';
+let view='menu';
+let S;
+function fresh(){return {stage:'intro',unlocked:false,noteOpen:false,ans:{},wrong:{},errors:0,hints:0,read:{},roux:[],start:null,done:false,calls:'recent'}}
+try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let nav=[];
+let pin='';
+
+// ============ HORLOGE ============
+function tick(){
+  let m=7;
+  if(S.start) m+=Math.floor((Date.now()-S.start)/60000);
+  const h=2+Math.floor(m/60);m%=60;
+  document.getElementById('clock').textContent=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  const bat=Math.max(3,12-(S.start?Math.floor((Date.now()-S.start)/180000):0));
+  document.getElementById('battxt').textContent=bat+'%';
+}
+setInterval(tick,5000);
+
+// ============ NOTIFS ============
+let bt;
+function notify(who,text,delay=0){
+  setTimeout(()=>{
+    S.roux.push({t:text,h:document.getElementById('clock').textContent});save();
+    const b=document.getElementById('banner');const c=C[who];
+    b.innerHTML=`<div class="av" style="background:${c.col}">${c.av}</div><div><b>${c.name}</b><div>${text}</div></div>`;
+    b.classList.add('show');clearTimeout(bt);bt=setTimeout(()=>b.classList.remove('show'),6000);
+    b.onclick=()=>{b.classList.remove('show');if(S.unlocked){nav=[{v:'thread',id:'roux'}];render()}};
+    if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
+  },delay);
+}
+
+// ============ RENDU ============
+const $=s=>document.getElementById(s);
+function go(v){nav.push(v);render()}
+function back(){nav.pop();render()}
+function hdr(title){return `<div class="hdr"><button class="back" onclick="back()">‹ Retour</button><h2>${title}</h2></div>`}
+
+function render(){
+  tick();
+  const sc=$('screen');
+  document.querySelector('.status').style.display=view==='menu'?'none':'flex';
+  if(view==='menu'){sc.innerHTML=menu();return}
+  if(S.done){sc.innerHTML=ending();return}
+  if(S.stage==='intro'){sc.innerHTML=intro();return}
+  if(!S.unlocked){sc.innerHTML=lock();return}
+  const v=nav[nav.length-1];
+  if(!v){sc.innerHTML=home();return}
+  const f={messages,thread,photos,photo,notes,note,calls,maps,enquete}[v.v];
+  sc.innerHTML=f(v);
+  const sc2=sc.querySelector('.scroll');
+  if(v.v==='thread'&&sc2)sc2.scrollTop=sc2.scrollHeight;
+}
+
+function intro(){return `<div class="page intro">
+  <button class="mini" onclick="toMenu()">‹ Épisodes</button>
+  <div class="tag">DOSSIER N°24-117 · GENDARMERIE DU BUGUE</div>
+  <h1>Disparue.</h1>
+  <div class="file">Chloé VERGNE, 24 ans.<br>Vue pour la dernière fois samedi soir, entre Rouffignac et Le Bugue.<br><br>Hier après-midi, un promeneur a trouvé son téléphone dans un fossé de la D32. Batterie : 12 %.<br><br>On n’a plus beaucoup de temps.</div>
+  <p>L’adjudant Roux te confie le téléphone. Déverrouille-le, fouille tout, et trouve où est Chloé avant qu’il soit trop tard.</p>
+  <button class="cta" onclick="startGame()">Prendre le téléphone</button>
+</div>`}
+function startGame(){S.stage='lock';S.start=Date.now();save();render();
+  notify('roux','Sa mère dit que son code, c’est toujours la date d’anniversaire de sa chienne. Jour + mois. Elle s’en souvient plus 🙄',1200)}
+
+function lock(){return `<div class="page lock">
+  <div class="wall">${PH.pepite.replace('<svg','<svg preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;filter:brightness(.7)"')}</div>
+  <div class="date">lundi 18 novembre</div>
+  <div class="time" id="ltime">${$('clock').textContent}</div>
+  <div class="lnotifs">
+    <div class="ln"><b>Margaux 🦋</b><span>9:30</span><br>2 nouveaux messages</div>
+    <div class="ln"><b>Maman 💛</b><span>14:05</span><br>Ma chérie rappelle-moi je t’en supplie 😟</div>
+    <div class="ln"><b>Appels manqués</b><span>hier</span><br>8 appels manqués</div>
+  </div>
+  <div class="pin"><div class="dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<pin.length?'on':''}"></i>`).join('')}</div>
+  <div class="keys">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<span></span>':`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
+</div>`}
+let tries=0;
+function key(k){
+  if(k==='⌫'){pin=pin.slice(0,-1)}else if(pin.length<4)pin+=k;
+  if(pin.length===4){
+    if(pin==='1403'){S.unlocked=true;S.stage='phone';save();pin='';render();
+      notify('roux','T’es dedans 👏 Fouille tout : messages, photos, notes. Ce numéro sans nom m’intrigue. Note tes conclusions dans l’appli « Enquête ».',900);return}
+    tries++;render();setTimeout(()=>{const d=$('dots');if(d)d.classList.add('shake')},10);
+    setTimeout(()=>{pin='';render()},450);
+    if(tries===3)notify('roux','Regarde le fond d’écran… y’a un gâteau, non ? 🎂',600);
+    return}
+  render();
+}
+
+function unreadCount(){return Object.keys(THREADS).filter(k=>!S.read[k]).length}
+function home(){
+  const u=unreadCount();
+  const ok=Object.keys(S.ans).length;
+  const app=(id,ic,bg,lab,badge)=>`<button class="icon" onclick="go({v:'${id}'})"><div class="ic" style="background:${bg}">${ic}</div><small>${lab}</small>${badge?`<div class="badge">${badge}</div>`:''}</button>`;
+  return `<div class="page home">
+  <div class="grid">
+    ${app('messages','💬','linear-gradient(#5be36d,#2bb340)','Messages',u||'')}
+    ${app('photos','🌸','#fff','Photos')}
+    ${app('notes','📝','linear-gradient(#ffe36a,#f5c400)','Notes')}
+    ${app('maps','🗺️','linear-gradient(#7fd3a8,#3f8f6a)','Plans')}
+    ${app('calls','📞','linear-gradient(#5be36d,#2bb340)','Téléphone',8)}
+    ${app('enquete','🔎','linear-gradient(#f3ead8,#c9a978)','Enquête',ok<3?3-ok:'')}
+  </div>
+  <div class="homehint">🔋 Batterie faible. Chloé a disparu depuis plus de 24 h.<br>Questions résolues : <b>${ok}/3</b></div>
+  <button class="tomenu" onclick="toMenu()">‹ Quitter l’enquête</button><div class="dock">${app('calls','📞','linear-gradient(#5be36d,#2bb340)','')}${app('messages','💬','linear-gradient(#5be36d,#2bb340)','')}${app('photos','🌸','#fff','')}${app('enquete','🔎','linear-gradient(#f3ead8,#c9a978)','')}</div>
+</div>`}
+
+function messages(){
+  const ids=['roux','inconnu','margaux','maman','theo','serge'].filter(i=>i!=='roux'||S.roux.length);
+  return `<div class="page">${hdr('Messages')}<div class="scroll">${ids.map(id=>{
+    const c=C[id];const p=id==='roux'?S.roux[S.roux.length-1].t:PREVIEW[id];const t=id==='roux'?'maintenant':TIMES[id];
+    const unr=id!=='roux'&&!S.read[id];
+    return `<div class="row" onclick="go({v:'thread',id:'${id}'})">${unr?'<div class="unread"></div>':''}<div class="av" style="background:${c.col}">${c.av}</div><div class="m"><div class="t">${c.name}<span>${t}</span></div><div class="p">${p}</div></div></div>`}).join('')}</div></div>`}
+
+function thread(v){
+  S.read[v.id]=1;save();
+  const c=C[v.id];
+  let body;
+  if(v.id==='roux')body=S.roux.map(m=>`<div class="b in">${m.t}<small>${m.h}</small></div>`).join('');
+  else body=THREADS[v.id].map(m=>m.length===1?`<div class="day">${m[0]}</div>`:m[0]==='read'?`<div class="read">${m[1]}</div>`:`<div class="b ${m[0]}">${m[1]}<small>${m[2]}</small></div>`).join('');
+  return `<div class="page">${hdr(c.name)}<div class="scroll"><div class="chat">${body}</div></div></div>`}
+
+function photos(){return `<div class="page">${hdr('Photos')}<div class="scroll"><div class="big">Récents</div><div class="pgrid">${PHOTOS.map((p,i)=>`<div onclick="go({v:'photo',i:${i}})">${PH[p.k]}</div>`).join('')}</div></div></div>`}
+function photo(v){const p=PHOTOS[v.i];return `<div class="page pv">${hdr(p.d.split('·')[0])}<div class="scroll"><div class="img">${PH[p.k]}</div><div class="meta"><b>${p.d}</b>📍 ${p.l}</div></div></div>`}
+
+function notes(){return `<div class="page">${hdr('Notes')}<div class="scroll">
+  <div class="row" onclick="go({v:'note',id:'preuves'})"><div class="m"><div class="t">${S.noteOpen?'📂':'🔒'} Preuves<span>Jeudi</span></div><div class="p">${S.noteOpen?'si il m’arrive un truc…':'Note verrouillée'}</div></div></div>
+  <div class="row" onclick="go({v:'note',id:'taf'})"><div class="m"><div class="t">Taf<span>Mardi</span></div><div class="p">Serge veut plus que je touche aux archives</div></div></div>
+  <div class="row" onclick="go({v:'note',id:'courses'})"><div class="m"><div class="t">Courses<span>Samedi</span></div><div class="p">croquettes Pépite, lait, pâtes…</div></div></div>
+</div></div>`}
+const NOTES={
+  taf:`<h3>Taf</h3>Serge veut plus que je touche aux dossiers archivés. Bizarre.\n\nMme Delpech a vendu sa maison 62 000 €… alors que c’était estimé à 140 000 l’an dernier ??\n\nAprès, les Fournier pareil. Et M. Laval.\n\nLes trois rachetées par la « SCI Lafon & Fils ». C’est son frère.`,
+  courses:`<h3>Courses</h3>- croquettes Pépite\n- lait\n- pâtes\n- piles lampe torche\n- cadeau Margaux (10 ans !!)`,
+  preuves:`<h3>Preuves</h3>Si il m’arrive un truc :\n\nSerge Lafon fait faire de faux diagnostics (termites, toiture…) sur les maisons de personnes âgées pour faire baisser les prix. Ensuite il les rachète avec la SCI de son frère.\n\nMme Delpech, les Fournier, M. Laval.\n\nLes originaux, il les planque dans son vieux séchoir à tabac aux Combes. J’y suis allée vendredi, la porte était fermée.\n\nJ’ai tout pris en photo. Copies sur ma clé USB, dans la boîte à gants.`
+};
+function note(v){
+  if(v.id==='preuves'&&!S.noteOpen)return `<div class="page">${hdr('Preuves')}<div class="scroll"><div class="lockbox">
+    <div style="font-size:40px">🔒</div><b>Cette note est verrouillée</b>
+    <div style="color:#8e8e93;font-size:14px">Indice du mot de passe :<br><i>« là où tout a commencé avec Margaux »</i></div>
+    <input class="txt" id="pw" placeholder="Mot de passe" autocomplete="off" onkeydown="if(event.key==='Enter')tryPw()">
+    <div class="err" id="pwerr"></div><button class="cta" onclick="tryPw()">Ouvrir</button></div></div></div>`;
+  return `<div class="page">${hdr('')}<div class="scroll"><div class="note">${NOTES[v.id]}</div></div></div>`}
+function norm(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z]/g,'')}
+function tryPw(){const v=norm($('pw').value);
+  if(v.includes('proumeyssac')||v==='gouffredeproumeyssac'){S.noteOpen=true;save();render();
+    notify('roux','Des faux diagnostics ?! Ça change tout. Qui avait intérêt à la faire taire…',1500)}
+  else{$('pwerr').textContent='Mot de passe incorrect';$('pw').classList.add('shake');setTimeout(()=>$('pw')&&$('pw').classList.remove('shake'),400)}}
+
+function calls(){
+  const r=[['Margaux 🦋','Dimanche · 5 appels',1],['Maman 💛','Dimanche · 3 appels',1],['06 71 48 22 90','Samedi 22:58 · sortant · 0:12',0],['Serge Agence','Vendredi 17:40 · entrant · 2:03',0],['Théo','Vendredi · 2 appels',1]];
+  const vm=[['Maman 💛','Dimanche 10:12','« Ma chérie c’est maman… Pépite a pleuré toute la nuit devant la porte. Rappelle-moi, je t’en supplie, je suis morte d’inquiétude. »'],
+            ['Serge Agence','Jeudi 19:05','« Chloé, c’est Serge. Je pense qu’il y a un malentendu sur le dossier Delpech. Ne parle de ça à personne avant qu’on se voie, d’accord ? Bonne soirée. »']];
+  return `<div class="page">${hdr('Téléphone')}<div class="seg"><button class="${S.calls==='recent'?'on':''}" onclick="S.calls='recent';render()">Récents</button><button class="${S.calls==='vm'?'on':''}" onclick="S.calls='vm';render()">Messagerie</button></div><div class="scroll">
+  ${S.calls==='recent'?r.map(x=>`<div class="row"><div class="m"><div class="t"><span style="color:inherit;font-size:15.5px;font-weight:600" class="${x[2]?'miss':''}">${x[0]}</span></div><div class="p">${x[1]}</div></div></div>`).join('')
+  :vm.map(x=>`<div class="vm"><div class="t" style="display:flex;justify-content:space-between"><b>${x[0]}</b><span style="color:#8e8e93;font-size:13px">${x[1]}</span></div><div class="tr">${x[2]}</div></div>`).join('')}
+  </div></div>`}
+
+function maps(){return `<div class="page">${hdr('Plans')}<div class="scroll"><div class="map">
+<svg viewBox="0 0 360 300"><rect width="360" height="300" fill="#1b2a22"/>
+<path d="M0 250 q90 -20 160 10 q90 30 200 -20" stroke="#2f5d7a" stroke-width="14" fill="none" opacity=".8"/><text x="250" y="262" fill="#6fa3c4" font-size="10" font-family="Inter" font-style="italic">la Vézère</text>
+<path d="M70 60 L120 120 L170 170 L250 225" stroke="#4a4a40" stroke-width="6" fill="none"/>
+<path d="M120 120 L60 200" stroke="#4a4a40" stroke-width="4" fill="none"/><text x="160" y="150" fill="#aaa" font-size="10" font-family="Inter">D32</text>
+<path d="M70 60 L40 30 M250 225 L320 200" stroke="#4a4a40" stroke-width="4" fill="none"/>
+<path d="M70 60 Q130 40 210 80 L170 170" stroke="#e8a33d" stroke-width="2.5" stroke-dasharray="6 5" fill="none"/>
+<path d="M250 225 Q240 120 210 80" stroke="#e8a33d" stroke-width="2.5" stroke-dasharray="6 5" fill="none"/>
+<path d="M210 80 L140 140" stroke="#ff453a" stroke-width="2.5" stroke-dasharray="4 4" fill="none"/>
+<circle cx="70" cy="60" r="11" fill="#e8a33d"/><text x="70" y="64" text-anchor="middle" font-weight="800" font-size="12" fill="#1a1208" font-family="Inter">1</text><text x="86" y="52" fill="#fff" font-size="11" font-family="Inter" font-weight="600">Rouffignac</text>
+<circle cx="250" cy="225" r="11" fill="#e8a33d"/><text x="250" y="229" text-anchor="middle" font-weight="800" font-size="12" fill="#1a1208" font-family="Inter">2</text><text x="266" y="222" fill="#fff" font-size="11" font-family="Inter" font-weight="600">Le Bugue</text>
+<circle cx="210" cy="80" r="11" fill="#e8a33d"/><text x="210" y="84" text-anchor="middle" font-weight="800" font-size="12" fill="#1a1208" font-family="Inter">3</text><text x="226" y="76" fill="#fff" font-size="11" font-family="Inter" font-weight="600">Les Combes</text>
+<circle cx="140" cy="140" r="11" fill="#ff453a"/><text x="140" y="144" text-anchor="middle" font-weight="800" font-size="12" fill="#fff" font-family="Inter">4</text><text x="98" y="165" fill="#ff8a80" font-size="10" font-family="Inter">dernier signal</text>
+</svg></div>
+<div class="tl"><div style="font-weight:700;font-size:18px;margin:8px 0">Historique · Samedi</div>
+<div class="tli"><div class="n">1</div><div><b>Domicile · Rouffignac</b><span>jusqu’à 22:10</span></div></div>
+<div class="tli"><div class="n">2</div><div><b>Immobilier Vézère · Le Bugue</b><span>22:35 – 22:44 · agence fermée</span></div></div>
+<div class="tli"><div class="n">3</div><div><b>Lieu-dit Les Combes · Rouffignac</b><span>23:00 – 23:16</span></div></div>
+<div class="tli"><div class="n red">4</div><div><b>Bord de la D32</b><span>23:22 · le téléphone se déplaçait à 70 km/h, puis plus rien</span></div></div>
+</div></div></div>`}
+
+function enquete(){
+  const allOk=QUESTIONS.every(q=>S.ans[q.id]);
+  const shown=Math.min(S.hints,HINTS.length);
+  return `<div class="page enq">${hdr('Carnet d’enquête')}<div class="scroll">
+  <div class="stats"><span>✓ ${Object.keys(S.ans).length}/3</span><span>✗ ${S.errors} erreur${S.errors>1?'s':''}</span><span>💡 ${S.hints} indice${S.hints>1?'s':''}</span></div>
+  ${QUESTIONS.map((q,qi)=>`<div class="card"><h4>QUESTION ${qi+1}</h4><p>${q.t}</p>
+    ${S.ans[q.id]?`<div class="solved">✓ ${q.o[q.a]}<br><span style="color:#2b2118;font-family:Inter;font-size:14px;line-height:1.45;display:block;margin-top:6px">${q.ok}</span></div>`
+    :`<div class="opts">${q.o.map((o,i)=>`<button class="${(S.wrong[q.id]||[]).includes(i)?'no':''}" onclick="answer('${q.id}',${i})">${o}</button>`).join('')}</div>`}
+  </div>`).join('')}
+  ${HINTS.slice(0,shown).map((h,i)=>`<div class="hintbox">💡 ${h}</div>`).join('')}
+  <div style="padding:6px 16px;display:flex;flex-direction:column;gap:10px">
+  ${allOk?`<button class="cta" onclick="finale()">🚓 Envoyer les gendarmes</button>`:''}
+  ${!allOk&&shown<HINTS.length?`<button class="ghost" onclick="S.hints++;save();render()">💡 Demander un indice</button>`:''}
+  <button class="ghost" onclick="resetGame()" style="opacity:.6;font-size:13px">Recommencer depuis le début</button></div>
+  </div></div>`}
+function answer(id,i){
+  const q=QUESTIONS.find(x=>x.id===id);
+  if(i===q.a){S.ans[id]=1;save();render();
+    const n=Object.keys(S.ans).length;
+    if(n===3)notify('roux','Ok. Je te crois. On fonce. Appuie sur « Envoyer les gendarmes » 🚓',700);
+    else notify('roux',['Bien vu. Continue.','Ça se tient. Il en reste.'][n-1],700);}
+  else{S.errors++;(S.wrong[id]=S.wrong[id]||[]).push(i);save();render();
+    if(S.errors===2)notify('roux','Hmm, t’es sûre ? Relis bien les messages avant de foncer.',500)}
+}
+function resetGame(){
+  const b=document.querySelector('.enq .ghost:last-child');
+  if(b&&b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Sûr ? Appuie encore pour tout effacer';return}
+  S=fresh();nav=[];tries=0;save();render()}
+
+// ============ FINALE ============
+function finale(){
+  nav=[];const sc=$('screen');
+  sc.innerHTML=`<div class="page">${`<div class="hdr"><h2 style="margin:0">${C.roux.name}</h2></div>`}<div class="scroll"><div class="chat" id="fin"></div></div></div>`;
+  const msgs=['On est aux Combes. Le séchoir est fermé avec un cadenas neuf.','On force la porte…','…','ELLE EST LÀ.','Vivante. Attachée, déshydratée, mais vivante. Elle demande sa mère et sa chienne 🥲','Serge Lafon vient d’être interpellé à l’agence. La SCI de son frère aussi est perquisitionnée.','Sans toi on l’aurait jamais trouvée à temps. Merci.'];
+  let i=0;const box=$('fin');
+  function next(){
+    if(i>=msgs.length){setTimeout(()=>{S.done=true;S.end=Date.now();save();render()},2200);return}
+    box.insertAdjacentHTML('beforeend','<div class="typing" id="ty"><i></i><i></i><i></i></div>');
+    setTimeout(()=>{$('ty').remove();box.insertAdjacentHTML('beforeend',`<div class="b in">${msgs[i]}</div>`);i++;
+      const s=document.querySelector('.scroll');s.scrollTop=s.scrollHeight;setTimeout(next,700)},1300+msgs[i].length*12)
+  }
+  next();
+}
+function ending(){
+  const mins=Math.max(1,Math.round(((S.end||Date.now())-S.start)/60000));
+  const stars=S.errors===0&&S.hints===0?'⭐⭐⭐':S.errors<=2&&S.hints<=2?'⭐⭐':'⭐';
+  return `<div class="page end">
+  <div class="stamp">AFFAIRE RÉSOLUE</div>
+  <h1>Chloé est rentrée chez elle.</h1>
+  <p>Pépite ne l’a pas lâchée de la soirée. Margaux a pleuré pendant une heure. Et Serge Lafon va devoir s’expliquer devant un juge.</p>
+  <div class="file" style="font-family:'Special Elite',monospace;background:#f3ead8;color:#2b2118;padding:16px;border-radius:4px;line-height:1.8;text-align:left">
+  Temps d’enquête : ${mins} min<br>Erreurs : ${S.errors}<br>Indices : ${S.hints}<br>Note : ${stars}</div>
+  <button class="cta" onclick="S=fresh();nav=[];tries=0;save();render()">Rejouer</button>
+  <button class="ghost" onclick="toMenu()">Retour aux épisodes</button>
+  </div>`}
+
+function toMenu(){view='menu';nav=[];$('banner').classList.remove('show');render()}
+function openEp(){view='ep1';render()}
+function menu(){
+  const st=S.done?'✓ Résolu':S.stage!=='intro'?'En cours':'Nouveau';
+  const lockedEp=(n,t)=>`<div class="ep locked"><div class="cov">🔒</div><div class="inf"><div class="num">ÉPISODE ${n}</div><h3>${t}</h3><p>Bientôt disponible.</p></div></div>`;
+  return `<div class="page menu">
+  <div class="brand">DOSSIERS CLASSÉS · DORDOGNE</div>
+  <h1>Inspecteur<br><span>Totoche</span></h1>
+  <div class="sub">Des enquêtes à résoudre depuis un téléphone. Fouille tout, ne rate rien.</div>
+  <button class="ep" onclick="openEp()"><div class="st">${st}</div><div class="cov"><svg viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="nr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1426"/><stop offset="1" stop-color="#2a1d2e"/></linearGradient></defs><rect width="400" height="150" fill="url(#nr)"/><circle cx="320" cy="30" r="14" fill="#f3ead8" opacity=".85"/><path d="M0 95 q100 -25 200 -5 q100 20 200 -10 v65 h-400z" fill="#141a14"/><path d="M175 150 L196 88 L204 88 L235 150z" fill="#2b2b30"/><path d="M200 92 v6 M201 106 v9 M202 124 v14" stroke="#e8a33d" stroke-width="2"/><g fill="#0a0d0a"><path d="M40 95 l12 -40 l12 40z"/><path d="M90 92 l9 -30 l9 30z"/><path d="M300 90 l11 -36 l11 36z"/><path d="M350 88 l8 -26 l8 26z"/></g><rect x="120" y="125" width="18" height="10" rx="2" fill="#1c1c1e" transform="rotate(-20 129 130)"/><rect x="123" y="127" width="12" height="6" fill="#5b8def" opacity=".8" transform="rotate(-20 129 130)"/></svg></div>
+  <div class="inf"><div class="num">ÉPISODE 1</div><h3>Disparue</h3><p>Chloé, 24 ans, s’est volatilisée entre Rouffignac et Le Bugue. Il ne reste que son téléphone.</p></div></button>
+  ${lockedEp(2,'???')}${lockedEp(3,'???')}
+  </div>`}
+render();
+</script>
+</body>
+</html>
