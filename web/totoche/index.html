@@ -536,6 +536,7 @@ function ending(){
 
 function toMenu(){view='menu';nav=[];$('banner').classList.remove('show');render()}
 function openEp(){view='ep1';render()}
+function ep2st(){try{const e=JSON.parse(localStorage.getItem('totoche-ep2-v1'));if(!e||!e.started)return 'Nouveau';return e.done?'✓ Résolu':'En cours'}catch(x){return 'Nouveau'}}
 function menu(){
   const st=S.done?'✓ Résolu':S.stage!=='intro'?'En cours':'Nouveau';
   const lockedEp=(n,t)=>`<div class="ep locked"><div class="cov">🔒</div><div class="inf"><div class="num">ÉPISODE ${n}</div><h3>${t}</h3><p>Bientôt disponible.</p></div></div>`;
@@ -545,7 +546,9 @@ function menu(){
   <div class="sub">Des enquêtes à résoudre depuis un téléphone. Fouille tout, ne rate rien.</div>
   <button class="ep" onclick="openEp()"><div class="st">${st}</div><div class="cov"><svg viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="nr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1426"/><stop offset="1" stop-color="#2a1d2e"/></linearGradient></defs><rect width="400" height="150" fill="url(#nr)"/><circle cx="320" cy="30" r="14" fill="#f3ead8" opacity=".85"/><path d="M0 95 q100 -25 200 -5 q100 20 200 -10 v65 h-400z" fill="#141a14"/><path d="M175 150 L196 88 L204 88 L235 150z" fill="#2b2b30"/><path d="M200 92 v6 M201 106 v9 M202 124 v14" stroke="#e8a33d" stroke-width="2"/><g fill="#0a0d0a"><path d="M40 95 l12 -40 l12 40z"/><path d="M90 92 l9 -30 l9 30z"/><path d="M300 90 l11 -36 l11 36z"/><path d="M350 88 l8 -26 l8 26z"/></g><rect x="120" y="125" width="18" height="10" rx="2" fill="#1c1c1e" transform="rotate(-20 129 130)"/><rect x="123" y="127" width="12" height="6" fill="#5b8def" opacity=".8" transform="rotate(-20 129 130)"/></svg></div>
   <div class="inf"><div class="num">ÉPISODE 1</div><h3>Disparue</h3><p>Chloé, 24 ans, s’est volatilisée entre Rouffignac et Le Bugue. Il ne reste que son téléphone.</p></div></button>
-  ${lockedEp(2,'???')}${lockedEp(3,'???')}
+  <button class="ep" onclick="location.href='ep2/'"><div class="st">${ep2st()}</div><div class="cov"><img src="ep2/cour.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+  <div class="inf"><div class="num">ÉPISODE 2 · ~1H</div><h3>Le Mariage</h3><p>Un mariage au domaine de la Combe-Noire. À 1h12, le père de la mariée est retrouvé mort dans la cave. Photos, réseaux sociaux, interrogatoires au micro.</p></div></button>
+  ${lockedEp(3,'???')}
   </div>`}
 render();
 </script>

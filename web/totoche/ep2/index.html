@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Inspecteur Totoche — Le Mariage</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inspecteur Totoche">
+<meta name="theme-color" content="#0c0c10">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0c0c10;color:#f2f2f7;font-family:Inter,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+button{font-family:inherit;cursor:pointer;color:inherit}
+:root{--acc:#e8a33d;--bg:#0c0c10;--card:#16161c;--line:#ffffff12;--mut:#8e8e98;--red:#ff5a4f;--green:#3ecf7a}
+#app{position:fixed;inset:0;display:flex;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+.tw{font-family:'Special Elite',monospace}
+
+/* nav */
+nav{width:236px;flex-shrink:0;background:#101015;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;gap:4px;overflow-y:auto}
+nav .brand{padding:6px 10px 18px}
+nav .brand small{color:var(--acc);font-size:10.5px;letter-spacing:3px}
+nav .brand b{display:block;font-size:22px;font-weight:800;line-height:1.05;margin-top:4px}
+.nb{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;border:0;background:none;font-size:15px;font-weight:600;text-align:left;position:relative;color:#c9c9d1}
+.nb .i{font-size:19px;width:24px;text-align:center}
+.nb.on{background:#ffffff10;color:#fff}
+.nb .dot{position:absolute;right:12px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
+nav .sp{flex:1}
+.nb.mcall{background:#1e3a26;color:#bff5d2;margin-top:6px}
+.nb.quit{color:var(--mut);font-size:13.5px}
+main{flex:1;min-width:0;position:relative;overflow:hidden}
+.view{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:26px 30px 120px;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h1.vt{font-size:30px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.vs{color:var(--mut);font-size:14.5px;margin-bottom:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+.card h3{font-size:16px;margin-bottom:8px}
+.lbl{font-size:11.5px;letter-spacing:2px;color:var(--acc);font-weight:700;margin-bottom:8px;display:block}
+.mut{color:var(--mut)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+@media (max-width:760px){
+  #app{flex-direction:column-reverse}
+  nav{width:100%;flex-direction:row;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);overflow-x:auto;gap:2px}
+  nav .brand,nav .sp,.nb.quit{display:none}
+  .nb{flex-direction:column;gap:2px;font-size:10px;padding:6px 8px;min-width:60px;align-items:center}
+  .nb .dot{top:4px;right:10px}
+  .nb.mcall{margin:0}
+  .view{padding:18px 16px 40px}
+  .row2{grid-template-columns:1fr}
+}
+
+/* objectives */
+.obj{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.obj:last-child{border:0}
+.obj .c{width:22px;height:22px;border-radius:50%;border:2px solid #444;flex-shrink:0;display:grid;place-items:center;font-size:12px;margin-top:1px}
+.obj.ok .c{background:var(--green);border-color:var(--green);color:#000}
+.obj.ok span{color:var(--mut);text-decoration:line-through}
+.suspects{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.sus{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-align:left;padding:0}
+.sus img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.sus div{padding:10px 12px}
+.sus b{display:block;font-size:15px}.sus small{color:var(--mut);font-size:12.5px}
+.sus.lock{opacity:.4}
+
+/* messages */
+.split{display:flex;gap:16px;height:100%}
+.list{width:260px;flex-shrink:0}
+.th{display:flex;gap:12px;padding:12px;border-radius:14px;align-items:center;cursor:pointer;border:0;background:none;width:100%;text-align:left}
+.th.on,.th:hover{background:#ffffff0c}
+.av{width:44px;height:44px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:17px;overflow:hidden;background:#333}
+.av img{width:100%;height:100%;object-fit:cover}
+.th .m{flex:1;min-width:0}.th b{font-size:15px;display:block}.th small{color:var(--mut);font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat{flex:1;background:var(--card);border-radius:18px;border:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:6px;min-height:400px}
+.chat .hd{font-weight:700;font-size:17px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.day{text-align:center;font-size:12px;color:var(--mut);margin:12px 0 4px;font-weight:600}
+.b{max-width:75%;padding:10px 14px;border-radius:19px;font-size:15.5px;line-height:1.4}
+.b.in{background:#26262e;align-self:flex-start;border-bottom-left-radius:6px}
+.b.out{background:#2f6fdb;align-self:flex-end;border-bottom-right-radius:6px}
+.b small{display:block;font-size:11px;opacity:.6;margin-top:3px}
+.read{align-self:flex-end;font-size:11.5px;color:var(--mut)}
+@media (max-width:760px){.split{flex-direction:column;height:auto}.list{width:100%}}
+
+/* photos */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ph{border:0;padding:0;background:#222;border-radius:12px;overflow:hidden;position:relative;aspect-ratio:1}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .tm{position:absolute;left:8px;bottom:8px;background:#000a;padding:3px 8px;border-radius:8px;font-size:12px;font-weight:700}
+.ph .nw{position:absolute;right:8px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--acc)}
+.viewer{position:fixed;inset:0;background:#000e;z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;animation:fade .2s}
+.vbox{display:flex;gap:22px;max-width:980px;width:100%;align-items:center}
+.vimg{position:relative;flex:1;max-width:560px}
+.vimg img{width:100%;border-radius:14px;display:block}
+.hot{position:absolute;border:2px dashed var(--acc);border-radius:50%;background:#e8a33d22;animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px #e8a33d00;background:#e8a33d44}}
+.vinfo{width:300px;font-size:15px;line-height:1.5}
+.vinfo h3{font-size:20px;margin-bottom:6px}
+.tag{display:inline-block;background:#ffffff14;padding:4px 10px;border-radius:20px;font-size:13px;margin:3px 4px 3px 0}
+.tag.unk{background:#ff5a4f22;color:#ff9b93}
+.x{position:absolute;top:calc(14px + env(safe-area-inset-top));right:18px;background:#ffffff1c;border:0;width:44px;height:44px;border-radius:50%;font-size:20px;z-index:41}
+@media (max-width:760px){.vbox{flex-direction:column}.vinfo{width:100%}}
+
+/* insta */
+.ig{max-width:560px}
+.igtabs{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.igtab{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;font-size:12px;width:76px}
+.igtab .ring{width:64px;height:64px;border-radius:50%;padding:3px;background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)}
+.igtab.on .ring{background:var(--acc)}
+.igtab .ring img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid var(--bg)}
+.post{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:18px}
+.post .ph2{display:flex;gap:10px;align-items:center;padding:10px 12px;font-weight:700;font-size:14px}
+.post .ph2 .av{width:32px;height:32px}
+.post>img{width:100%;display:block}
+.post .pb{padding:10px 14px 14px;font-size:14.5px;line-height:1.45}
+.post .cm{margin-top:8px;color:#d6d6de}
+.post .cm div{margin-top:4px}
+.post .tt{color:var(--mut);font-size:12px;margin-top:6px}
+.bio{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+.bio .av{width:76px;height:76px}
+/* fb */
+.fbcover{height:150px;border-radius:16px;background:url(cour.jpg) center/cover;position:relative;margin-bottom:56px}
+.fbcover .av{position:absolute;left:20px;bottom:-44px;width:96px;height:96px;border:4px solid var(--bg)}
+.fbname{font-size:24px;font-weight:800}
+.fbpost{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;max-width:620px}
+.fbpost .hdp{display:flex;gap:10px;align-items:center;margin-bottom:10px}.fbpost .hdp .av{width:38px;height:38px}
+.fbpost p{font-size:15.5px;line-height:1.45}
+.fbpost img{width:100%;border-radius:10px;margin-top:10px}
+.fbpost .cms{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.fbc{display:flex;gap:8px;font-size:14px}.fbc .av{width:30px;height:30px;font-size:12px}.fbc div div{background:#ffffff0e;border-radius:14px;padding:7px 12px}
+
+/* dossier */
+.log{font-family:'Special Elite',monospace;font-size:15px;line-height:2}
+.log .hl{color:var(--acc)}
+.locked{opacity:.5;text-align:center;padding:30px}
+
+/* interro */
+.room{position:absolute;inset:0;display:flex;flex-direction:column;background:radial-gradient(ellipse at 30% 0%,#2a2014,#0c0c10 60%)}
+.rhead{display:flex;gap:18px;align-items:center;padding:20px 26px 14px;border-bottom:1px solid var(--line)}
+.rhead img{width:92px;height:92px;border-radius:18px;object-fit:cover}
+.rhead h2{font-size:24px}
+.stress{margin-top:8px;width:200px;height:8px;border-radius:5px;background:#ffffff14;overflow:hidden}
+.stress i{display:block;height:100%;background:linear-gradient(90deg,#3ecf7a,#e8a33d,#ff5a4f);transition:width .6s}
+.rlog{flex:1;overflow-y:auto;padding:18px 26px;display:flex;flex-direction:column;gap:10px}
+.say{max-width:78%;padding:12px 16px;border-radius:18px;font-size:16px;line-height:1.45;animation:fade .3s}
+.say.s{background:#24242c;align-self:flex-start;border-bottom-left-radius:6px}
+.say.l{background:#3a2a10;color:#ffe2b3;align-self:flex-end;border-bottom-right-radius:6px}
+.say.sys{align-self:center;background:none;color:var(--acc);font-size:13.5px;text-align:center}
+.say.ev{align-self:flex-end;background:#1e3a26;color:#bff5d2}
+.say.br{border:2px solid var(--red)}
+.rbar{padding:12px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0c0c10ee;display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.chip{flex-shrink:0;border:1px solid #ffffff22;background:#ffffff0a;border-radius:20px;padding:9px 14px;font-size:14px}
+.chip.used{opacity:.45}
+.inrow{display:flex;gap:10px}
+.inrow input{flex:1;min-width:0;background:#1a1a20;border:1px solid #ffffff1c;border-radius:14px;padding:13px 14px;color:#fff;font-size:16px;font-family:inherit;-webkit-user-select:text;user-select:text}
+.btn{border:0;border-radius:14px;padding:13px 16px;font-size:15px;font-weight:700;background:#ffffff14}
+.btn.acc{background:var(--acc);color:#1a1208}
+.btn.mic{background:#2f6fdb;color:#fff;min-width:54px}
+.btn.mic.on{background:var(--red);animation:pulse 1s infinite}
+.btn.big{width:100%;padding:16px;font-size:17px}
+.btn:disabled{opacity:.4}
+
+/* overlays */
+.ov{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#000c;padding:20px;animation:fade .2s}
+.modal{background:#17171d;border:1px solid var(--line);border-radius:22px;padding:22px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto}
+.modal h2{font-size:22px;margin-bottom:6px}
+.evi{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;border:1px solid var(--line);margin-top:8px;background:#ffffff06;width:100%;text-align:left}
+.evi .ic{font-size:22px}.evi b{display:block;font-size:15px}.evi small{color:var(--mut);font-size:13.5px;line-height:1.4;display:block;margin-top:2px}
+.evi.sel{border-color:var(--acc);background:#e8a33d18}
+.call{position:fixed;inset:0;z-index:60;background:linear-gradient(180deg,#1b2a3a,#0b0f16);display:flex;flex-direction:column;align-items:center;padding:calc(60px + env(safe-area-inset-top)) 24px 50px;animation:fade .3s}
+.call img{width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 8px #ffffff10}
+.call h2{font-size:28px;margin-top:20px}.call .st{color:#a9b8c8;margin-top:4px}
+.call .sub{margin-top:30px;max-width:620px;font-size:19px;line-height:1.5;text-align:center;min-height:120px}
+.call .acts{margin-top:auto;display:flex;gap:60px}
+.cb{width:76px;height:76px;border-radius:50%;border:0;font-size:30px;display:grid;place-items:center}
+.cb.g{background:#34c759}.cb.r{background:#ff3b30}
+.ring img{animation:ringpulse 1.2s infinite}
+@keyframes ringpulse{50%{box-shadow:0 0 0 20px #34c75922}}
+#toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translate(-50%,-150%);background:#1e3a26;color:#d6ffe6;padding:12px 18px;border-radius:16px;font-weight:600;font-size:14.5px;z-index:70;transition:transform .35s;box-shadow:0 10px 30px #0008;max-width:90%}
+#toast.show{transform:translate(-50%,0)}
+
+/* intro / end */
+.intro{position:fixed;inset:0;z-index:30;background:linear-gradient(180deg,#0c0c10cc,#0c0c10 70%),url(cour.jpg) center/cover;display:flex;flex-direction:column;justify-content:flex-end;padding:40px max(28px,calc(50% - 320px)) calc(40px + env(safe-area-inset-bottom));gap:16px}
+.intro h1{font-size:54px;font-weight:800;letter-spacing:-2px;line-height:1}
+.intro p{color:#d0d0d8;font-size:17px;line-height:1.55}
+.paper{font-family:'Special Elite',monospace;background:#f3ead8;color:#2b2118;padding:18px;border-radius:4px;transform:rotate(-.6deg);font-size:14.5px;line-height:1.65}
+.choice{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.choice button{text-align:left;padding:16px;border-radius:14px;border:1px solid #ffffff22;background:#ffffff0a;font-size:15.5px;line-height:1.4}
+.choice button b{display:block;margin-bottom:3px}
+.stamp{font-family:'Special Elite',monospace;border:3px solid var(--green);color:var(--green);display:inline-block;padding:6px 14px;transform:rotate(-5deg);font-size:22px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="app"><nav id="nav"></nav><main id="main"></main></div>
+<div id="ov"></div>
+<div id="callov"></div>
+<div id="toast"></div>
+
+<script>
+// ================= DONNÉES =================
+const P = { // personnages
+  gerard:{n:'Gérard Beaulieu',img:'gerard.jpg',r:'La victime · 62 ans · PDG des Noix Beaulieu'},
+  camille:{n:'Camille Lambert',img:'camille.jpg',r:'La mariée · fille de Gérard',v:{g:'f',p:1.15,r:1}},
+  hugo:{n:'Hugo Lambert',img:'hugo.jpg',r:'Le marié',v:{g:'m',p:1.05,r:1.05}},
+  nathalie:{n:'Nathalie Beaulieu',img:'nathalie.jpg',r:'La femme de Gérard',v:{g:'f',p:.85,r:.95}},
+  bastien:{n:'Bastien Roche',img:'bastien.jpg',r:'L’associé de Gérard',v:{g:'m',p:.8,r:.95}},
+  lucie:{n:'Lucie Marty',img:'lucie.jpg',r:'L’organisatrice du mariage',v:{g:'f',p:1.05,r:1.08}},
+  marco:{n:'Marco',img:'marco.jpg',r:'Serveur · témoin',v:{g:'m',p:1.2,r:1.05}},
+  morel:{n:'Capitaine Morel',img:'morel.jpg',r:'Gendarmerie de Périgueux',v:{g:'m',p:.95,r:1.02}}
+};
+const EV = {
+  audit:{ic:'📊',t:'Rapport du cabinet d’audit',d:'1,2 M€ détournés en 6 ans grâce à de fausses factures de la société « B.R. Conseil ».'},
+  rdvBastien:{ic:'💬',t:'Message de Gérard à Bastien',d:'00:40 — « À la cave. Dans 5 min. Seuls. » Message lu par Bastien.'},
+  rdvHugo:{ic:'💬',t:'Message de Gérard à Hugo',d:'00:15 — Gérard donne rendez-vous à Hugo à la cave à 1h, pour parler de ses dettes.'},
+  avocat:{ic:'💬',t:'Divorce de Gérard et Nathalie',d:'Gérard divorçait. Avec le contrat de mariage, Nathalie n’aurait rien eu.'},
+  lucieMsg:{ic:'💬',t:'Message de Lucie à Gérard',d:'23:10 — « Je dois vous dire quelque chose de très personnel. Ça concerne ma mère, Sophie Marty. »'},
+  dettes:{ic:'🎰',t:'Les dettes de Hugo',d:'Un certain @kev.33 réclame 15 000 € à Hugo sous un post de casino à Monaco.'},
+  digicode:{ic:'🔢',t:'Journal de la porte de la cave',d:'00:41 et 00:43 code FAMILLE · 00:49 code PERSONNEL · 00:57 sortie de secours ouverte · 01:04 code FAMILLE · 01:12 code PERSONNEL.'},
+  code:{ic:'🔑',t:'Qui connaît le code FAMILLE ?',d:'Gérard, Bastien (pour les vins), et Hugo, à qui Camille l’a donné vers 23h.'},
+  dispute:{ic:'📸',t:'Photo du couloir — 00:44',d:'Gérard et un homme non identifié discutent devant la porte de la cave.'},
+  piste:{ic:'📸',t:'Photo de la piste — 00:55',d:'Camille, Hugo, Nathalie et la cousine Juliette dansent. Pas de Bastien.'},
+  commentaire:{ic:'💬',t:'Commentaire de Juliette — 00:59',d:'« Où il était Bastien pendant le slow ? Je l’ai cherché partout 😂 »'},
+  manche:{ic:'🔍',t:'Manche tachée de vin — 01:06',d:'Sur la photo de Bastien au bar : costume anthracite, montre dorée, grosse tache de vin rouge sur la manche.'},
+  menace:{ic:'📣',t:'Post Facebook de Gérard',d:'Deux jours avant : « Lundi, certaines personnes vont avoir des comptes à rendre. »'},
+  associe:{ic:'🤝',t:'L’associé : Bastien Roche',d:'Gérard remercie son associé « Bastien Roche » pour les 40 ans de l’entreprise. B.R. ?'},
+  vieille:{ic:'🖼️',t:'La vieille photo de Lucie',d:'Posté par Lucie : sa mère et un jeune homme qui ressemble énormément à Gérard, avec un bébé. 1997.'},
+  legiste:{ic:'🩺',t:'Rapport du légiste',d:'Mort entre 00:45 et 00:55. Bleus sur la poitrine : Gérard a été poussé.'},
+  hugoAveu:{ic:'🗣️',t:'Aveu de Hugo',d:'Il est descendu à 01:04. Gérard était déjà mort. Il a paniqué et n’a rien dit. La porte de secours était ouverte.'},
+  marco:{ic:'🗣️',t:'Témoignage de Marco',d:'Vers 00:58, un homme en costume gris foncé avec une montre dorée sort par la porte de secours en frottant sa manche.'},
+  lucieTemoin:{ic:'🗣️',t:'Témoignage de Lucie',d:'Cachée dans la cave, elle a vu Bastien pousser Gérard dans l’escalier, puis s’enfuir par la porte de secours.'},
+  aveuBastien:{ic:'⚖️',t:'Aveux de Bastien',d:'Bastien avoue : Gérard allait porter plainte lundi. Ils se sont battus, il l’a poussé.'}
+};
+
+const THREADS = [
+  {id:'camille',who:'camille',name:'Ma Camille ❤️',m:[
+    ['Samedi'],['in','Papa tu as promis d’être gentil avec Hugo aujourd’hui 🙏','14:02'],['out','Je fais un effort ma chérie. Mais on devra parler de certaines choses après.','14:05'],
+    ['in','Papa t’es où ?? On t’attend pour couper la pièce montée !','00:59'],['in','Papa ???','01:08']]},
+  {id:'bastien',who:'bastien',name:'Bastien 🤝',ev:'rdvBastien',m:[
+    ['Samedi'],['in','Quel beau jour mon vieux ! Fier d’être là 🥂','19:02'],['out','Il faut qu’on parle. Maintenant.','00:38'],
+    ['in','Ça peut pas attendre lundi ? On fait la fête 😄','00:39'],['out','À la cave. Dans 5 min. Seuls.','00:40'],['read','Lu 00:40']]},
+  {id:'audit',who:null,name:'Cabinet Ferrand Audit',ev:'audit',m:[
+    ['Jeudi'],['in','M. Beaulieu, nos conclusions sont formelles : 1,2 M€ ont été détournés en 6 ans, via des fausses factures de la société « B.R. Conseil ».','16:20'],
+    ['out','Je m’en doutais. Je confronte la personne samedi soir. Lundi, je porte plainte.','16:41'],['in','Soyez prudent, M. Beaulieu.','16:45']]},
+  {id:'hugo',who:'hugo',name:'Hugo (le gendre)',ev:'rdvHugo',m:[
+    ['Samedi'],['out','Rejoins-moi à la cave à 1h. Mon détective m’a tout dit sur tes dettes de jeu. On va parler, toi et moi.','00:15'],['in','Ok.','00:17']]},
+  {id:'nathalie',who:'nathalie',name:'Nathalie',ev:'avocat',m:[
+    ['Vendredi'],['out','Mon avocat t’a envoyé les papiers du divorce. Tu signes lundi.','18:12'],['in','Tu ne me laisseras pas sans rien, Gérard.','18:30'],
+    ['out','Le contrat de mariage est clair. Tu n’auras rien.','18:31'],['Samedi'],['in','Souris au moins sur les photos.','21:02']]},
+  {id:'lucie',who:'lucie',name:'Lucie — Wedding planner',ev:'lucieMsg',m:[
+    ['Samedi'],['in','Monsieur Beaulieu, je dois vous dire quelque chose de très personnel. Après le gâteau ?','23:10'],['out','Plus tard, je suis occupé.','23:31'],
+    ['in','C’est important. Ça concerne ma mère, Sophie Marty.','23:32'],['read','Lu 23:40']]}
+];
+
+const PHOTOS = [
+  {f:'cour.jpg',h:'20:31',t:'Dîner dans la cour',tags:[]},
+  {f:'gerard.jpg',h:'21:46',t:'Discours du père de la mariée',tags:['Gérard Beaulieu']},
+  {f:'nathalie.jpg',h:'23:22',t:'Nathalie au cocktail',tags:['Nathalie Beaulieu']},
+  {f:'hugo.jpg',h:'23:51',t:'Le marié',tags:['Hugo Lambert']},
+  {f:'marco.jpg',h:'00:31',t:'Service du champagne',tags:['Marco']},
+  {f:'dispute.jpg',h:'00:44',t:'Couloir des caves',tags:['Gérard Beaulieu','?'],ev:'dispute'},
+  {f:'lucie.jpg',h:'00:48',t:'Couloir des caves',tags:['Lucie Marty']},
+  {f:'piste.jpg',h:'00:55',t:'Le slow',tags:['Camille Lambert','Hugo Lambert','Nathalie Beaulieu','Juliette Beaulieu'],ev:'piste'},
+  {f:'bastien.jpg',h:'01:06',t:'Au bar',tags:['Bastien Roche'],hot:{x:56,y:88,r:18,img:'manche.jpg',ev:'manche',lab:'Zoomer sur la manche'}}
+];
+
+const IG = {
+  'camille.beaulieu':{who:'camille',bio:'Mrs Lambert depuis aujourd’hui 🤍 · Périgord',posts:[
+    {img:'piste.jpg',h:'00:58',txt:'La piste est en feu 🔥🔥 meilleure soirée de ma vie',cm:[['juju.beaulieu','où il était Bastien pendant le slow ? je l’ai cherché partout pour danser 😂','00:59','commentaire'],['hugo_lmd','❤️❤️','01:00']]},
+    {img:'selfie.jpg',h:'22:10',txt:'Mr & Mrs 🤍 on l’a fait !!',cm:[['juju.beaulieu','Trop beaux 😍😍','22:14'],['nathalie.b.officiel','Félicitations ma belle','22:30']]}]},
+  'hugo_lmd':{who:'hugo',bio:'Marié 💍 · Bordeaux',posts:[
+    {img:'hugo.jpg',h:'il y a 3 sem.',txt:'Weekend à Monaco 🎰 la chance tourne !',cm:[['kev.33','et mes 15 000 € tu me les rends quand ?','',"dettes"],['hugo_lmd','bientôt promis frérot','']]}]},
+  'lucie.events':{who:'lucie',bio:'Wedding planner · Dordogne ✨ Vos plus beaux jours',posts:[
+    {img:'cour.jpg',h:'samedi',txt:'Domaine de la Combe-Noire, ce soir c’est le grand jour ✨ #mariage #perigord',cm:[['domaine.combenoire','Merci Lucie 🙏','']]},
+    {img:'vieillephoto.jpg',h:'il y a 3 mois',txt:'Maman, tu me manques. Avant de partir, tu m’as enfin dit qui il était. Je vais le rencontrer. 🕊️ (été 1997)',cm:[['sarah_m','Courage ma belle ❤️',''],['lucie.events','Il ne sait même pas que j’existe…','']],ev:'vieille'}]},
+  'nathalie.b.officiel':{who:'nathalie',bio:'Vivre. Voyager. 💋',posts:[
+    {img:'nathalie.jpg',h:'samedi',txt:'Rouge passion 💋',cm:[['juju.beaulieu','Canon tata !','']]}]}
+};
+
+const FB = [
+  {h:'Il y a 2 jours',txt:'La confiance, ça se mérite. Lundi, certaines personnes vont avoir des comptes à rendre.',ev:'menace',cm:[['bastien','😅 On parle de qui ?'],['nathalie','Gérard, pas sur Facebook…']]},
+  {h:'Il y a 3 semaines',txt:'40 ans des Noix Beaulieu ! Merci à mon associé et ami de toujours, Bastien Roche 🤝 On a commencé dans un garage à Rouffignac…',img:'bastien.jpg',ev:'associe',cm:[['bastien','À nous les 40 prochaines, mon frère ! 🥂']]},
+  {h:'Il y a 1 mois',txt:'Ma fille se marie ! Domaine de la Combe-Noire, le 14 novembre. Le plus beau jour de ma vie… après sa naissance ❤️',img:'camille.jpg',cm:[['camille','Je t’aime papa 😭']]},
+  {h:'2019',txt:'Il y a des erreurs de jeunesse qu’on regrette toute sa vie.',cm:[]}
+];
+
+// ================= INTERROGATOIRES =================
+const IT = {
+hugo:{intro:'Je viens d’épouser la femme de ma vie et son père est mort. Qu’est-ce que vous voulez savoir ?',
+ def:['Je vois pas où vous voulez en venir.','Je vous ai tout dit…','Posez-moi une vraie question.'],
+ topics:[
+  {id:'soiree',l:'Ta soirée ?',kw:['soiree','nuit','fait','alibi','ou etiez','faisiez','minuit'],a:'J’étais avec Camille toute la soirée. On a dansé, on a ouvert le bal… je l’ai pas quittée une seconde.'},
+  {id:'gerard',l:'Ta relation avec Gérard',kw:['gerard','beau-pere','beau pere','relation','entendre','aimait'],a:'On s’entendait… moyennement. Il me trouvait pas assez bien pour sa fille. Mais de là à…'},
+  {id:'cave',l:'La cave',kw:['cave','escalier','descendu','sous-sol'],a:'La cave ? J’y suis jamais allé. Pourquoi j’irais à la cave ?'},
+  {id:'dettes',l:'Tes dettes',need:'dettes',kw:['dette','argent','casino','jeu','monaco','kevin','15 000','rembourse'],a:'Ok, j’ai des dettes. 15 000 €. Je joue un peu trop. Mais Camille le sait, j’ai arrêté. Promis.'},
+  {id:'porte',l:'Tu as remarqué quelque chose ?',need:'hugoAveu',kw:['remarque','porte','secours','vu','detail','bizarre','quelque chose'],a:'En bas, la porte de secours qui donne sur la cour arrière était entrouverte. Il faisait froid. Quelqu’un était sorti par là juste avant moi, j’en suis sûr.'}
+ ],
+ contra:{
+  rdvHugo:{a:'… D’accord. Il m’avait donné rendez-vous à 1h à la cave. Pour mes dettes. J’y suis allé… mais il était pas là. Je suis remonté.',s:35},
+  digicode:{after:'rdvHugo',pre:'Le code famille ? Tout le monde l’avait, ce code.',a:'(il baisse la tête) 01:04, oui. C’est moi. Quand je suis arrivé… il était en bas de l’escalier. Il bougeait plus. J’ai paniqué. Avec mes dettes, le rendez-vous… tout le monde aurait cru que c’était moi. Alors je suis remonté et j’ai rien dit. Je vous jure que je l’ai pas touché.',give:['hugoAveu','code'],s:40,brk:true},
+  dettes:{a:'Ok, j’ai des dettes. 15 000 €. Je joue un peu trop. Mais ça fait pas de moi un assassin.',s:20},
+  piste:{a:'Voilà ! 00:55, je suis sur la photo, je dansais avec Camille.',s:-10},
+  legiste:{a:'Entre 00:45 et 00:55 ? Mais à cette heure-là je dansais ! Vous avez la photo !',s:-10}
+ }},
+camille:{intro:'Mon père… Je comprends pas. Il est descendu chercher une bouteille et il est tombé, c’est ça ?',
+ def:['Je suis désolée, j’ai la tête qui tourne…','Je sais pas…','Demandez-moi autre chose, s’il vous plaît.'],
+ topics:[
+  {id:'soiree',l:'Ta soirée ?',kw:['soiree','nuit','fait','alibi','minuit','danse'],a:'À partir de minuit et demi j’étais sur la piste, avec Hugo, Nathalie, ma cousine Juliette… On attendait papa pour couper la pièce montée. Il est jamais revenu.'},
+  {id:'pere',l:'Ton père ces derniers jours',kw:['pere','papa','gerard','derniers jours','stresse','bizarre'],a:'Papa était dur, mais il m’aimait. Ces derniers jours il était stressé. Il parlait de « trahison ». Il passait ses nuits sur les comptes de l’entreprise.'},
+  {id:'hugo',l:'Hugo',kw:['hugo','mari','detective'],a:'Papa avait engagé un détective sur Hugo. Il a découvert ses dettes de jeu. Mais Hugo n’aurait jamais fait de mal à une mouche.'},
+  {id:'nathalie',l:'Nathalie',kw:['nathalie','belle-mere','femme','divorce'],a:'Nathalie ? Ils divorçaient. Papa avait fait en sorte qu’elle n’ait rien. Elle le détestait.'},
+  {id:'bastien',l:'Bastien',kw:['bastien','associe','oncle','tonton'],a:'Tonton Bastien ? L’associé de papa depuis 30 ans. C’est comme un oncle pour moi. Il était super joyeux ce soir… trop, même.'},
+  {id:'lucie',l:'Lucie',kw:['lucie','organisatrice','wedding','planner'],a:'L’organisatrice ? Elle est géniale… mais elle tournait beaucoup autour de papa. Je trouvais ça bizarre.'},
+  {id:'code',l:'Le code de la cave',kw:['code','digicode','porte','cle'],a:'Le code de la cave ? Papa l’avait, Bastien aussi, il s’occupait des vins. Et je l’ai donné à Hugo vers 23h pour qu’il aille chercher du champagne.',give:['code']}
+ ],
+ contra:{
+  vieille:{a:'C’est… c’est papa sur cette photo ?! Avec un bébé ?… Lucie… c’est pas possible… j’ai une sœur ?',s:30},
+  commentaire:{a:'Juliette a raison. Bastien était pas là pendant le slow. Je l’ai cherché aussi, pour la photo de famille.',s:10},
+  rdvHugo:{a:'Hugo devait le voir à 1h ?! Il m’a rien dit…',s:20},
+  menace:{a:'Des comptes à rendre… Il parlait de quelqu’un au travail, j’en suis sûre. Il disait qu’on le volait.',s:5},
+  audit:{a:'1,2 million ?! B.R. Conseil… B.R. … Bastien Roche ? Non… pas lui…',s:15}
+ }},
+nathalie:{intro:'Je vous préviens : je n’ai rien à cacher, et je n’ai pas toute la nuit.',
+ def:['Vous perdez votre temps.','Question suivante.','Je ne vois pas le rapport.'],
+ topics:[
+  {id:'soiree',l:'Ta soirée ?',kw:['soiree','nuit','fait','alibi','minuit','danse'],a:'J’ai dansé presque toute la soirée. Demandez à n’importe qui.'},
+  {id:'gerard',l:'Ton couple',kw:['gerard','mari','couple','relation'],a:'Mon mari et moi traversions… une période compliquée. Comme tous les couples.'},
+  {id:'divorce',l:'Le divorce',need:'avocat',kw:['divorce','avocat','separation','papiers','heritage','herite'],a:'Oui, on divorçait. Et oui, avec son contrat, je n’avais rien. Maintenant qu’il est mort, j’hérite. Je sais à quoi ça ressemble. Mais je ne l’ai pas tué.'},
+  {id:'bastien',l:'Bastien',kw:['bastien','associe','entreprise','comptes'],a:'Bastien ? Un flatteur. Ces derniers temps, Gérard ne pouvait plus le voir. Il épluchait les comptes de la boîte tous les soirs.'}
+ ],
+ contra:{
+  avocat:{a:'Oui, on divorçait. Avec son contrat, je n’avais rien. Maintenant j’hérite. Je sais à quoi ça ressemble. Mais je ne l’ai pas tué.',s:30},
+  piste:{a:'Vous voyez ? 00:55, sur la piste. Satisfaite, inspectrice ?',s:-20},
+  legiste:{a:'Entre 00:45 et 00:55 ? J’étais sur la piste. Il y a deux cents témoins.',s:-10},
+  audit:{a:'1,2 million… Bastien. Évidemment. Gérard me répétait que quelqu’un le volait.',s:5}
+ }},
+bastien:{intro:'Inspectrice ! Quelle tragédie. Gérard était mon frère. Demandez-moi tout ce que vous voulez.',
+ def:['Je ne vois pas, désolé.','Vous me faites perdre mon temps, avec tout le respect que je vous dois.','Hmm. Question suivante ?'],
+ topics:[
+  {id:'soiree',l:'Ta soirée ?',kw:['soiree','nuit','fait','alibi','minuit','danse','ou etiez'],a:'J’ai dansé de minuit et demi à une heure et quart. J’adore danser, demandez à tout le monde !'},
+  {id:'gerard',l:'Ta relation avec Gérard',kw:['gerard','ami','relation','frere'],a:'Trente ans d’amitié. On a monté les Noix Beaulieu ensemble, dans un garage. Un homme formidable.'},
+  {id:'cave',l:'La cave',kw:['cave','escalier','descendu'],a:'La cave ? Je n’y suis pas descendu de la soirée.'},
+  {id:'argent',l:'L’entreprise',kw:['entreprise','argent','compte','boite','societe','finance'],a:'L’entreprise va très bien, merci. Les chiffres n’ont jamais été aussi bons.'},
+  {id:'br',l:'B.R. Conseil',need:'audit',kw:['br','b.r','conseil','facture','detourne','million'],a:'B.R. Conseil ? Jamais entendu parler.'}
+ ],
+ contra:{
+  piste:{a:'J’étais peut-être au bar à ce moment-là. On bouge, dans un mariage.',s:15},
+  commentaire:{a:'Juliette ? Elle avait bu, la petite. Elle me cherchait mal.',s:10},
+  rdvBastien:{a:'Ce message ? Je… je ne l’ai pas lu. J’avais posé mon téléphone.',s:20},
+  digicode:{a:'Tout le monde avait ce code. Ça ne prouve rien du tout.',s:10},
+  code:{a:'Oui, j’avais le code. Je m’occupais des vins. Et alors ?',s:10},
+  audit:{a:'B.R.… Il y a des milliers de gens avec ces initiales. Vous perdez votre temps.',s:20},
+  associe:{a:'Bastien Roche, B.R., oui oui, très drôle. Ce n’est pas une preuve, inspectrice.',s:15},
+  menace:{a:'Gérard aimait les grandes phrases. Ça ne visait personne.',s:5},
+  manche:{a:'Du vin. À un mariage. Quelle surprise, inspectrice.',s:20},
+  dispute:{a:'Deux silhouettes dans un couloir sombre… ça pourrait être n’importe qui.',s:10},
+  marco:{a:'Un costume gris et une montre dorée ? Il y en avait cinquante, ce soir.',s:20},
+  legiste:{a:'Poussé ? … Mon Dieu. Pauvre Gérard.',s:10},
+  lucieTemoin:{a:'… Elle était là ? … (long silence) … Il allait porter plainte lundi. Trente ans d’amitié, et il allait m’envoyer en prison pour quelques factures. Je voulais juste lui parler. Il m’a giflé, je l’ai repoussé… et il est tombé. J’ai entendu le bruit. Et je suis parti par la porte de secours. … Je suis désolé, Gérard.',give:['aveuBastien'],s:100,brk:true}
+ }},
+lucie:{intro:'Je… je supervisais le service. J’ai rien vu, vraiment.',
+ def:['Je sais pas…','Je peux y aller ? J’ai encore le traiteur à gérer.','Je… je préfère ne pas répondre.'],
+ topics:[
+  {id:'soiree',l:'Ta soirée ?',kw:['soiree','nuit','fait','alibi','minuit'],a:'Je courais partout. Le traiteur, le DJ, la pièce montée… j’ai pas eu une minute.'},
+  {id:'gerard',l:'Gérard',kw:['gerard','client','monsieur beaulieu','relation'],a:'M. Beaulieu était un client. Très gentil. C’est tout.'},
+  {id:'cave',l:'La cave',kw:['cave','escalier','descendu'],a:'J’ai pas mis les pieds à la cave.'},
+  {id:'mere',l:'Ta mère',need:'lucieMsg',kw:['mere','maman','sophie','marty'],a:'Ma mère est morte l’an dernier. Je vois pas ce que ça vient faire ici.'}
+ ],
+ contra:{
+  digicode:{a:'Le code personnel à 00:49… oui, c’était moi. Je suis descendue chercher des bouteilles pour le traiteur. J’ai rien vu, je suis remontée tout de suite.',s:30},
+  lucieMsg:{a:'Je voulais lui parler… d’un sujet personnel. Ça ne vous regarde pas.',s:20},
+  vieille:{after:'digicode',pre:'Où vous avez trouvé ça ?! C’est privé. Laissez ma mère tranquille.',a:'(elle fond en larmes) Oui. C’est mon père. Ma mère me l’a dit avant de mourir. J’ai organisé ce mariage pour être près de lui… À 00:49 je suis descendue pour enfin lui parler. Et j’ai entendu crier. Bastien hurlait « tu vas tout gâcher ». Je me suis cachée derrière les tonneaux. Il l’a poussé, Léna. Il l’a poussé dans l’escalier. Puis il est sorti par la porte de secours. J’ai rien dit… la fille cachée qui débarque et qui hérite, tout le monde aurait cru que c’était moi.',give:['lucieTemoin'],s:100,brk:true},
+  dispute:{a:'Ce… c’est M. Beaulieu, oui. L’autre homme, je sais pas.',s:15}
+ }},
+marco:{intro:'Bonsoir madame. Je sais pas si c’est important, mais j’ai vu un truc ce soir.',
+ def:['Je suis qu’un serveur, moi…','Ça, je sais pas.','Je vous ai dit ce que j’ai vu.'],
+ topics:[
+  {id:'vu',l:'Qu’est-ce que tu as vu ?',kw:['vu','quoi','quelque chose','cour','dehors','raconte','truc'],a:'Vers 00h58, je fumais dans la cour arrière. La porte de secours de la cave s’est ouverte, un homme est sorti, vite. Costume gris foncé. Il frottait sa manche.',give:['marco']},
+  {id:'qui',l:'Tu l’as reconnu ?',kw:['qui','visage','reconnu','homme','identite','tete'],a:'Il faisait trop noir pour le visage. Mais il avait une grosse montre dorée qui brillait sous la lampe.'},
+  {id:'corps',l:'La découverte du corps',kw:['corps','trouve','decouvert','1h12','une heure douze'],a:'À 1h12 je suis descendu chercher du champagne. Il était en bas des marches. J’ai crié, et on a appelé les secours.'}
+ ],
+ contra:{
+  manche:{a:'C’est elle ! Cette montre dorée, c’est exactement celle que j’ai vue !',s:0},
+  hugoAveu:{a:'Le marié ? Non, lui il a un costume gris clair. L’homme que j’ai vu, c’était foncé.',s:0}
+ }}
+};
+
+const CALLS = {
+ 1:['Allô Léna ? Capitaine Morel. Désolé de te réveiller.','Mariage au domaine de la Combe-Noire, près de Rouffignac. Le père de la mariée, Gérard Beaulieu, a été retrouvé mort en bas de l’escalier de la cave, à 1h12.','Tout le monde parle d’un accident, il avait un peu bu. Moi, j’y crois pas.','Je t’ai envoyé tout ce qu’on a : son téléphone, l’appareil du photographe, le journal de la porte de la cave, et leurs réseaux sociaux.','Les invités sont gardés dans la salle de réception. Tu peux interroger qui tu veux. Trouve-moi ce qui s’est passé.'],
+ 2:['Léna, le légiste vient de m’appeler.','Ce n’est pas un accident. Gérard a des bleus sur la poitrine, comme si on l’avait poussé violemment.','Et la mort remonte entre 00h45 et 00h55. Celui qui l’a trouvé à 1h12 n’y est pour rien.','Concentre-toi sur ce qui s’est passé dans cette cave avant 1h.'],
+ 3:['Léna, c’est encore moi.','Le serveur, Marco, demande à te parler. Il dit qu’il a vu quelque chose dans la cour arrière.','Je te l’envoie en salle d’interrogatoire.'],
+ 4:['Bien joué, Léna. Si Lucie dit vrai, tu tiens ton coupable.','Fais-le craquer avec ce témoignage, puis procède à l’arrestation depuis ton carnet de preuves.']
+};
+
+const OBJ = [
+ {t:'Écouter le capitaine Morel',ok:()=>S.calls[1]},
+ {t:'Comprendre comment Gérard est mort',ok:()=>S.ev.legiste},
+ {t:'Savoir qui est descendu à la cave cette nuit',ok:()=>S.ev.digicode&&S.ev.code},
+ {t:'Découvrir ce que cache Hugo',ok:()=>S.ev.hugoAveu},
+ {t:'Trouver le mobile du meurtre',ok:()=>S.ev.audit&&S.ev.associe},
+ {t:'Trouver un témoin',ok:()=>S.ev.lucieTemoin},
+ {t:'Faire avouer le coupable et l’arrêter',ok:()=>S.done}
+];
+const HINTS = [
+ [()=>!S.ev.digicode,'Ouvre le Dossier : le journal de la porte de la cave dit qui est entré et quand. Puis demande à Camille qui avait le code.'],
+ [()=>!S.ev.rdvHugo,'Lis tous les messages du téléphone de Gérard. Quelqu’un avait rendez-vous avec lui à 1h.'],
+ [()=>!S.ev.hugoAveu,'Hugo ment. Montre-lui le message du rendez-vous, puis le journal de la porte.'],
+ [()=>!S.ev.audit||!S.ev.associe,'Le mobile, c’est l’argent. Lis le message du cabinet d’audit, puis regarde le Facebook de Gérard : qui a les initiales B.R. ?'],
+ [()=>!S.ev.vieille,'Lucie cache un secret. Fouille son Flashgram, regarde bien la vieille photo.'],
+ [()=>!S.ev.lucieTemoin,'Lucie est descendue à la cave à 00:49. Montre-lui d’abord le journal de la porte, puis sa vieille photo.'],
+ [()=>!S.ev.aveuBastien,'Va voir Bastien et présente-lui le témoignage de Lucie.'],
+ [()=>true,'Tout est prêt : va dans Preuves et procède à l’arrestation.']
+];
+
+// ================= ÉTAT =================
+const KEY='totoche-ep2-v1';
+const fresh=()=>({started:false,calls:{},ev:{},seen:{},it:{},errors:0,hints:0,done:false,ch:{},start:Date.now(),view:'brief',voice:true,ending:false});
+let S;try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=id=>document.getElementById(id);
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[’']/g,' ');
+let curThread=null,curIG='camille.beaulieu',curSus=null,igSeen={};
+
+// ================= VOIX =================
+let voices=[];
+function loadVoices(){try{voices=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang))}catch(e){}}
+try{loadVoices();speechSynthesis.onvoiceschanged=loadVoices}catch(e){}
+const FEM=/(am[ée]lie|audrey|aur[ée]lie|marie|virginie|c[ée]line|julie|hortense|denise|[ée]lise|chantal|flo|sandy|shelley|grandma|sylvie|vivienne|eloise|brigitte|coralie|jacqueline|female|femme)/i;
+function pickVoice(g){
+  if(!voices.length)loadVoices();
+  const fr=voices.filter(v=>/fr-FR/i.test(v.lang)); const pool=fr.length?fr:voices;
+  const m=pool.filter(v=>g==='f'?FEM.test(v.name):!FEM.test(v.name));
+  const best=(m.length?m:pool).sort((a,b)=>(/premium|enhanced|am[ée]lior/i.test(b.name)?1:0)-(/premium|enhanced|am[ée]lior/i.test(a.name)?1:0));
+  return best[0]||null;
+}
+function speak(text,who){
+  return new Promise(res=>{
+    if(!S.voice||!('speechSynthesis' in window)){setTimeout(res,Math.min(5000,600+text.length*35));return}
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text.replace(/\(.*?\)/g,''));
+      const v=(P[who]&&P[who].v)||{g:'m',p:1,r:1};
+      const vo=pickVoice(v.g); if(vo)u.voice=vo; u.lang='fr-FR'; u.pitch=v.p; u.rate=v.r;
+      let done=false;const fin=()=>{if(!done){done=true;res()}};
+      u.onend=fin;u.onerror=fin;setTimeout(fin,1500+text.length*90);
+      speechSynthesis.speak(u);
+    }catch(e){res()}
+  });
+}
+function shush(){try{speechSynthesis.cancel()}catch(e){}}
+
+// ================= SONS =================
+let AC;function ac(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}return AC}
+let ringT;
+function ringStart(){const a=ac();if(!a)return;let n=0;
+  const beep=()=>{[0,0.4].forEach(d=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=n%2?480:440;o.type='sine';g.gain.setValueAtTime(0,a.currentTime+d);g.gain.linearRampToValueAtTime(.12,a.currentTime+d+.03);g.gain.linearRampToValueAtTime(0,a.currentTime+d+.35);o.connect(g);g.connect(a.destination);o.start(a.currentTime+d);o.stop(a.currentTime+d+.4)});n++};
+  beep();ringT=setInterval(beep,2200)}
+function ringStop(){clearInterval(ringT)}
+function blip(f=880){const a=ac();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(.08,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+.25);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.3)}
+
+// ================= PREUVES =================
+let toastT;
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3200)}
+function addEv(id){if(!id||S.ev[id])return;S.ev[id]=Date.now();save();blip(1040);toast(EV[id].ic+' Preuve ajoutée : '+EV[id].t);triggers()}
+function evCount(){return Object.keys(S.ev).length}
+function triggers(){
+  if(!S.calls[2]&&evCount()>=5&&!pendingCall)setTimeout(()=>incoming(2),2500);
+  else if(S.calls[2]&&!S.calls[3]&&(S.ev.hugoAveu||S.ev.lucieTemoin||evCount()>=11)&&!pendingCall)setTimeout(()=>incoming(3),3000);
+  else if(S.calls[3]&&!S.calls[4]&&S.ev.lucieTemoin&&!pendingCall)setTimeout(()=>incoming(4),3000);
+}
+
+// ================= APPELS =================
+let pendingCall=null,callAbort=false;
+function incoming(n){if(S.calls[n]||pendingCall)return;pendingCall=n;
+  $('callov').innerHTML=`<div class="call ring" id="callbox"><img src="morel.jpg"><h2>Capitaine Morel</h2><div class="st">Appel entrant…</div><div class="sub"></div>
+  <div class="acts"><button class="cb r" onclick="declineCall()">✕</button><button class="cb g" onclick="answerCall()">📞</button></div></div>`;ringStart()}
+function declineCall(){ringStop();const n=pendingCall;pendingCall=null;$('callov').innerHTML='';toast('📞 Morel rappellera dans un instant…');setTimeout(()=>incoming(n),20000)}
+async function answerCall(){ringStop();ac();const n=pendingCall;callAbort=false;
+  const c=$('callbox');c.classList.remove('ring');c.querySelector('.st').textContent='En ligne';
+  c.querySelector('.acts').innerHTML='<button class="cb r" onclick="hangup()">✕</button>';
+  const sub=c.querySelector('.sub');
+  for(const line of CALLS[n]){if(callAbort)break;sub.textContent='« '+line+' »';await speak(line,'morel');await new Promise(r=>setTimeout(r,250))}
+  endCall(n)}
+function hangup(){callAbort=true;shush();endCall(pendingCall)}
+function endCall(n){if(!pendingCall)return;S.calls[n]=Date.now();pendingCall=null;
+  if(n===2)addEv('legiste');save();$('callov').innerHTML='';render();setTimeout(triggers,500);if(n===1)toast('🗂️ Commence par le Dossier et les Messages');}
+async function callMorel(){
+  ac();const h=HINTS.find(x=>x[0]())[1];S.hints++;save();
+  $('callov').innerHTML=`<div class="call"><img src="morel.jpg"><h2>Capitaine Morel</h2><div class="st">En ligne</div><div class="sub">« ${h} »</div>
+  <div class="acts"><button class="cb r" onclick="shush();$('callov').innerHTML=''">✕</button></div></div>`;
+  await speak('Un conseil, Léna. '+h,'morel');
+}
+
+// ================= RENDU =================
+const NAV=[['brief','🗂️','Enquête'],['dossier','📁','Dossier'],['msg','💬','Messages'],['photo','📸','Photos'],['ig','📷','Flashgram'],['fb','👤','Facebook'],['it','🎙️','Interrogatoires'],['ev','📌','Preuves']];
+function go(v){shush();S.view=v;curSus=null;save();render();const m=document.querySelector('.view');if(m)m.scrollTop=0}
+function render(){
+  if(!S.started){renderIntro();return}
+  if(S.ending){renderEnd();return}
+  $('nav').innerHTML=`<div class="brand"><small class="tw">INSPECTEUR TOTOCHE</small><b>Le Mariage</b></div>`+
+   NAV.map(([id,i,l])=>`<button class="nb ${S.view===id?'on':''}" onclick="go('${id}')"><span class="i">${i}</span>${l}${id==='ev'?` <span class="mut" style="font-size:12px">${evCount()}</span>`:''}</button>`).join('')+
+   `<div class="sp"></div><button class="nb mcall" onclick="callMorel()"><span class="i">📞</span>Appeler Morel</button>
+   <button class="nb quit" onclick="S.voice=!S.voice;save();render()"><span class="i">${S.voice?'🔊':'🔇'}</span>Voix ${S.voice?'activée':'coupée'}</button>
+   <button class="nb quit" onclick="shush();location.href='../'"><span class="i">‹</span>Quitter l’enquête</button>`;
+  const f={brief:vBrief,dossier:vDossier,msg:vMsg,photo:vPhoto,ig:vIG,fb:vFB,it:vIT,ev:vEV}[S.view]||vBrief;
+  $('main').innerHTML=f();
+  if(S.view==='it'&&curSus){const l=$('rlog');if(l)l.scrollTop=l.scrollHeight}
+}
+
+function renderIntro(){
+  $('nav').innerHTML='';$('main').innerHTML='';
+  $('ov').innerHTML=`<div class="intro">
+  <button class="btn" style="align-self:flex-start" onclick="location.href='../'">‹ Épisodes</button>
+  <div class="tw" style="color:var(--acc);letter-spacing:3px;font-size:13px">ÉPISODE 2 · INSPECTEUR TOTOCHE</div>
+  <h1>Le Mariage</h1>
+  <div class="paper">Samedi 14 novembre. Domaine de la Combe-Noire, près de Rouffignac.<br>140 invités, un mariage parfait.<br><br>À 1h12, le père de la mariée est retrouvé mort en bas de l’escalier de la cave.</div>
+  <p>Tu es l’enquêtrice de garde cette nuit, Léna. Fouille les téléphones, les photos, les réseaux sociaux. Interroge les suspects : tu peux leur parler au micro 🎙️ et leur balancer tes preuves à la figure. Monte le son 🔊.</p>
+  <button class="btn acc big" onclick="startGame()">Commencer l’enquête</button>
+  </div>`;
+}
+function startGame(){ac();try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}catch(e){}
+  S.started=true;S.start=Date.now();save();$('ov').innerHTML='';render();setTimeout(()=>incoming(1),1500)}
+
+function vBrief(){
+  const sus=['camille','hugo','nathalie','bastien','lucie'];
+  return `<div class="view"><h1 class="vt">L’enquête</h1><div class="vs">Domaine de la Combe-Noire · nuit du 14 au 15 novembre</div>
+  <div class="row2"><div class="card"><span class="lbl">OBJECTIFS</span>${OBJ.map(o=>`<div class="obj ${o.ok()?'ok':''}"><div class="c">${o.ok()?'✓':''}</div><span>${o.t}</span></div>`).join('')}</div>
+  <div class="card"><span class="lbl">LA VICTIME</span><div style="display:flex;gap:14px;align-items:center"><div class="av" style="width:74px;height:74px"><img src="gerard.jpg"></div><div><b style="font-size:18px">Gérard Beaulieu</b><div class="mut" style="font-size:14px;line-height:1.5">62 ans · PDG des Noix Beaulieu<br>Père de la mariée<br>Retrouvé mort à 01:12 en bas de l’escalier de la cave</div></div></div></div></div>
+  <span class="lbl" style="margin-top:10px">LES PERSONNES PRÉSENTES</span>
+  <div class="suspects">${sus.map(s=>`<button class="sus" onclick="openSus('${s}')"><img src="${P[s].img}"><div><b>${P[s].n}</b><small>${P[s].r}</small></div></button>`).join('')}</div>
+  </div>`}
+
+function vDossier(){
+  addEvLater('digicode');
+  return `<div class="view"><h1 class="vt">Dossier</h1><div class="vs">Ce que la gendarmerie a relevé sur place</div>
+  <div class="row2">
+  <div class="card"><span class="lbl">SCÈNE DE CRIME</span><img src="cave.jpg" style="width:100%;border-radius:12px;margin-bottom:10px">
+  <div style="font-size:15px;line-height:1.55">Corps découvert à <b>01:12</b> par Marco, serveur, en bas de l’escalier de la cave. Une bouteille cassée à côté du corps. Le téléphone de la victime est fêlé mais fonctionne.</div></div>
+  <div class="card"><span class="lbl">JOURNAL DE LA PORTE DE LA CAVE</span><div class="log">
+  00:41 — Code FAMILLE · accès<br>00:43 — Code FAMILLE · accès<br>00:49 — Code PERSONNEL · accès<br><span class="hl">00:57 — Porte de secours (cour arrière) ouverte</span><br>01:04 — Code FAMILLE · accès<br>01:12 — Code PERSONNEL · accès · alerte</div>
+  <div class="mut" style="font-size:13.5px;margin-top:10px;line-height:1.5">Code PERSONNEL : donné au traiteur et à l’organisatrice.<br>Code FAMILLE : donné à M. Beaulieu. Pour savoir à qui il l’a donné, demande à la famille.</div></div>
+  </div>
+  <div class="card"><span class="lbl">RAPPORT DU LÉGISTE</span>${S.ev.legiste?`<div style="font-size:15px;line-height:1.6">Décès entre <b>00:45 et 00:55</b>. Fracture du crâne due à la chute. <b>Hématomes sur le thorax</b> : la victime a été violemment poussée. Taux d’alcool faible : il n’était pas ivre.</div>`:`<div class="locked">🔒 En attente du légiste…</div>`}</div>
+  </div>`}
+let laterEv=[];function addEvLater(id){laterEv.push(id);setTimeout(()=>{laterEv.splice(0).forEach(addEv)},700)}
+
+function vMsg(){
+  const t=THREADS.find(x=>x.id===curThread);
+  if(t&&t.ev)addEvLater(t.ev);
+  const av=th=>th.who?`<div class="av"><img src="${P[th.who].img}"></div>`:`<div class="av" style="background:#355">📊</div>`;
+  return `<div class="view"><h1 class="vt">Messages</h1><div class="vs">Téléphone de Gérard Beaulieu · extraction de la gendarmerie</div>
+  <div class="split"><div class="list">${THREADS.map(th=>`<button class="th ${curThread===th.id?'on':''}" onclick="curThread='${th.id}';S.seen['t_'+'${th.id}']=1;save();render()">${av(th)}<div class="m"><b>${th.name}</b><small>${(th.m.filter(x=>x.length>2).slice(-1)[0]||['',''])[1]}</small></div>${S.seen['t_'+th.id]?'':'<span style="width:9px;height:9px;border-radius:50%;background:var(--acc)"></span>'}</button>`).join('')}</div>
+  <div class="chat">${t?`<div class="hd">${t.name}</div>`+t.m.map(x=>x.length===1?`<div class="day">${x[0]}</div>`:x[0]==='read'?`<div class="read">${x[1]}</div>`:`<div class="b ${x[0]}">${x[1]}<small>${x[2]}</small></div>`).join(''):'<div class="mut" style="margin:auto">Choisis une conversation</div>'}</div></div></div>`}
+
+function vPhoto(){
+  return `<div class="view"><h1 class="vt">Appareil du photographe</h1><div class="vs">Tom Vidal, photographe du mariage · les visages sont reconnus automatiquement</div>
+  <div class="pgrid">${PHOTOS.map((p,i)=>`<button class="ph" onclick="openPhoto(${i})"><img src="${p.f}"><span class="tm">${p.h}</span>${S.seen['p'+i]?'':'<span class="nw"></span>'}</button>`).join('')}</div></div>`}
+function openPhoto(i){const p=PHOTOS[i];S.seen['p'+i]=1;save();if(p.ev)addEvLater(p.ev);
+  $('ov').innerHTML=`<div class="viewer"><button class="x" onclick="$('ov').innerHTML='';render()">✕</button><div class="vbox">
+  <div class="vimg"><img src="${p.f}" id="vimg">${p.hot?`<button class="hot" style="left:${p.hot.x-p.hot.r/2}%;top:${p.hot.y-p.hot.r/2}%;width:${p.hot.r}%;height:${p.hot.r}%" onclick="zoomHot(${i})" title="${p.hot.lab}"></button>`:''}</div>
+  <div class="vinfo"><div class="tw" style="color:var(--acc)">${p.h}</div><h3>${p.t}</h3><div class="mut" style="margin-bottom:8px">Domaine de la Combe-Noire</div>
+  <div style="font-size:13px;color:var(--mut);margin-bottom:4px">PERSONNES RECONNUES</div>${p.tags.length?p.tags.map(t=>`<span class="tag ${t==='?'?'unk':''}">${t==='?'?'Visage non reconnu':t}</span>`).join(''):'<span class="mut">Aucune</span>'}
+  ${p.hot?`<div style="margin-top:14px;color:var(--acc);font-size:14px">👆 Un détail clignote sur la photo…</div>`:''}</div></div></div>`}
+function zoomHot(i){const h=PHOTOS[i].hot;$('vimg').src=h.img;document.querySelector('.hot').remove();addEv(h.ev)}
+
+function vIG(){
+  const u=IG[curIG];igSeen[curIG]=1;
+  u.posts.forEach(p=>{if(p.ev)addEvLater(p.ev);p.cm.forEach(c=>{if(c[3])addEvLater(c[3])})});
+  return `<div class="view"><h1 class="vt">Flashgram</h1><div class="vs">Les comptes publics des invités</div>
+  <div class="igtabs">${Object.keys(IG).map(k=>`<button class="igtab ${k===curIG?'on':''}" onclick="curIG='${k}';render();document.querySelector('.view').scrollTop=0"><div class="ring"><img src="${P[IG[k].who].img}"></div>${k.length>12?k.slice(0,11)+'…':k}</button>`).join('')}</div>
+  <div class="ig"><div class="bio"><div class="av"><img src="${P[u.who].img}"></div><div><b style="font-size:18px">@${curIG}</b><div class="mut" style="font-size:14px">${P[u.who].n}</div><div style="font-size:14px;margin-top:4px">${u.bio}</div></div></div>
+  ${u.posts.map(p=>`<div class="post"><div class="ph2"><div class="av"><img src="${P[u.who].img}"></div>${curIG}</div><img src="${p.img}" style="${p.img==='vieillephoto.jpg'?'filter:sepia(.35)':''}">
+   <div class="pb"><b>${curIG}</b> ${p.txt}<div class="cm">${p.cm.map(c=>`<div><b>${c[0]}</b> ${c[1]} <span class="mut" style="font-size:12px">${c[2]||''}</span></div>`).join('')}</div><div class="tt">${p.h}</div></div></div>`).join('')}
+  </div></div>`}
+
+function vFB(){
+  FB.forEach(p=>p.ev&&addEvLater(p.ev));
+  const av=w=>`<div class="av"><img src="${P[w].img}"></div>`;
+  return `<div class="view"><h1 class="vt">Facebook</h1><div class="vs">Profil public de la victime</div>
+  <div class="fbcover"><div class="av"><img src="gerard.jpg"></div></div>
+  <div class="fbname">Gérard Beaulieu</div><div class="mut" style="margin-bottom:20px">PDG chez Les Noix Beaulieu · Rouffignac-Saint-Cernin</div>
+  ${FB.map(p=>`<div class="fbpost"><div class="hdp">${av('gerard')}<div><b>Gérard Beaulieu</b><div class="mut" style="font-size:12.5px">${p.h}</div></div></div><p>${p.txt}</p>${p.img?`<img src="${p.img}">`:''}
+  ${p.cm.length?`<div class="cms">${p.cm.map(c=>`<div class="fbc">${av(c[0])}<div><div><b>${P[c[0]].n}</b><br>${c[1]}</div></div></div>`).join('')}</div>`:''}</div>`).join('')}</div>`}
+
+// ---------- Interrogatoires ----------
+function susAvail(s){return s!=='marco'||S.calls[3]}
+function vIT(){
+  if(curSus)return vRoom();
+  const list=['camille','hugo','nathalie','bastien','lucie','marco'];
+  return `<div class="view"><h1 class="vt">Interrogatoires</h1><div class="vs">Pose tes questions au micro 🎙️ ou par écrit, et présente tes preuves quand quelqu’un ment.</div>
+  <div class="suspects">${list.map(s=>{const st=S.it[s];const ok=susAvail(s);return `<button class="sus ${ok?'':'lock'}" onclick="${ok?`openSus('${s}')`:`toast('🔒 Personne d’autre ne veut parler… pour l’instant')`}"><img src="${P[s].img}"><div><b>${ok?P[s].n:'???'}</b><small>${ok?(st&&st.broke?'✓ A craqué':st?'Déjà interrogé·e':P[s].r):'Témoin inconnu'}</small></div></button>`}).join('')}</div></div>`}
+function openSus(s){shush();S.view='it';curSus=s;if(!S.it[s]){S.it[s]={log:[['s',IT[s].intro]],stress:10,used:{},shown:{}};save();render();speak(IT[s].intro,s)}else{save();render()}}
+function vRoom(){
+  const s=curSus,st=S.it[s],it=IT[s];
+  const tops=it.topics.filter(t=>!t.need||S.ev[t.need]);
+  return `<div class="room"><div class="rhead"><button class="btn" onclick="shush();curSus=null;render()">‹</button><img src="${P[s].img}"><div><h2>${P[s].n}</h2><div class="mut">${P[s].r}</div><div class="stress" title="Nervosité"><i style="width:${Math.min(100,st.stress)}%"></i></div></div></div>
+  <div class="rlog" id="rlog">${st.log.map(l=>`<div class="say ${l[0]}${l[2]?' br':''}">${l[1]}</div>`).join('')}</div>
+  <div class="rbar"><div class="chips">${tops.map(t=>`<button class="chip ${st.used[t.id]?'used':''}" onclick="ask('${t.id}')">${t.l}</button>`).join('')}</div>
+  <div class="inrow"><button class="btn mic" id="micb" onclick="toggleMic()">🎙️</button><input id="q" placeholder="Pose ta question…" onkeydown="if(event.key==='Enter')askText()"><button class="btn" onclick="askText()">➤</button><button class="btn acc" onclick="presentPick()">📌 Preuve</button></div></div></div>`}
+let busy=false;
+async function suspectSays(text,brk){const st=S.it[curSus];st.log.push(['s',text,brk?1:0]);save();render();await speak(text,curSus)}
+function ask(tid,said){if(busy)return;const s=curSus,st=S.it[s],t=IT[s].topics.find(x=>x.id===tid);
+  st.log.push(['l',said||t.l]);st.used[tid]=1;busy=true;
+  setTimeout(async()=>{await suspectSays(t.a);(t.give||[]).forEach(addEv);busy=false},450)}
+function askText(){const i=$('q');const v=i.value.trim();if(!v)return;i.value='';handleSpeech(v)}
+function handleSpeech(v){if(busy)return;const s=curSus,it=IT[s],n=norm(v);
+  const tops=it.topics.filter(t=>!t.need||S.ev[t.need]);
+  let best=null,bs=0;tops.forEach(t=>{const sc=t.kw.reduce((a,k)=>a+(n.includes(norm(k))?1:0),0);if(sc>bs){bs=sc;best=t}});
+  if(best)ask(best.id,v);
+  else{const st=S.it[s];st.log.push(['l',v]);busy=true;setTimeout(async()=>{await suspectSays(it.def[Math.floor(Math.random()*it.def.length)]);busy=false},400)}}
+function presentPick(){
+  const ids=Object.keys(S.ev);
+  $('ov').innerHTML=`<div class="ov" onclick="if(event.target===this)this.remove()"><div class="modal"><h2>Présenter une preuve</h2><div class="mut">À ${P[curSus].n}</div>
+  ${ids.length?ids.map(id=>`<button class="evi" onclick="present('${id}')"><span class="ic">${EV[id].ic}</span><div><b>${EV[id].t}</b><small>${EV[id].d}</small></div></button>`).join(''):'<p class="mut" style="margin-top:14px">Tu n’as encore aucune preuve. Fouille les messages, photos et réseaux !</p>'}
+  <button class="btn big" style="margin-top:14px" onclick="$('ov').innerHTML=''">Annuler</button></div></div>`}
+function present(id){$('ov').innerHTML='';if(busy)return;const s=curSus,st=S.it[s],c=IT[s].contra[id];
+  st.log.push(['ev','📌 '+EV[id].t]);busy=true;
+  setTimeout(async()=>{
+    let txt,brk=false,give=[];
+    if(!c){txt=['Et alors ? Ça ne prouve rien.','Je ne vois pas ce que ça a à voir avec moi.','Hmm. Et ?'][Math.floor(Math.random()*3)]}
+    else if(c.after&&!st.shown[c.after]){txt=c.pre}
+    else{txt=c.a;brk=!!c.brk;give=c.give||[];st.stress=Math.max(0,st.stress+(c.s||0))}
+    st.shown[id]=1;if(brk){st.broke=1;st.log.push(['sys','💥 '+P[s].n.split(' ')[0]+' craque !'])}
+    await suspectSays(txt,brk);give.forEach(addEv);busy=false;
+  },500)}
+// micro
+let rec=null,recOn=false;
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('🎙️ Micro indisponible ici : active la dictée dans Réglages > Général > Clavier, ou écris ta question');$('q').focus();return}
+  if(recOn){try{rec.stop()}catch(e){}return}
+  shush();rec=new SR();rec.lang='fr-FR';rec.interimResults=true;rec.continuous=false;
+  rec.onstart=()=>{recOn=true;$('micb').classList.add('on');$('q').placeholder='Je t’écoute…'};
+  rec.onresult=e=>{let t='';for(const r of e.results)t+=r[0].transcript;$('q').value=t;if(e.results[e.results.length-1].isFinal){$('q').value='';handleSpeech(t)}};
+  rec.onerror=e=>{if(e.error==='not-allowed')toast('🎙️ Autorise le micro dans les réglages de Safari')};
+  rec.onend=()=>{recOn=false;const b=$('micb');if(b)b.classList.remove('on');const q=$('q');if(q)q.placeholder='Pose ta question…'};
+  try{rec.start()}catch(e){}
+}
+
+// ---------- Preuves & arrestation ----------
+function vEV(){
+  const ids=Object.keys(S.ev);
+  return `<div class="view"><h1 class="vt">Carnet de preuves</h1><div class="vs">${ids.length} preuve${ids.length>1?'s':''} sur ${Object.keys(EV).length} · ${S.errors} erreur${S.errors>1?'s':''} · ${S.hints} appel${S.hints>1?'s':''} à Morel</div>
+  <button class="btn acc big" style="margin-bottom:18px;max-width:560px" onclick="arrestPick()">🚔 Procéder à une arrestation</button>
+  <div style="max-width:720px">${ids.map(id=>`<div class="evi"><span class="ic">${EV[id].ic}</span><div><b>${EV[id].t}</b><small>${EV[id].d}</small></div></div>`).join('')||'<p class="mut">Aucune preuve pour l’instant.</p>'}</div></div>`}
+function arrestPick(){
+  $('ov').innerHTML=`<div class="ov" onclick="if(event.target===this)this.remove()"><div class="modal"><h2>Qui arrêtes-tu ?</h2><div class="mut">Une fausse arrestation, ça se paie. Sois sûre de toi.</div>
+  ${['camille','hugo','nathalie','bastien','lucie'].map(s=>`<button class="evi" onclick="arrest('${s}')"><div class="av"><img src="${P[s].img}"></div><div><b>${P[s].n}</b><small>${P[s].r}</small></div></button>`).join('')}
+  <button class="btn big" style="margin-top:14px" onclick="$('ov').innerHTML=''">Annuler</button></div></div>`}
+async function arrest(s){$('ov').innerHTML='';
+  let line;
+  if(s==='bastien'&&S.ev.aveuBastien){S.ending=true;S.ch={};save();render();return}
+  if(s==='bastien')line='Bastien, je suis d’accord. Mais le procureur refuse : sans témoin ni aveu, son avocat va le sortir en une heure. Fais-le craquer d’abord.';
+  else{S.errors++;line={camille:'Camille ?! Elle était sur la piste, Léna. Tu viens d’arrêter une jeune mariée en deuil. On la relâche.',hugo:'Hugo a menti, oui. Mais Gérard était déjà mort quand il est arrivé. On le relâche.',nathalie:'Nathalie avait un mobile, mais elle était sur la piste à l’heure du crime. On la relâche.',lucie:'Lucie ? Elle a peur, elle cache quelque chose… mais ce n’est pas elle. On la relâche. Fais-la parler plutôt.'}[s]}
+  save();
+  $('callov').innerHTML=`<div class="call"><img src="morel.jpg"><h2>Capitaine Morel</h2><div class="st">En ligne</div><div class="sub">« ${line} »</div><div class="acts"><button class="cb r" onclick="shush();$('callov').innerHTML='';render()">✕</button></div></div>`;
+  await speak(line,'morel');
+}
+
+// ---------- Fin ----------
+const CHOICES=[
+ {k:'b',q:'Bastien est menotté. Que demandes-tu au procureur ?',o:[
+   ['meurtre','Mise en examen pour meurtre','Pas de cadeau. Trente ans d’amitié n’excusent rien.'],
+   ['marche','Lui proposer un marché','Il rembourse tout et dénonce le comptable qui l’a aidé à cacher l’argent, en échange d’une requalification.']]},
+ {k:'l',q:'Lucie t’a supplié de garder son secret. Que fais-tu ?',o:[
+   ['reveler','Tout révéler à Camille','Elle a le droit de savoir qu’elle a une sœur.'],
+   ['secret','Garder le secret de Lucie','C’est à Lucie de choisir quand le dire.']]},
+ {k:'h',need:'hugoAveu',q:'Hugo a laissé le corps de Gérard sans rien dire. Et lui ?',o:[
+   ['poursuivre','Le poursuivre','Mentir à la police et fuir un corps, ça a des conséquences.'],
+   ['fermer','Fermer les yeux','Gérard était déjà mort. Il a eu peur, c’est tout.']]}
+];
+const ENDTXT={
+ meurtre:'Bastien Roche est mis en examen pour meurtre et abus de biens sociaux. Au procès, il n’a jamais regardé Camille dans les yeux.',
+ marche:'Bastien a tout balancé : le comptable, les comptes en Suisse, les fausses factures. Les 1,2 million sont revenus à l’entreprise, que Camille dirige désormais. Le juge a retenu l’homicide involontaire.',
+ reveler:'Camille et Lucie se sont regardées longtemps sans rien dire. Puis Camille l’a prise dans ses bras. Depuis, elles déjeunent ensemble tous les dimanches, à Rouffignac.',
+ secret:'Lucie est partie avant l’aube. Elle a laissé une lettre pour Camille, à ouvrir « quand tu seras prête ». Camille ne l’a pas encore ouverte.',
+ poursuivre:'Hugo a pris du sursis pour non-assistance et faux témoignage. Camille a mis six mois à lui reparler.',
+ fermer:'Hugo a juré à Camille de ne plus jamais lui mentir. Et de ne plus jamais remettre les pieds dans un casino.'
+};
+function renderEnd(){
+  $('nav').innerHTML='';shush();
+  const next=CHOICES.find(c=>!S.ch[c.k]&&(!c.need||S.ev[c.need]));
+  if(next){$('main').innerHTML=`<div class="view" style="max-width:640px;margin:0 auto;position:relative;padding-top:50px">
+    <div class="tw" style="color:var(--acc);letter-spacing:2px">INTERPELLATION</div><h1 class="vt" style="margin:8px 0 14px">${next.q}</h1>
+    <div class="choice">${next.o.map(o=>`<button onclick="S.ch['${next.k}']='${o[0]}';save();render()"><b>${o[1]}</b><span class="mut">${o[2]}</span></button>`).join('')}</div></div>`;return}
+  const mins=Math.round((Date.now()-S.start)/60000);
+  const sc=S.errors*2+S.hints;const rank=sc===0?'Commissaire divisionnaire ⭐⭐⭐':sc<=3?'Commissaire ⭐⭐':sc<=7?'Lieutenante ⭐':'Stagiaire (mais elle a trouvé !)';
+  const txt=[ENDTXT[S.ch.b],ENDTXT[S.ch.l],S.ch.h?ENDTXT[S.ch.h]:''].filter(Boolean);
+  S.done=true;S.finished=S.finished||Date.now();save();
+  $('main').innerHTML=`<div class="view" style="max-width:660px;margin:0 auto;position:relative;padding-top:50px;text-align:center">
+  <div class="stamp">AFFAIRE RÉSOLUE</div><h1 class="vt" style="margin:20px 0">Bastien Roche a tué Gérard Beaulieu.</h1>
+  ${txt.map(t=>`<p style="font-size:17px;line-height:1.6;color:#d6d6de;margin-bottom:16px;text-align:left">${t}</p>`).join('')}
+  <div class="paper" style="text-align:left;margin:20px 0">Durée de l’enquête : ${mins} min<br>Preuves trouvées : ${evCount()}/${Object.keys(EV).length}<br>Fausses arrestations : ${S.errors}<br>Appels à Morel : ${S.hints}<br>Grade : ${rank}</div>
+  <button class="btn acc big" onclick="location.href='../'">Retour aux épisodes</button>
+  <button class="btn big" style="margin-top:10px;opacity:.7" onclick="restart(this)">Recommencer l’épisode</button></div>`;
+}
+function restart(b){if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Sûre ? Appuie encore pour tout effacer';return}S=fresh();save();location.reload()}
+
+render();
+if(S.started&&!S.calls[1]&&!S.ending)setTimeout(()=>incoming(1),1200);
+</script>
+</body>
+</html>
