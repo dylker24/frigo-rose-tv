@@ -605,11 +605,23 @@ def popen(cmd):
                             bufsize=1, creationflags=NOWIN, env=run_env())
 
 
+def tmp_path_for(dst):
+    """Fichier temporaire d'une conversion : HORS des médiathèques (sinon Jellyfin et Tunarr voient une vidéo à moitié écrite),
+    mais sur le même disque pour que le déplacement final soit instantané."""
+    drv = os.path.splitdrive(os.path.abspath(dst))[0]
+    d = os.path.join(drv + os.sep, "FrigoRoseTemp") if drv else os.path.join(os.path.dirname(dst), ".frigo-tmp")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        d = os.path.dirname(dst)
+    return os.path.join(d, "%s-%s.mp4" % (secrets.token_hex(4), os.path.splitext(os.path.basename(dst))[0][:80]))
+
+
 def ffmpeg_convert(j, src, dst, label=""):
     info = probe(src)
     args, notes, heavy = plan_conversion(info)
     dur = float((info.get("format") or {}).get("duration") or 0)
-    tmp = dst + ".part.mp4"
+    tmp = tmp_path_for(dst)
     cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-i", src] + args + [tmp]
     j["msg"] = (label + " · " if label else "") + "Conversion : " + notes
     p = popen(cmd)
@@ -733,7 +745,7 @@ def do_merge(j):
                 f.write("file '%s'\n" % x.replace("'", "'\\''"))
         parts.append(lst)
         dst = unique_path(os.path.join(folder, safe_name(j["title"]) + ".mp4"))
-        tmp = dst + ".part.mp4"
+        tmp = tmp_path_for(dst)
         cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-f", "concat", "-safe", "0", "-i", lst,
                "-map", "0", "-c", "copy", "-movflags", "+faststart", tmp]
         if not _run_ff(j, cmd, total, 90, 9.5, "Je colle les parties…"):
@@ -741,7 +753,7 @@ def do_merge(j):
         os.replace(tmp, dst)
     finally:
         for x in parts + [locals().get("tmp") or ""]:
-            if x and os.path.basename(x).startswith(".assemblage-") or (x and x.endswith(".part.mp4")):
+            if x and os.path.basename(x).startswith(".assemblage-") or (x and x == locals().get("tmp")):
                 try:
                     os.remove(x)
                 except OSError:
@@ -970,7 +982,7 @@ def dvd_makemkv(j, drive, out):
         info = probe(src)
         args, notes, _h = plan_conversion(info)
         dur = float((info.get("format") or {}).get("duration") or 0)
-        tmp = out + ".part.mp4"
+        tmp = tmp_path_for(out)
         cmd = [tool("ffmpeg"), "-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-i", src] + args + [tmp]
         if not _run_ff(sub, cmd, dur, base, 40.0, "Conversion du film en MP4…"):
             return
