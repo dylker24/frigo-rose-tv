@@ -9,7 +9,7 @@
 <title>Cahier de culture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,500;1,6..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* Layout idea: une nuit de grotte, des dates gravées en très grand ; chaque domaine a sa couleur (ocre = histoire, lagon = géo, mousse = animaux) */
 :root{
@@ -30,7 +30,7 @@
   --good:oklch(84% .14 155);
   --bad:oklch(70% .17 20);
   --ink:oklch(20% .04 275);
-  --display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --display:"Outfit", "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --r:18px;
   color-scheme:dark;
@@ -49,14 +49,16 @@ body{
 }
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--pink);outline-offset:3px;border-radius:10px}
-h1,h2,h3{font-family:var(--display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1,h2,h3{font-family:var(--display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.02em}
+em{font-style:normal}
+.head h1{font-weight:800;letter-spacing:-.035em}
 img{max-width:100%;display:block}
 
 /* ---------- Header + nav ---------- */
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px max(16px,4vw);
   background:linear-gradient(var(--bg) 60%, transparent);}
 .brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:var(--text)}
-.brand b{font-family:var(--display);font-size:22px;font-style:italic;font-weight:700}
+.brand b{font-family:var(--display);font-size:22px;font-style:normal;font-weight:700}
 .brand span{font-size:12px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 .tabs{display:flex;gap:4px;margin-left:auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
 .brand{white-space:nowrap}
@@ -95,7 +97,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--c,var(--ochre));font-weight:700}
 .head{display:grid;gap:10px;padding:28px 0 26px}
 .head h1{font-size:clamp(44px,8vw,92px);line-height:.95}
-.head h1 em{font-style:italic;color:var(--c,var(--ochre))}
+.head h1 em{font-style:normal;color:var(--c,var(--ochre))}
 .head p{max-width:60ch;color:var(--muted);margin:0;font-size:17px}
 .sec-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:44px 0 16px}
 .sec-title h2{font-size:clamp(26px,3.6vw,38px)}
@@ -105,14 +107,14 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .hero{position:relative;padding:36px 0 30px;display:grid;gap:8px;min-height:340px;align-content:center}
 .hero .eyebrow{display:flex;gap:10px;align-items:center}
 .hero .eyebrow::before{content:"";width:28px;height:1px;background:currentColor}
-.roller{font-family:var(--display);font-weight:700;font-size:clamp(96px,22vw,250px);line-height:.86;letter-spacing:-.03em;font-variant-numeric:lining-nums tabular-nums;
+.roller{font-family:var(--display);font-weight:800;font-size:clamp(96px,22vw,250px);line-height:.86;letter-spacing:-.03em;font-variant-numeric:lining-nums tabular-nums;
   height:1em;overflow:hidden;display:flex;color:var(--text)}
 .roller .ch:nth-child(4n+1){color:var(--ochre)}.roller .ch:nth-child(4n+2){color:var(--pink)}.roller .ch:nth-child(4n+3){color:var(--lagoon)}.roller .ch:nth-child(4n+4){color:var(--moss)}
 .roller .ch{display:inline-block;animation:chIn .75s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k) * 60ms)}
 .roller.out .ch{animation:chOut .45s cubic-bezier(.6,0,.8,.2) both;animation-delay:calc(var(--k) * 35ms)}
 @keyframes chIn{from{transform:translateY(105%) rotate(6deg);opacity:0}to{transform:none;opacity:1}}
 @keyframes chOut{to{transform:translateY(-105%) rotate(-4deg);opacity:0}}
-.roller-cap{font-family:var(--display);font-style:italic;font-size:clamp(22px,3vw,34px);min-height:1.4em;color:var(--text)}
+.roller-cap{font-family:var(--display);font-style:normal;font-size:clamp(22px,3vw,34px);min-height:1.4em;color:var(--text)}
 .roller-cap span{display:inline-block;animation:capIn .8s .25s cubic-bezier(.2,.8,.2,1) both}
 @keyframes capIn{from{opacity:0;transform:translateX(-14px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
 .hero-bar{display:flex;gap:6px;margin-top:18px}
@@ -128,7 +130,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .tile:hover{transform:translateY(-6px) rotate(-1deg)}
 .tile:hover::before{opacity:1}
 .tile > *{position:relative}
-.tile .big{font-family:var(--display);font-size:64px;line-height:1;font-style:italic;color:var(--ink)}
+.tile .big{font-family:var(--display);font-size:64px;line-height:1;font-style:normal;color:var(--ink)}
 .tile h3{font-size:26px}
 .tile p{margin:0;color:color-mix(in oklab, var(--ink) 75%, transparent);font-size:14px;font-weight:500}
 .meter{height:6px;border-radius:6px;background:color-mix(in oklab, var(--ink) 18%, transparent);overflow:hidden}
@@ -136,7 +138,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 @keyframes grow{from{transform:scaleX(0)}}
 
 .fact{margin-top:14px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:22px 24px;border-radius:var(--r);background:linear-gradient(100deg,color-mix(in srgb,var(--c,var(--pink)) 26%, var(--surface)),var(--surface) 70%);border:1px solid color-mix(in srgb,var(--c,var(--pink)) 40%, var(--line))}
-.fact .q{font-family:var(--display);font-size:64px;line-height:.6;color:var(--c,var(--pink));font-style:italic;padding-top:18px}
+.fact .q{font-family:var(--display);font-size:64px;line-height:.6;color:var(--c,var(--pink));font-style:normal;padding-top:18px}
 .fact p{margin:0;font-size:18px}
 .fact p span{display:inline-block;animation:capIn .6s cubic-bezier(.2,.8,.2,1) both}
 @media (max-width:560px){.fact{grid-template-columns:1fr}.fact .q{display:none}}
@@ -164,7 +166,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .seg[aria-pressed="true"]::after{transform:none}
 .seg b{font-family:var(--display);font-size:clamp(17px,2vw,24px);line-height:1.05}
 .seg small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.seg .n{font-family:var(--display);font-style:italic;color:var(--c);font-size:15px}
+.seg .n{font-family:var(--display);font-style:normal;color:var(--c);font-size:15px}
 .cuts{position:relative;height:34px;margin-top:6px;font-size:12px;color:var(--muted)}
 .cuts span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;text-align:center}
 .cuts span::before{content:"";display:block;width:1px;height:10px;background:var(--muted);opacity:.6;margin:0 auto 4px}
@@ -180,7 +182,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .chapter .panel:nth-child(2){animation-delay:.08s}
 @keyframes panelIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 .chapter h2{font-size:clamp(34px,5vw,58px);line-height:1}
-.chapter .range{font-family:var(--display);font-style:italic;color:var(--c);font-size:20px;margin:6px 0 14px}
+.chapter .range{font-family:var(--display);font-style:normal;color:var(--c);font-size:20px;margin:6px 0 14px}
 .chapter .intro{font-size:18px;margin:0 0 18px;max-width:60ch}
 .pts{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .pts li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
@@ -219,7 +221,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
     repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, transparent 2px 14px),
     radial-gradient(circle at 25% 15%, rgba(255,255,255,.35), transparent 55%),
     linear-gradient(150deg, var(--c), var(--c2,var(--violet)))}
-.ph .ini{font-family:var(--display);font-style:italic;font-weight:700;font-size:120px;line-height:1;color:var(--ink);opacity:.85;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.ph .ini{font-family:var(--display);font-style:normal;font-weight:700;font-size:120px;line-height:1;color:var(--ink);opacity:.85;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
 .card:hover .ph .ini{transform:scale(1.08) rotate(-4deg)}
 .ph .hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--ink);font-weight:600;display:flex;gap:6px;align-items:center}
 .card-body{padding:16px 18px 20px;display:grid;gap:6px;align-content:start}
@@ -308,7 +310,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .opt{text-align:left;padding:18px 20px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-size:17px;font-weight:600;display:flex;gap:14px;align-items:center;
   animation:rise .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 60ms + .1s);transition:border-color .25s,background .25s,transform .2s}
 .opt:hover:not([disabled]){border-color:var(--muted);transform:translateY(-2px)}
-.opt kbd{font-family:var(--display);font-style:italic;font-size:18px;color:var(--muted);width:20px}
+.opt kbd{font-family:var(--display);font-style:normal;font-size:18px;color:var(--muted);width:20px}
 .opt[disabled]{cursor:default}
 .opt.ok{background:color-mix(in srgb,var(--good) 18%, var(--surface));border-color:var(--good);animation:okPop .5s cubic-bezier(.3,1.6,.5,1) both}
 .opt.ko{background:color-mix(in srgb,var(--bad) 16%, var(--surface));border-color:var(--bad);animation:shake .45s both}
@@ -320,7 +322,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .expl p b{color:var(--c)}
 .qstart{display:grid;gap:18px;justify-items:start;padding:20px 0}
 .score{font-family:var(--display);font-weight:700;font-size:clamp(120px,26vw,240px);line-height:.85;color:var(--ember);text-shadow:0 0 60px color-mix(in oklab, var(--ember) 35%, transparent);font-variant-numeric:tabular-nums}
-.score small{font-size:.32em;color:var(--muted);font-style:italic}
+.score small{font-size:.32em;color:var(--muted);font-style:normal}
 
 /* ---------- Feuille (modale) ---------- */
 .sheet-wrap{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;visibility:hidden}
@@ -334,7 +336,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .sheet .ph .ini{font-size:180px}
 .sheet-body{padding:24px 28px 28px;display:grid;gap:14px}
 .sheet h2{font-size:clamp(34px,6vw,54px);line-height:1}
-.sheet .sub{font-family:var(--display);font-style:italic;font-size:20px;color:var(--c)}
+.sheet .sub{font-family:var(--display);font-style:normal;font-size:20px;color:var(--c)}
 .rows{display:grid;gap:10px;margin:4px 0}
 .rows div{display:grid;grid-template-columns:130px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
 .rows dt{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;padding-top:3px}
