@@ -19,8 +19,6 @@
 html,body{height:100%;background:#000;color:#f2f2f7;font-family:Inter,system-ui,sans-serif;overflow:hidden}
 #app{position:fixed;inset:0;max-width:480px;margin:0 auto;background:#0b0b0f;overflow:hidden}
 @media (min-width:600px){
-  #app{max-width:none;zoom:1.3}
-  .grid{grid-template-columns:repeat(6,1fr);padding:34px 40px}
   .dock{margin-left:auto;margin-right:auto;width:420px}
   .pgrid{grid-template-columns:repeat(4,1fr)}
   .b{max-width:62%}
@@ -55,13 +53,15 @@ button{font-family:inherit}
 
 /* lock */
 .lock{align-items:center;padding-top:60px}
-.lock .wall{position:absolute;inset:0;z-index:-1}
+.lock .wall{position:absolute;inset:0;z-index:-1;background:linear-gradient(#ab8c6c,#f6c99b 60%);filter:brightness(.7)}
+.lock .wall svg{filter:none!important}
 .lock .time{font-size:78px;font-weight:300;letter-spacing:-2px;margin-top:10px;text-shadow:0 2px 20px #0008}
 .lock .date{font-size:17px;font-weight:500;opacity:.9}
 .lnotifs{width:92%;margin-top:22px;display:flex;flex-direction:column;gap:8px}
 .ln{background:#1c1c1ecc;backdrop-filter:blur(14px);border-radius:16px;padding:10px 13px;font-size:14px}
 .ln b{font-size:13px}.ln span{opacity:.6;font-size:12px;float:right}
-.pin{margin-top:auto;margin-bottom:30px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.pin{margin-top:auto;margin-bottom:20px;background:#0006;backdrop-filter:blur(18px);padding:18px 20px 8px;border-radius:30px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.pinbtn{margin-top:auto;margin-bottom:34px;background:#ffffff33;backdrop-filter:blur(12px);border:0;color:#fff;font-size:16px;font-weight:600;padding:14px 28px;border-radius:30px;cursor:pointer}
 .dots{display:flex;gap:16px}.dots i{width:13px;height:13px;border-radius:50%;border:1.5px solid #fff}
 .dots i.on{background:#fff}
 .keys{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
@@ -312,7 +312,10 @@ function tick(){
   document.getElementById('battxt').textContent=bat+'%';
 }
 setInterval(tick,5000);
-function fit(){const k=Math.min(innerHeight*0.94/922,innerWidth*0.92/442);document.getElementById('app').style.setProperty('--k',Math.max(.5,k))}
+function fit(){const a=document.getElementById('app'),W=innerWidth,H=innerHeight;
+  if(W<600){a.style.cssText='';return}
+  const k=W/620;a.style.cssText=`inset:auto;left:0;top:0;max-width:none;margin:0;width:${W/k}px;height:${H/k}px;transform:scale(${k});transform-origin:0 0`}
+addEventListener('resize',fit);addEventListener('orientationchange',()=>setTimeout(fit,300));fit();
 
 
 // ============ NOTIFS ============
@@ -362,7 +365,7 @@ function startGame(){S.stage='lock';S.start=Date.now();save();render();
   notify('roux','Sa mère dit que son code, c’est toujours la date d’anniversaire de sa chienne. Jour + mois. Elle s’en souvient plus 🙄',1200)}
 
 function lock(){return `<div class="page lock">
-  <div class="wall">${PH.pepite.replace('<svg','<svg preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;filter:brightness(.7)"')}</div>
+  <div class="wall">${PH.pepite.replace('<svg','<svg preserveAspectRatio="xMidYMax meet" style="width:100%;height:100%;filter:brightness(.7)"')}</div>
   <div class="date">lundi 18 novembre</div>
   <div class="time" id="ltime">${$('clock').textContent}</div>
   <div class="lnotifs">
@@ -370,10 +373,10 @@ function lock(){return `<div class="page lock">
     <div class="ln"><b>Maman 💛</b><span>14:05</span><br>Ma chérie rappelle-moi je t’en supplie 😟</div>
     <div class="ln"><b>Appels manqués</b><span>hier</span><br>8 appels manqués</div>
   </div>
-  <div class="pin"><div class="dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<pin.length?'on':''}"></i>`).join('')}</div>
-  <div class="keys">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<span></span>':`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
+  ${!showPad?`<button class="pinbtn" onclick="showPad=true;render()">Saisir le code</button>`:`<div class="pin"><div class="dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<pin.length?'on':''}"></i>`).join('')}</div>
+  <div class="keys">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<span></span>':`<button onclick="key('${k}')">${k}</button>`).join('')}</div><button class="mini" style="align-self:center;color:#fff" onclick="showPad=false;pin='';render()">Annuler</button></div>`}
 </div>`}
-let tries=0;
+let tries=0,showPad=false;
 function key(k){
   if(k==='⌫'){pin=pin.slice(0,-1)}else if(pin.length<4)pin+=k;
   if(pin.length===4){
