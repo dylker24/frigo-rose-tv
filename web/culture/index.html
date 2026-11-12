@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Cahier de culture</title>
-<meta name="version" content="6">
+<meta name="version" content="7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -91,6 +91,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
   .sync{margin-left:auto}
 }
 @media (max-width:520px){.brand span{display:none}.brand b{font-size:20px}}
+@media (max-width:820px){.tabs a[data-r="accueil"]{display:none}}
 
 /* ---------- Entrées animées ---------- */
 .rise{animation:rise .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 55ms)}
@@ -305,6 +306,47 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
 .fbar{height:8px;border-radius:8px;background:var(--line);overflow:hidden;margin-top:6px;max-width:420px}
 .fbar b{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--lagoon));border-radius:8px;transform-origin:left;animation:grow 1.1s .2s cubic-bezier(.2,.8,.2,1) both}
 
+/* ---------- À regarder ---------- */
+.hero-w{position:relative;border-radius:24px;overflow:hidden;min-height:340px;display:grid;align-content:end;padding:32px;margin-top:10px;isolation:isolate}
+.hero-w .bgw{position:absolute;inset:0;z-index:-2;background-size:200% 200%;animation:pan 18s ease-in-out infinite alternate}
+.hero-w .bgw img{width:100%;height:100%;object-fit:cover}
+.hero-w::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg, color-mix(in oklab, var(--bg) 92%, transparent) 0%, color-mix(in oklab, var(--bg) 40%, transparent) 55%, transparent 100%)}
+@keyframes pan{from{background-position:0% 30%}to{background-position:100% 70%}}
+.hero-w h2{font-size:clamp(34px,6vw,64px);line-height:.98;font-weight:800;letter-spacing:-.03em;max-width:16ch;animation:panelIn .8s cubic-bezier(.2,.8,.2,1) both}
+.hero-w p{max-width:52ch;margin:10px 0 18px;color:color-mix(in oklab, var(--text) 85%, var(--muted));animation:panelIn .8s .1s cubic-bezier(.2,.8,.2,1) both}
+.hero-w .actions{animation:panelIn .8s .2s cubic-bezier(.2,.8,.2,1) both}
+.hero-w .meta{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text);opacity:.85}
+.row-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:34px 0 4px}
+.row-h h2{font-size:clamp(22px,3vw,30px)}
+.row-h .arrows{display:flex;gap:6px}
+.row-h .arrows button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px}
+@media (hover:none){.row-h .arrows{display:none}}
+.rail{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(150px,17vw,200px);gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:14px 4px 22px;margin:0 -4px;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.poster{position:relative;scroll-snap-align:start;aspect-ratio:2/3;border-radius:16px;overflow:hidden;border:0;padding:0;text-align:left;color:var(--text);
+  background:linear-gradient(160deg,var(--p1),var(--p2));box-shadow:0 14px 30px -18px rgba(0,0,0,.7);
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s;animation:rise .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 50ms)}
+.poster:hover,.poster:focus-visible{transform:translateY(-6px) scale(1.04);box-shadow:0 26px 50px -18px var(--p1);z-index:2}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.poster .motif{position:absolute;right:var(--mx,-18%);top:var(--my,6%);width:95%;opacity:.2;color:var(--ink);transform:rotate(var(--rot,0deg));transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.poster:hover .motif{transform:rotate(calc(var(--rot,0deg) + 8deg)) scale(1.08)}
+.poster::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg, color-mix(in oklab, var(--bg) 88%, transparent) 0%, transparent 58%)}
+.poster .badge2{position:absolute;top:10px;left:10px;z-index:1;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;background:color-mix(in oklab, var(--bg) 70%, transparent);backdrop-filter:blur(6px)}
+.poster .seen{position:absolute;top:10px;right:10px;z-index:1;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--good);color:var(--ink)}
+.poster .pt{position:absolute;left:12px;right:12px;bottom:12px;z-index:1;display:grid;gap:4px}
+.poster .pt b{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.08;letter-spacing:-.01em;text-wrap:balance}
+.poster .pt small{font-size:12px;color:color-mix(in oklab, var(--text) 75%, transparent)}
+.poster.add{background:var(--surface);border:1px dashed var(--line);display:grid;place-items:center;align-content:center;gap:10px;color:var(--muted)}
+.poster.add::after{display:none}
+.poster.add .plus{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:26px;transition:transform .4s}
+.poster.add:hover .plus{transform:rotate(90deg)}
+.wsheet-cover{position:relative;aspect-ratio:16/8;background:linear-gradient(160deg,var(--p1),var(--p2));overflow:hidden;border-bottom:1px solid var(--line)}
+.wsheet-cover img{width:100%;height:100%;object-fit:cover}
+.wsheet-cover .motif{position:absolute;right:-6%;top:-10%;width:60%;opacity:.22;color:var(--ink)}
+.wsheet-cover .btn{position:absolute;left:16px;bottom:16px}
+.facts{display:flex;flex-wrap:wrap;gap:8px}
+.facts span{padding:6px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;font-weight:600}
+
 /* ---------- Quiz ---------- */
 .quiz{max-width:780px;margin:0 auto}
 .qbar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:6px 0 30px}
@@ -377,6 +419,7 @@ main{max-width:1180px;margin:0 auto;padding:8px max(16px,4vw) 120px}
     <a href="#geo" data-r="geo" style="--c:var(--lagoon)"><span class="dot"></span>Géo</a>
     <a href="#drapeaux" data-r="drapeaux" style="--c:var(--teal)"><span class="dot"></span><span class="long">Drapeaux</span><span class="short">Drapeaux</span></a>
     <a href="#animaux" data-r="animaux" style="--c:var(--moss)"><span class="dot"></span>Animaux</a>
+    <a href="#regarder" data-r="regarder" style="--c:var(--violet)"><span class="dot"></span><span class="long">À regarder</span><span class="short">À voir</span></a>
     <a href="#quiz" data-r="quiz" style="--c:var(--ember)"><span class="dot"></span>Quiz</a>
   </nav>
   <div class="sync" id="sync" data-s="local" title="État de la sauvegarde"><i></i><span>Sur cet appareil</span></div>
@@ -591,8 +634,11 @@ const TWINS = [
 const TIPS = {"AF":"Noir, rouge, vert debout avec une mosquée blanche dans un rond. Depuis 2021, les talibans utilisent un drapeau blanc.","SY":"Vert, blanc, noir avec 3 étoiles rouges : le drapeau repris après la chute d’Assad, fin 2024.","ZA": "Un grand Y vert couché, comme deux routes qui se rejoignent : l’unité de la « nation arc-en-ciel ».", "AL": "Un aigle noir à deux têtes sur fond rouge : l’Albanie, c’est « le pays des aigles ».", "DZ": "Moitié vert, moitié blanc, avec un croissant et une étoile rouges au milieu.", "DE": "Noir, rouge, or de haut en bas : pense « la nuit, le feu, le soleil ».", "AD": "Bleu, jaune, rouge debout avec un blason au centre : la Roumanie avec des armoiries.", "AO": "Rouge et noir avec une demi-roue dentée et une machette jaunes.", "AG": "Un soleil jaune qui se lève dans un grand V rouge.", "SA": "Vert avec une phrase blanche et une épée dessous : la seule épée sous une écriture.", "AR": "Bleu ciel, blanc, bleu ciel avec un soleil qui a un visage : le Soleil de Mai.", "AM": "Rouge, bleu, orange de haut en bas : l’orange, c’est la couleur de l’abricot arménien.", "AU": "Union Jack en haut à gauche, une grosse étoile dessous et la Croix du Sud en étoiles blanches.", "AT": "Rouge-blanc-rouge couché. Légende : une tunique pleine de sang, sauf sous la ceinture.", "AZ": "Bleu, rouge, vert avec un croissant et une étoile blancs dans le rouge.", "BS": "Un triangle noir côté mât sur turquoise-jaune-turquoise : la mer et le sable.", "BH": "Blanc côté mât, rouge à droite, séparés par 5 dents : une par pilier de l’islam.", "BD": "Un rond rouge sur fond vert : le Japon en version verte.", "BB": "Un trident noir sur une bande jaune entre deux bandes bleues : la fourche de Neptune.", "BE": "Noir, jaune, rouge debout : les couleurs de l’Allemagne, mais à la verticale.", "BZ": "Bleu avec des bandes rouges en haut et en bas, et un grand blason rond où on voit deux hommes.", "BT": "Coupé en diagonale jaune et orange avec un dragon blanc : le pays du dragon tonnerre.", "MM": "Jaune, vert, rouge avec une grande étoile blanche qui déborde sur les trois bandes.", "BY": "Rouge et vert avec une bande brodée rouge et blanche côté mât.", "BO": "Rouge, jaune, vert de haut en bas : un vrai feu tricolore.", "BA": "Un triangle jaune sur fond bleu, avec une rangée d’étoiles blanches le long du bord.", "BW": "Bleu ciel avec une bande noire bordée de blanc : un zèbre sous la pluie.", "BN": "Jaune traversé par deux bandes en diagonale, blanche et noire, avec un emblème rouge.", "BR": "Losange jaune sur vert et un globe bleu : le ciel étoilé de Rio le jour de la République.", "BG": "Blanc, vert, rouge en bandes couchées, de haut en bas.", "BF": "Rouge en haut, vert en bas, une étoile jaune au milieu.", "BI": "Une croix blanche en X et 3 étoiles rouges dans un rond blanc.", "BJ": "Vert debout côté mât, puis jaune en haut et rouge en bas.", "KH": "Le temple d’Angkor dessiné en blanc : le seul drapeau avec un monument.", "CM": "Vert, rouge, jaune debout avec une étoile jaune au milieu du rouge.", "CA": "La feuille d’érable rouge entre deux bandes rouges.", "CL": "Il ressemble au drapeau du Texas : une étoile blanche sur un carré bleu, blanc et rouge.", "CN": "Rouge avec une grande étoile jaune et 4 petites étoiles tournées vers elle.", "CY": "La carte de l’île en orange cuivre sur fond blanc, avec deux branches d’olivier.", "VA": "Jaune et blanc avec les clés de saint Pierre. Il est carré, comme celui de la Suisse.", "CO": "Jaune, bleu, rouge, et le jaune prend la moitié du drapeau.", "KM": "Un triangle vert avec un croissant et 4 étoiles : une étoile par île.", "CG": "Coupé en diagonale : vert, une bande jaune, puis rouge.", "CD": "Bleu ciel avec une étoile jaune et une diagonale rouge bordée de jaune.", "KP": "Bleu, rouge, bleu, avec une étoile rouge dans un rond blanc.", "KR": "Blanc avec le yin-yang rouge et bleu, entouré de 4 groupes de traits noirs.", "CR": "Bleu, blanc, rouge, blanc, bleu : la bande rouge du milieu est deux fois plus large.", "HR": "Rouge, blanc, bleu avec un damier rouge et blanc au centre.", "CU": "5 bandes bleues et blanches, un triangle rouge et une étoile blanche.", "CI": "Orange côté mât, puis blanc, puis vert. Retiens « C’I commence par l’orange ».", "DK": "Croix blanche sur rouge : l’ancêtre de toutes les croix nordiques.", "DJ": "Bleu ciel en haut, vert en bas, un triangle blanc et une étoile rouge.", "DM": "Une croix jaune, noire et blanche avec un perroquet violet au centre.", "ES": "Rouge, jaune, rouge, et la bande jaune est deux fois plus large, avec le blason côté mât.", "EE": "Bleu, noir, blanc : le ciel, la terre et la neige.", "FJ": "Bleu ciel avec l’Union Jack et un blason à droite.", "FI": "Croix bleue sur blanc : le bleu des lacs sur la neige.", "FR": "Bleu, blanc, rouge debout, du mât vers l’extérieur.", "GA": "Vert, jaune, bleu de haut en bas : la forêt, l’équateur et la mer.", "GM": "Rouge, bleu, vert avec deux fines lignes blanches : le fleuve Gambie qui coule au milieu.", "GH": "Rouge, jaune, vert avec une étoile noire au milieu.", "GD": "Une bordure rouge avec 6 étoiles, des triangles jaunes et verts, et une noix de muscade.", "GR": "9 bandes bleues et blanches, une par syllabe de « La liberté ou la mort » en grec.", "GT": "Bleu ciel, blanc, bleu ciel debout avec un oiseau, le quetzal, au centre.", "GN": "Rouge, jaune, vert debout : le Mali dans l’autre sens.", "GQ": "Vert, blanc, rouge avec un triangle bleu côté mât et un arbre au centre.", "GW": "Une bande rouge debout avec une étoile noire, jaune en haut et vert en bas.", "GY": "Une pointe de flèche dorée qui part du mât sur fond vert.", "GE": "Une grande croix rouge et 4 petites sur fond blanc : le drapeau aux 5 croix.", "HT": "Bleu en haut, rouge en bas, avec un blason au centre.", "HN": "Bleu, blanc, bleu avec 5 étoiles bleues : une par pays d’Amérique centrale.", "HU": "Rouge, blanc, vert couchés : les couleurs de l’Italie, à l’horizontale.", "IN": "Safran, blanc, vert avec une roue bleue de 24 rayons au milieu.", "ID": "Rouge en haut, blanc en bas. Son sosie Monaco est presque identique.", "IQ": "Rouge, blanc, noir avec une écriture verte au milieu.", "IR": "Vert, blanc, rouge avec un emblème rouge et des écritures le long des bandes.", "IE": "Vert côté mât, puis blanc, puis orange. Le vert du trèfle irlandais vient en premier.", "IS": "Croix rouge bordée de blanc sur bleu : le feu des volcans sous la glace.", "IL": "L’étoile de David bleue entre deux bandes bleues.", "IT": "Vert, blanc, rouge debout : basilic, mozzarella, tomate.", "JM": "Une croix en X jaune avec du vert et du noir : ni rouge, ni blanc, ni bleu.", "JP": "Un rond rouge sur blanc : le soleil levant.", "JO": "Noir, blanc, vert, un triangle rouge et une étoile blanche à 7 branches.", "KZ": "Bleu ciel avec un soleil doré et un aigle qui vole dessous.", "KE": "Noir, rouge, vert bordés de blanc avec un bouclier masaï et deux lances.", "KG": "Rouge avec un soleil jaune et le haut d’une yourte dessiné au centre.", "KI": "Un oiseau frégate au-dessus d’un soleil qui se lève sur des vagues.", "KW": "Vert, blanc, rouge couchés avec un trapèze noir côté mât.", "LA": "Rouge, bleu, rouge avec un rond blanc : la pleine lune sur le Mékong.", "LS": "Bleu, blanc, vert avec un chapeau traditionnel noir au milieu.", "LV": "Rouge foncé avec une fine bande blanche : un drap blanc taché de sang, selon la légende.", "LB": "Un cèdre vert entre deux bandes rouges.", "LR": "Comme les États-Unis mais avec une seule étoile et 11 bandes.", "LY": "Rouge, noir, vert avec un croissant et une étoile blancs sur le noir.", "LI": "Bleu en haut, rouge en bas, avec une couronne dorée en haut à gauche.", "LT": "Jaune, vert, rouge de haut en bas : un feu tricolore dans le désordre.", "LU": "Rouge, blanc, bleu ciel : les Pays-Bas avec un bleu plus clair.", "MK": "Un soleil jaune qui lance 8 rayons sur fond rouge.", "MG": "Une bande blanche debout côté mât, rouge en haut et vert en bas.", "MY": "Rayé rouge et blanc comme les États-Unis, avec un croissant et une étoile jaunes.", "MW": "Noir, rouge, vert, avec un soleil rouge qui se lève dans le noir.", "MV": "Un rectangle vert avec un croissant blanc, entouré de rouge.", "ML": "Vert, jaune, rouge debout, sans étoile. Avec une étoile verte, c’est le Sénégal.", "MT": "Blanc et rouge debout, avec une petite croix grise en haut à gauche.", "MA": "Rouge avec une étoile verte à 5 branches, juste dessinée en contour.", "MR": "Vert avec un croissant et une étoile jaunes, et une bande rouge en haut et en bas.", "MX": "Vert, blanc, rouge avec un aigle qui mange un serpent sur un cactus.", "FM": "Bleu ciel avec 4 étoiles blanches : une par État.", "MD": "Bleu, jaune, rouge debout avec un aigle : la Roumanie avec un blason.", "MC": "Rouge en haut, blanc en bas, comme l’Indonésie, mais plus carré.", "MN": "Rouge, bleu, rouge debout avec un symbole jaune côté mât.", "ME": "Rouge bordé d’or avec un aigle doré à deux têtes.", "MZ": "Le seul drapeau avec une kalachnikov, croisée avec une houe sur un livre.", "NA": "Une diagonale rouge bordée de blanc, et un soleil jaune en haut à gauche.", "NR": "Bleu avec une fine ligne jaune, l’équateur, et une étoile juste dessous : l’île est juste sous l’équateur.", "NI": "Bleu, blanc, bleu avec un triangle et un arc-en-ciel au centre.", "NE": "Orange, blanc, vert avec un rond orange au centre : l’Inde sans sa roue.", "NG": "Vert, blanc, vert debout, rien d’autre.", "NO": "Croix bleue bordée de blanc sur rouge : l’Islande en couleurs inversées.", "NZ": "Union Jack et 4 étoiles rouges bordées de blanc. L’Australie a des étoiles blanches.", "NP": "Deux triangles empilés comme des montagnes : le seul drapeau qui n’est pas rectangulaire.", "OM": "Une bande rouge côté mât avec deux sabres, puis blanc, rouge, vert.", "UG": "6 bandes noir, jaune, rouge, avec une grue couronnée dans un rond blanc.", "UZ": "Bleu, blanc, vert avec un croissant et 12 étoiles en haut à gauche.", "PK": "Vert avec un croissant et une étoile blancs, et une bande blanche côté mât.", "PW": "Un rond jaune un peu décalé sur bleu ciel : la pleine lune sur l’océan.", "PS": "Noir, blanc, vert avec un triangle rouge côté mât.", "PA": "4 carrés : deux blancs avec une étoile bleue et une étoile rouge, un bleu et un rouge.", "PG": "Coupé en diagonale : un oiseau de paradis doré sur le rouge, la Croix du Sud sur le noir.", "PY": "Rouge, blanc, bleu avec un emblème au centre. Son recto et son verso sont différents.", "NL": "Rouge, blanc, bleu couchés : la France tournée à l’horizontale.", "PH": "Bleu et rouge avec un triangle blanc, un soleil et 3 étoiles. En temps de guerre, on met le rouge en haut.", "PL": "Blanc en haut, rouge en bas : l’inverse de l’Indonésie et de Monaco.", "PT": "Vert et rouge avec une sphère dorée de navigateur : le pays des grands explorateurs.", "PE": "Rouge, blanc, rouge debout.", "QA": "Bordeaux et blanc séparés par une ligne en dents de scie de 9 pointes.", "RO": "Bleu, jaune, rouge debout : le sosie parfait du Tchad.", "GB": "L’Union Jack : les croix de l’Angleterre, de l’Écosse et de l’Irlande l’une sur l’autre.", "RU": "Blanc, bleu, rouge de haut en bas : retiens « BBR ».", "RW": "Bleu ciel, jaune, vert avec un soleil jaune en haut à droite.", "CF": "4 bandes couchées coupées par une bande rouge debout, et une étoile jaune.", "DO": "Une croix blanche qui sépare des carrés bleus et rouges, avec un blason au centre.", "KN": "Une diagonale noire bordée de jaune avec 2 étoiles blanches.", "SM": "Blanc en haut, bleu ciel en bas, avec un blason à 3 tours.", "VC": "Bleu, jaune, vert avec 3 losanges verts en V : V comme Vincent.", "LC": "Bleu ciel avec un triangle noir et jaune sur du blanc : les deux volcans Pitons.", "SV": "Bleu, blanc, bleu comme ses voisins, avec un blason en triangle au centre.", "WS": "Rouge avec un rectangle bleu en haut à gauche et la Croix du Sud.", "RS": "Rouge, bleu, blanc de haut en bas avec un aigle à deux têtes : la Russie à l’envers.", "SC": "5 rayons de couleur qui partent du coin en bas à gauche.", "SL": "Vert, blanc, bleu couchés, de haut en bas.", "SG": "Rouge en haut, blanc en bas, avec un croissant et 5 étoiles.", "SK": "Blanc, bleu, rouge avec un blason : une double croix sur trois collines.", "SI": "Blanc, bleu, rouge avec un blason : une montagne et 3 étoiles.", "SO": "Bleu ciel avec une grande étoile blanche au centre.", "SD": "Rouge, blanc, noir avec un triangle vert côté mât.", "SS": "Noir, rouge, vert bordés de blanc, un triangle bleu et une étoile jaune.", "CH": "Une croix blanche sur un carré rouge : un des deux seuls drapeaux carrés, avec le Vatican.", "SR": "Vert, blanc, rouge, blanc, vert avec une étoile jaune au centre.", "SE": "Croix jaune sur bleu : les couleurs des magasins IKEA.", "SZ": "Un bouclier noir et blanc avec deux lances, posé sur une bande rouge.", "ST": "Vert, jaune, vert avec 2 étoiles noires et un triangle rouge.", "SN": "Vert, jaune, rouge debout avec une étoile verte au milieu.", "TJ": "Rouge, blanc, vert avec une couronne et 7 étoiles jaunes.", "TZ": "Une diagonale noire bordée de jaune, vert en haut, bleu en bas.", "TD": "Bleu, jaune, rouge debout : le sosie de la Roumanie.", "CZ": "Blanc en haut, rouge en bas, et un triangle bleu côté mât.", "TH": "Rouge, blanc, bleu, blanc, rouge, et la bande bleue est deux fois plus large.", "TL": "Rouge avec un triangle jaune, un triangle noir et une étoile blanche.", "TG": "5 bandes vertes et jaunes, un carré rouge et une étoile blanche.", "TO": "Rouge avec une petite croix rouge dans un carré blanc en haut à gauche.", "TT": "Une diagonale noire bordée de blanc sur fond rouge.", "TN": "Rouge avec un rond blanc, et dedans un croissant et une étoile rouges.", "TM": "Vert avec une bande de motifs de tapis côté mât.", "TR": "Rouge avec un croissant et une étoile blancs.", "TV": "Bleu ciel, Union Jack et 9 étoiles jaunes : une par île.", "UA": "Bleu en haut, jaune en bas : le ciel au-dessus d’un champ de blé.", "UY": "9 bandes bleues et blanches avec le soleil à visage, comme l’Argentine.", "VU": "Un Y couché noir et jaune, rouge en haut, vert en bas, et une défense de cochon.", "VE": "Jaune, bleu, rouge avec 8 étoiles blanches en arc.", "VN": "Rouge avec une grande étoile jaune.", "YE": "Rouge, blanc, noir couchés, sans aucun dessin.", "ZM": "Vert avec un aigle et 3 petites bandes rouge, noire et orange en bas à droite.", "ZW": "7 bandes, un triangle blanc, un oiseau doré et une étoile rouge.", "EG": "Rouge, blanc, noir avec un aigle doré au centre.", "AE": "Vert, blanc, noir couchés avec une bande rouge debout côté mât.", "EC": "Jaune, bleu, rouge comme la Colombie, mais avec un blason au centre.", "ER": "Un grand triangle rouge avec une couronne d’olivier dorée sur vert et bleu.", "US": "50 étoiles pour les 50 États, 13 bandes pour les 13 premières colonies.", "ET": "Vert, jaune, rouge avec une étoile dans un rond bleu : les couleurs reprises par toute l’Afrique.", "MU": "4 bandes couchées : rouge, bleu, jaune, vert, comme un arc-en-ciel.", "MH": "Bleu avec deux rayons orange et blanc, et une étoile à 24 branches.", "SB": "Bleu et vert séparés par une diagonale jaune, avec 5 étoiles blanches.", "CV": "Bleu avec des bandes blanche et rouge, et un cercle de 10 étoiles : une par île.", "LK": "Un lion doré avec une épée, et deux bandes verte et orange côté mât."};
 const FAMILIES = [["Les croix nordiques", "Une croix décalée vers le mât : c’est l’Europe du Nord.", ["DK", "NO", "SE", "FI", "IS"]], ["Vert, jaune, rouge", "Les couleurs de l’Éthiopie, reprises par une grande partie de l’Afrique.", ["ET", "GH", "SN", "ML", "GN", "CM", "BJ", "BF", "TG", "GW"]], ["Rouge, blanc, noir et vert", "Les couleurs du monde arabe.", ["EG", "IQ", "YE", "SD", "JO", "PS", "AE", "KW"]], ["Blanc, bleu, rouge", "Les couleurs des pays slaves, sur le modèle de la Russie.", ["RU", "SK", "SI", "RS", "HR", "CZ"]], ["L’Union Jack dans un coin", "D’anciennes colonies britanniques, surtout en Océanie.", ["GB", "AU", "NZ", "FJ", "TV"]], ["Bleu, blanc, bleu", "L’Amérique centrale, unie à l’origine sous un même drapeau.", ["HN", "NI", "SV", "GT", "CR"]], ["Jaune, bleu, rouge", "L’ancienne Grande Colombie : jaune, bleu, rouge de haut en bas.", ["CO", "EC", "VE"]], ["Le croissant et l’étoile", "Un symbole très présent dans les pays musulmans.", ["TR", "TN", "DZ", "PK", "MY", "AZ", "LY", "MR", "UZ", "MV"]]];
 
+const WATCH = [["odyssee", "L’Odyssée de l’espèce", "histoire", "Docu-fiction", "2003", "1 film", "France 3", "Toute l’aventure humaine racontée comme un film, des premiers ancêtres jusqu’à Homo sapiens.", "prehistoire", 0], ["grotte", "La Grotte des rêves perdus", "histoire", "Documentaire", "2010", "1 film", "Werner Herzog", "Une visite de la grotte Chauvet, fermée au public, et de ses peintures vieilles de plus de 30 000 ans.", "prehistoire", 0], ["apo2", "Apocalypse, la Seconde Guerre mondiale", "histoire", "Série", "2009", "6 épisodes", "France 2", "Des images d’archives remises en couleur. La référence pour comprendre 1939-1945.", "contemporaine", 0], ["apo1", "Apocalypse, la Première Guerre mondiale", "histoire", "Série", "2014", "5 épisodes", "France 2", "La même méthode pour 14-18 : on vit la guerre au plus près, de l’attentat de Sarajevo à l’armistice.", "contemporaine", 0], ["dates", "Quand l’histoire fait dates", "histoire", "Série", "2017", "10 épisodes", "Arte", "L’historien Patrick Boucheron part d’une date pour raconter un tournant de l’histoire du monde.", "", 0], ["secrets", "Secrets d’Histoire", "histoire", "Émission", "depuis 2007", "Émission", "France Télévisions", "Stéphane Bern raconte la vie des grands personnages, dans les lieux où ils ont vécu.", "louis14", 0], ["notabene", "Nota Bene", "histoire", "YouTube", "depuis 2014", "Chaîne", "YouTube", "Benjamin Brillaud raconte l’histoire de façon simple et drôle, avec des vidéos de 10 à 30 minutes.", "", 1], ["manonbril", "C’est une autre histoire", "histoire", "YouTube", "depuis 2016", "Chaîne", "YouTube", "Manon Bril, docteure en histoire, mélange mythologie, histoire et humour.", "", 1], ["turcot", "L’Histoire nous le dira", "histoire", "YouTube", "depuis 2015", "Chaîne", "YouTube", "Laurent Turcot, historien, répond aux questions qu’on se pose sur le passé.", "", 1], ["dessous", "Le Dessous des cartes", "geo", "Émission", "depuis 1990", "12 min", "Arte", "La géopolitique expliquée avec des cartes. Le meilleur moyen de comprendre le monde actuel.", "", 0], ["home", "Home", "geo", "Documentaire", "2009", "1 film", "Yann Arthus-Bertrand", "La Terre filmée vue du ciel, pays par pays. Le film a été mis en ligne gratuitement à sa sortie.", "", 0], ["planeteterre", "Planète Terre", "geo", "Série", "2006", "11 épisodes", "BBC", "Déserts, montagnes, jungles, pôles : chaque épisode explore un grand milieu de la planète.", "", 0], ["inconnue", "Rendez-vous en terre inconnue", "geo", "Émission", "depuis 2004", "Émission", "France 2", "Une célébrité part vivre quelques jours chez un peuple loin de tout, sans savoir où elle va.", "", 0], ["dormir", "J’irai dormir chez vous", "geo", "Émission", "depuis 2004", "Émission", "Antoine de Maximy", "Seul avec ses caméras, il part dans un pays et doit se faire inviter à dormir chez l’habitant.", "", 0], ["empereur", "La Marche de l’empereur", "animaux", "Documentaire", "2005", "1 film", "Luc Jacquet", "L’incroyable voyage des manchots empereurs en Antarctique. Oscar du meilleur documentaire.", "manchot", 0], ["pieuvre", "La Sagesse de la pieuvre", "animaux", "Documentaire", "2020", "1 film", "Netflix", "Un homme se lie d’amitié avec une pieuvre pendant un an. Oscar du meilleur documentaire.", "pieuvre", 0], ["notreplanete", "Notre planète", "animaux", "Série", "2019", "8 épisodes", "Netflix", "Les plus beaux endroits sauvages de la planète, racontés par David Attenborough.", "", 0], ["planetebleue", "Planète bleue II", "animaux", "Série", "2017", "7 épisodes", "BBC", "La vie dans les océans, des récifs jusqu’aux abysses. Des images jamais vues avant.", "baleine", 0], ["oceans", "Océans", "animaux", "Documentaire", "2009", "1 film", "Jacques Perrin", "Au plus près des baleines, des requins et de tout le peuple de la mer.", "baleine", 0], ["migrateur", "Le Peuple migrateur", "animaux", "Documentaire", "2001", "1 film", "Jacques Perrin", "Des oiseaux migrateurs filmés en plein vol, à côté d’eux, sur des milliers de kilomètres.", "", 0], ["prehisto", "Planète préhistorique", "animaux", "Série", "2022", "Série", "Apple TV+", "Les dinosaures recréés comme dans un vrai documentaire animalier.", "", 0], ["microcosmos", "Microcosmos", "animaux", "Documentaire", "1996", "1 film", "Claude Nuridsany, Marie Pérennou", "Le monde des insectes filmé de tout près, comme une jungle géante.", "", 0], ["saisons", "Les Saisons", "animaux", "Documentaire", "2015", "1 film", "Jacques Perrin", "L’histoire de la forêt européenne et de ses animaux depuis la fin de la dernière ère glaciaire.", "loup", 0]];
+const FEATURED = ["empereur", "apo2", "odyssee", "notreplanete", "grotte"];
+
 /* ================= ÉTAT ================= */
-const DEFAULT = {known:{}, images:{}, custom:[], best:0, flags:{}, flagBest:0, updated:0};
+const DEFAULT = {known:{}, images:{}, custom:[], best:0, flags:{}, flagBest:0, watch:{}, customWatch:[], updated:0};
 let state = structuredClone(DEFAULT);
 try{ const s = JSON.parse(localStorage.getItem("cahier-culture") || "null"); if(s) state = Object.assign(structuredClone(DEFAULT), s); }catch(e){}
 
@@ -712,9 +758,10 @@ function vAccueil(){
     ${tile("geo","var(--lagoon)", COUNTRIES.length,"Géographie","Records, France, pays et capitales", [1,1], 3)}
     ${tile("drapeaux","var(--teal)", FLAGS.length,"Drapeaux",`${FLAGS.filter(f => state.flags[f[0]]).length} appris sur ${FLAGS.length}`, [FLAGS.filter(f => state.flags[f[0]]).length, FLAGS.length], 4)}
     ${tile("animaux","var(--moss)", c.a[1],"Animaux",`${c.a[0]} sur ${c.a[1]} maîtrisés`, c.a, 5)}
+    ${tile("regarder","var(--violet)", allWatch().length,"À regarder",`${allWatch().filter(w => (state.watch[w.id] || {}).v).length} vus sur ${allWatch().length}`, [allWatch().filter(w => (state.watch[w.id] || {}).v).length, allWatch().length], 6)}
   </div>
-  <div class="fact rise" style="--i:6"><span class="q">“</span><p id="fact"><span>${esc(FACTS[Math.floor(Math.random()*FACTS.length)])}</span></p><button class="btn" data-act="fact">Une autre</button></div>
-  <div class="fact rise" style="--i:7;--c:var(--ember)"><span class="q">?</span><p>Ton meilleur score au quiz : <b>${state.best}/10</b></p><a class="btn solid" style="--c:var(--ember);text-decoration:none" href="#quiz">Lancer le quiz</a></div>`;
+  <div class="fact rise" style="--i:7"><span class="q">“</span><p id="fact"><span>${esc(FACTS[Math.floor(Math.random()*FACTS.length)])}</span></p><button class="btn" data-act="fact">Une autre</button></div>
+  <div class="fact rise" style="--i:8;--c:var(--ember)"><span class="q">?</span><p>Ton meilleur score au quiz : <b>${state.best}/10</b></p><a class="btn solid" style="--c:var(--ember);text-decoration:none" href="#quiz">Lancer le quiz</a></div>`;
 }
 
 function vHistoire(){
@@ -830,6 +877,108 @@ function nextFlag(){
   fq = {c:pick[0], opts:shuffle([pick[0], ...same]), streak: fq ? fq.streak : 0, done:false};
 }
 
+const W_COL = {histoire:["var(--ochre)","var(--pink)"], geo:["var(--lagoon)","var(--teal)"], animaux:["var(--moss)","var(--teal)"], autre:["var(--violet)","var(--pink)"]};
+const MOTIF = {
+  histoire:'<svg class="motif" viewBox="0 0 100 100" fill="currentColor"><path d="M50 8L90 30H10z"/><rect x="14" y="34" width="72" height="6" rx="2"/><rect x="20" y="44" width="9" height="34" rx="2"/><rect x="38" y="44" width="9" height="34" rx="2"/><rect x="56" y="44" width="9" height="34" rx="2"/><rect x="74" y="44" width="9" height="34" rx="2"/><rect x="10" y="82" width="80" height="8" rx="2"/></svg>',
+  geo:'<svg class="motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5"><circle cx="50" cy="50" r="40"/><ellipse cx="50" cy="50" rx="17" ry="40"/><path d="M12 38h76M12 62h76"/></svg>',
+  animaux:'<svg class="motif" viewBox="0 0 100 100" fill="currentColor"><ellipse cx="50" cy="66" rx="20" ry="17"/><ellipse cx="24" cy="42" rx="9" ry="12"/><ellipse cx="40" cy="26" rx="9" ry="12"/><ellipse cx="60" cy="26" rx="9" ry="12"/><ellipse cx="76" cy="42" rx="9" ry="12"/></svg>',
+  autre:'<svg class="motif" viewBox="0 0 100 100" fill="currentColor"><path d="M30 18v64l54-32z"/></svg>'
+};
+const W_CATS = [["histoire","Histoire"],["geo","Géographie et voyages"],["animaux","Animaux et nature"],["autre","Mes ajouts"]];
+function allWatch(){
+  return [...WATCH.map(([id, t, cat, type, year, len, where, why, fiche, yt]) => ({id, t, cat, type, year, len, where, why, fiche, yt})),
+          ...state.customWatch.map(w => ({...w, isCustom:true}))];
+}
+const getWatch = id => allWatch().find(w => w.id === id);
+const W_ALL = ["var(--ochre)","var(--pink)","var(--violet)","var(--lagoon)","var(--teal)","var(--moss)","var(--ember)"];
+function wHash(t){ let h = 7; for(const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 9973; return h; }
+function wStyle(w){
+  const c = W_COL[w.cat] || W_COL.autre, h = wHash(w.t);
+  let p2 = W_ALL[h % W_ALL.length]; if(p2 === c[0]) p2 = c[1];
+  return `--p1:${c[0]};--p2:${p2};--c:${c[0]};--rot:${(h % 50) - 25}deg;--mx:${(h % 30) - 30}%;--my:${(h % 24)}%`;
+}
+function poster(w, i){
+  const st = state.watch[w.id] || {}, src = imgOf("w-" + w.id);
+  return `<button class="poster" style="${wStyle(w)};--i:${Math.min(i, 8)}" data-act="wopen" data-id="${w.id}" aria-label="${esc(w.t)}">
+    ${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : (MOTIF[w.cat] || MOTIF.autre)}
+    <span class="badge2">${esc(w.type)}</span>${st.v ? `<span class="seen">${ICON_OK}</span>` : ""}
+    <span class="pt"><b>${esc(w.t)}</b><small>${esc([w.year, w.where].filter(Boolean).join(" · "))}</small></span></button>`;
+}
+function rail(id, title, list, extra){
+  if(!list.length && !extra) return "";
+  return `<div class="row-h"><h2>${title}</h2><div class="arrows"><button data-act="rail" data-v="${id}" data-d="-1" aria-label="Défiler à gauche">‹</button><button data-act="rail" data-v="${id}" data-d="1" aria-label="Défiler à droite">›</button></div></div>
+    <div class="rail" id="rail-${id}">${list.map(poster).join("")}${extra || ""}</div>`;
+}
+let featuredId = null;
+function vRegarder(){
+  const all = allWatch();
+  if(!featuredId || !getWatch(featuredId)) featuredId = FEATURED[Math.floor(Math.random() * FEATURED.length)];
+  const f = getWatch(featuredId), fs = state.watch[f.id] || {}, fsrc = imgOf("w-" + f.id);
+  const mine = all.filter(w => (state.watch[w.id] || {}).l && !(state.watch[w.id] || {}).v);
+  const seen = all.filter(w => (state.watch[w.id] || {}).v);
+  const yt = all.filter(w => w.yt);
+  return `
+  <section class="hero-w" style="${wStyle(f)}">
+    <div class="bgw" style="background-image:linear-gradient(120deg,var(--p1),var(--p2),var(--violet))">${fsrc ? `<img src="${esc(fsrc)}" alt="">` : ""}</div>
+    <span class="meta">À la une · ${esc(f.type)} · ${esc(f.year)}</span>
+    <h2>${esc(f.t)}</h2>
+    <p>${esc(f.why)}</p>
+    <div class="actions"><button class="btn solid" style="--c:var(--text)" data-act="wopen" data-id="${f.id}">Plus d’infos</button><button class="btn${fs.l ? " on" : ""}" data-act="wlist" data-id="${f.id}">${fs.l ? ICON_OK + " Dans ma liste" : "+ Ma liste"}</button></div>
+  </section>
+  ${rail("liste", "Ma liste", mine)}
+  ${rail("histoire", "Histoire", all.filter(w => w.cat === "histoire" && !w.yt))}
+  ${rail("geo", "Géographie et voyages", all.filter(w => w.cat === "geo"))}
+  ${rail("animaux", "Animaux et nature", all.filter(w => w.cat === "animaux"))}
+  ${rail("youtube", "Sur YouTube, gratuit", yt)}
+  ${rail("autre", "Mes ajouts", all.filter(w => w.cat === "autre"), `<button class="poster add" data-act="wnew" style="--i:0"><span class="plus">+</span><b>Ajouter</b><small>un docu ou une vidéo</small></button>`)}
+  ${rail("vus", `Déjà vus · ${seen.length}`, seen)}`;
+}
+function watchLink(w){
+  if(w.link) return w.link;
+  const q = encodeURIComponent(w.t);
+  return w.yt ? "https://www.youtube.com/results?search_query=" + q : "https://www.justwatch.com/fr/recherche?q=" + q;
+}
+let watchId = null;
+function openWatch(id, refresh){
+  const w = getWatch(id); if(!w) return;
+  sheetId = null; watchId = id;
+  const st = state.watch[id] || {}, src = imgOf("w-" + id), box = $("#sheet-box");
+  box.setAttribute("style", wStyle(w));
+  const fiche = w.fiche ? getFiche(w.fiche) : null;
+  box.innerHTML = `<button class="close" data-act="close" aria-label="Fermer">×</button>
+    <div class="wsheet-cover">${src ? `<img src="${esc(src)}" alt="">` : (MOTIF[w.cat] || MOTIF.autre)}<button class="btn" style="background:color-mix(in oklab, var(--bg) 80%, transparent)" data-act="img" data-id="w-${id}">${src ? "Changer l’image" : "Ajouter une image"}</button></div>
+    <div class="sheet-body">
+      <div><div class="sub">${esc(w.type)}</div><h2 id="sheet-title">${esc(w.t)}</h2></div>
+      <div class="facts">${[w.year, w.len, w.where].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}</div>
+      ${w.why ? `<p style="margin:0;font-size:17px">${esc(w.why)}</p>` : ""}
+      <div class="actions">
+        <a class="btn solid" style="text-decoration:none" href="${esc(watchLink(w))}" target="_blank" rel="noopener">${w.link ? "Ouvrir le lien" : w.yt ? "Voir sur YouTube" : "Où le regarder"}</a>
+        <button class="btn${st.l ? " on" : ""}" data-act="wlist" data-id="${id}">${st.l ? ICON_OK + " Dans ma liste" : "+ Ma liste"}</button>
+        <button class="btn${st.v ? " on" : ""}" data-act="wseen" data-id="${id}">${st.v ? ICON_OK + " Vu" : "Je l’ai vu"}</button>
+        ${fiche ? `<button class="btn" data-act="wfiche" data-id="${fiche.id}">Fiche : ${esc(fiche.title)}</button>` : ""}
+        ${src ? `<button class="btn" data-act="rmimg" data-id="w-${id}">Retirer l’image</button>` : ""}
+        ${w.isCustom ? `<button class="btn" data-act="wdel" data-id="${id}" style="color:var(--bad)">Supprimer</button>` : ""}
+      </div>
+    </div>`;
+  const wr = $("#sheet");
+  if(!refresh){ wr.classList.add("open"); wr.setAttribute("aria-hidden","false"); setTimeout(() => box.querySelector(".close").focus(), 50); }
+}
+function openWatchForm(){
+  sheetId = null; watchId = null;
+  const box = $("#sheet-box"); box.setAttribute("style", "--c:var(--violet)");
+  box.innerHTML = `<button class="close" data-act="close" aria-label="Fermer">×</button>
+  <form class="form" id="watchform">
+    <span class="eyebrow">À regarder</span><h2 style="font-size:36px">Ajouter un docu ou une vidéo</h2>
+    <label for="w-title">Titre<input id="w-title" required maxlength="80" placeholder="Ex. Le Monde de Jamy"></label>
+    <label for="w-type">Type<input id="w-type" maxlength="30" placeholder="Documentaire, série, YouTube…"></label>
+    <label for="w-link">Lien (facultatif)<input id="w-link" type="url" maxlength="400" placeholder="https://…"></label>
+    <label for="w-why">Pourquoi le regarder<textarea id="w-why" rows="3" maxlength="300"></textarea></label>
+    <div class="actions"><button class="btn solid" type="submit">Ajouter</button><button class="btn" type="button" data-act="close">Annuler</button></div>
+  </form>`;
+  const wr = $("#sheet"); wr.classList.add("open"); wr.setAttribute("aria-hidden","false");
+  setTimeout(() => $("#w-title").focus(), 60);
+}
+
 function vQuiz(){
   if(!quiz){
     return `<div class="quiz"><section class="qstart"><span class="eyebrow rise" style="--c:var(--ember)">10 questions au hasard</span><h1 class="rise" style="--i:1;font-size:clamp(48px,9vw,96px);line-height:.95">Teste ta <em style="color:var(--ember)">culture</em></h1><p class="rise" style="--i:2;color:var(--muted);margin:0">Histoire, géo et animaux mélangés. Meilleur score : <b style="color:var(--text)">${state.best}/10</b></p><button class="btn solid rise" style="--i:3;--c:var(--ember);font-size:16px;padding:14px 24px" data-act="qstart">C’est parti</button></section></div>`;
@@ -852,7 +1001,7 @@ function vQuiz(){
 }
 
 /* ================= RENDU ================= */
-const VIEWS = {accueil:vAccueil, histoire:vHistoire, personnages:vPersonnages, geo:vGeo, drapeaux:vDrapeaux, animaux:vAnimaux, quiz:vQuiz};
+const VIEWS = {accueil:vAccueil, histoire:vHistoire, personnages:vPersonnages, geo:vGeo, drapeaux:vDrapeaux, animaux:vAnimaux, regarder:vRegarder, quiz:vQuiz};
 let heroTimer = null;
 
 function render(soft){
@@ -865,6 +1014,7 @@ function render(soft){
   if(route === "quiz" && quiz && quiz.i >= quiz.qs.length) countUp();
   bindGlow();
   if(sheetId && soft) openSheet(sheetId, true);
+  if(watchId && soft) openWatch(watchId, true);
 }
 
 function navUpdate(){
@@ -946,7 +1096,7 @@ function openSheet(id, refresh){
   const w = $("#sheet");
   if(!refresh){ w.classList.add("open"); w.setAttribute("aria-hidden","false"); setTimeout(() => box.querySelector(".close").focus(), 50); }
 }
-function closeSheet(){ sheetId = null; const w = $("#sheet"); w.classList.remove("open"); w.setAttribute("aria-hidden","true"); }
+function closeSheet(){ sheetId = null; watchId = null; const w = $("#sheet"); w.classList.remove("open"); w.setAttribute("aria-hidden","true"); }
 
 function openForm(cat){
   sheetId = null;
@@ -968,6 +1118,15 @@ function openForm(cat){
 }
 
 document.addEventListener("submit", e => {
+  if(e.target.id === "watchform"){
+    e.preventDefault();
+    const link = $("#w-link").value.trim();
+    const w = {id:"cw-" + Date.now().toString(36), t:$("#w-title").value.trim(), cat:"autre", type:$("#w-type").value.trim() || "Vidéo", year:"", len:"", where:"", why:$("#w-why").value.trim(), fiche:"", yt:/youtu/.test(link) ? 1 : 0, link:/^https?:\/\//.test(link) ? link : ""};
+    if(!w.t) return;
+    state.customWatch.push(w); state.watch[w.id] = {l:true}; save();
+    closeSheet(); render(true); toast("Ajouté à ta liste");
+    return;
+  }
   if(e.target.id !== "newform") return;
   e.preventDefault();
   const cat = e.target.dataset.cat, isA = cat === "animal";
@@ -993,7 +1152,7 @@ $("#file").addEventListener("change", async e => {
     let src;
     if(assetsApi){ const a = await assetsApi.upload(blob); src = a.url || ("/_blob/" + a.id); state.images[id] = {src, asset:a.id}; }
     else { src = await toDataURL(await shrink(file, 900, .78)); state.images[id] = {src}; }
-    save(); render(true); if(sheetId === id) openSheet(id, true);
+    save(); render(true); if(sheetId === id) openSheet(id, true); if(watchId && "w-" + watchId === id) openWatch(watchId, true);
     toast("Image ajoutée");
   }catch(err){ toast("L’image n’a pas pu être ajoutée, réessaie avec une photo plus légère"); }
 });
@@ -1028,7 +1187,7 @@ document.addEventListener("click", e => {
     if(state.known[id]) toast("Bien joué, fiche maîtrisée");
   }
   else if(act === "img"){ imgTarget = id; $("#file").click(); }
-  else if(act === "rmimg"){ delete state.images[id]; save(); render(true); openSheet(id, true); }
+  else if(act === "rmimg"){ delete state.images[id]; save(); render(true); if(id.startsWith("w-")) openWatch(id.slice(2), true); else openSheet(id, true); }
   else if(act === "delcustom"){
     if(t.dataset.confirm !== "1"){ t.dataset.confirm = "1"; t.textContent = "Confirmer la suppression"; return; }
     state.custom = state.custom.filter(c => c.id !== id); delete state.known[id]; delete state.images[id];
@@ -1045,6 +1204,22 @@ document.addEventListener("click", e => {
     const cards = [...document.querySelectorAll(".flip")]; const allOn = cards.every(c => c.classList.contains("on"));
     cards.forEach((c, i) => setTimeout(() => { c.classList.toggle("on", !allOn); allOn ? flipped.delete(c.dataset.v) : flipped.add(c.dataset.v); $("#flipcount").textContent = `${flipped.size} retournée${flipped.size > 1 ? "s" : ""}`; }, i * 35));
   }
+  else if(act === "wopen") openWatch(id);
+  else if(act === "wnew") openWatchForm();
+  else if(act === "wlist" || act === "wseen"){
+    const k = act === "wlist" ? "l" : "v"; const st = {...(state.watch[id] || {})}; st[k] = !st[k];
+    if(k === "v" && st.v) st.l = false;
+    if(!st.l && !st.v) delete state.watch[id]; else state.watch[id] = st;
+    save(); render(true); if(watchId) openWatch(watchId, true);
+    toast(k === "l" ? (st.l ? "Ajouté à ta liste" : "Retiré de ta liste") : (st.v ? "Marqué comme vu" : "Retiré des vus"));
+  }
+  else if(act === "wfiche"){ closeSheet(); setTimeout(() => openSheet(id), 380); }
+  else if(act === "wdel"){
+    if(t.dataset.confirm !== "1"){ t.dataset.confirm = "1"; t.textContent = "Confirmer la suppression"; return; }
+    state.customWatch = state.customWatch.filter(w => w.id !== id); delete state.watch[id]; delete state.images["w-" + id];
+    save(); closeSheet(); render(true); toast("Supprimé");
+  }
+  else if(act === "rail"){ const r = $("#rail-" + t.dataset.v); if(r) r.scrollBy({left: +t.dataset.d * r.clientWidth * .85, behavior:"smooth"}); }
   else if(act === "fmode"){ fMode = t.dataset.v; if(fMode === "serie") fq = null; render(); document.querySelectorAll("#view .head .rise").forEach(s => s.style.animation = "none"); }
   else if(act === "fcont"){ fFilter = t.dataset.v; const y = scrollY; render(); scrollTo(0, y); document.querySelectorAll("#view .head .rise").forEach(s => s.style.animation = "none"); }
   else if(act === "fflip"){ const k = t.dataset.v; t.classList.toggle("on"); t.classList.contains("on") ? fOpen.add(k) : fOpen.delete(k); }
