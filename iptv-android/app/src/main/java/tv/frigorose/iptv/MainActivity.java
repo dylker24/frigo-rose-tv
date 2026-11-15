@@ -73,6 +73,9 @@ public class MainActivity extends Activity {
         });
         web.addJavascriptInterface(new Object() {
             @JavascriptInterface
+            public void typing(boolean on) { typing = on; }
+
+            @JavascriptInterface
             public void exit() { runOnUiThread(() -> quit()); }
 
             @JavascriptInterface
@@ -151,9 +154,18 @@ public class MainActivity extends Activity {
         }
     }
 
+    private volatile boolean typing = false;
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        String k = keyFor(e.getKeyCode());
+        int c = e.getKeyCode();
+        // bouton OK (centre) : envoyé nous-mêmes à la page, appui et relâchement, sauf dans un champ texte
+        if (!typing && (c == KeyEvent.KEYCODE_DPAD_CENTER || c == KeyEvent.KEYCODE_ENTER || c == KeyEvent.KEYCODE_NUMPAD_ENTER || c == KeyEvent.KEYCODE_BUTTON_A)) {
+            String type = e.getAction() == KeyEvent.ACTION_DOWN ? "keydown" : e.getAction() == KeyEvent.ACTION_UP ? "keyup" : null;
+            if (type != null) web.evaluateJavascript("(document.activeElement||document).dispatchEvent(new KeyboardEvent('" + type + "',{key:'Enter',repeat:" + (e.getRepeatCount() > 0) + ",bubbles:true,cancelable:true}))", null);
+            return true;
+        }
+        String k = keyFor(c);
         if (k != null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
                 web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'" + k + "',bubbles:true,cancelable:true}))", null);

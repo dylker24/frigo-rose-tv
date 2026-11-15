@@ -2637,11 +2637,20 @@ function back() {
   if (!$("#who").hidden && P && C) { $("#who").hidden = true; $("#app").hidden = false; go(TAB); }
 }
 let holdT = 0, holdDone = true;
+// l'appli télé envoie le bouton OK elle-même, sauf quand on écrit dans un champ
+document.addEventListener("focusin", e => { if (window.FRIPTV && FRIPTV.typing) FRIPTV.typing(!!(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))); });
+document.addEventListener("focusout", () => { if (window.FRIPTV && FRIPTV.typing) FRIPTV.typing(false); });
+const isOk = e => e.key === "Enter" || e.key === " " || e.key === "Select" || e.keyCode === 13 || e.keyCode === 23;
+let okDown = false;
 document.addEventListener("keyup", e => {
-  if ((e.key === "Enter" || e.key === " ") && CUR && CUR._long && !holdDone && $("#player").hidden && !(e.target && /INPUT/.test(e.target.tagName))) { holdDone = true; clearTimeout(window._holdTm); ok(); }
+  // si la télé n'a envoyé que le relâchement du bouton OK
+  if (isOk(e) && !okDown && $("#player").hidden && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) && $("#boot").hidden) { e.preventDefault(); ok(); return; }
+  if (isOk(e)) okDown = false;
+  if (isOk(e) && CUR && CUR._long && !holdDone && $("#player").hidden && !(e.target && /INPUT/.test(e.target.tagName))) { holdDone = true; clearTimeout(window._holdTm); ok(); }
 });
 document.addEventListener("keydown", e => {
   let k = e.key;
+  if (isOk(e)) { k = "Enter"; okDown = true; }
   if (k === "Backspace" && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) k = "Escape";
   if (e.keyCode === 4 || k === "GoBack" || k === "BrowserBack") k = "Escape";
   const typing = e.target && /INPUT|TEXTAREA/.test(e.target.tagName);
