@@ -279,11 +279,21 @@ def plan_conversion(info):
         args += ["-c:v", "copy"]
         notes.append("image gardée telle quelle (déjà en H.264)")
     else:
+        # plafond de débit : sinon une vidéo H.265 ressort 2 à 3 fois plus lourde en H.264 et remplit les disques
+        hh = min(v.get("height") or 1080, 1080)
+        cap = 4500 if hh >= 900 else 2800 if hh >= 600 else 1600
+        try:
+            src = float((info.get("format") or {}).get("bit_rate") or 0) / 1000
+            if src > 0:
+                cap = int(min(cap, max(1000, src * 1.5)))
+        except (TypeError, ValueError):
+            pass
+        rate = ["-maxrate", "%dk" % cap, "-bufsize", "%dk" % (cap * 2)]
         if setup.get("nvenc"):
-            args += ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0", "-pix_fmt", "yuv420p"]
+            args += ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "23", "-b:v", "0"] + rate + ["-pix_fmt", "yuv420p"]
             notes.append("image convertie en H.264 par la carte graphique")
         else:
-            args += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+            args += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22"] + rate + ["-pix_fmt", "yuv420p"]
             notes.append("image convertie en H.264")
         # largeur et hauteur paires obligatoires pour le H.264
         w, h = v.get("width") or 0, v.get("height") or 0
