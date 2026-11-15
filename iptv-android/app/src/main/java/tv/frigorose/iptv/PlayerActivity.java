@@ -85,10 +85,14 @@ public class PlayerActivity extends Activity {
         view = new PlayerView(this);
         view.setKeepContentOnPlayerReset(false);
         view.setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER);
-        view.setUseController(!live);
-        view.setControllerShowTimeoutMs(3500);
-        view.setShowNextButton(!live && items.size() > 1);
-        view.setShowPreviousButton(!live && items.size() > 1);
+        view.setUseController(true);
+        view.setControllerShowTimeoutMs(live ? 5000 : 3500);
+        view.setShowNextButton(items.size() > 1);
+        view.setShowPreviousButton(items.size() > 1);
+        view.setShowFastForwardButton(!live);
+        view.setShowRewindButton(!live);
+        view.setControllerAutoShow(false);
+        view.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) v -> { if (v == View.VISIBLE) showInfo(); });
         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
 
         spin = new ProgressBar(this);
@@ -159,6 +163,10 @@ public class PlayerActivity extends Activity {
             @Override
             public void onPlayerError(PlaybackException e) {
                 spin.setVisibility(View.GONE);
+                if (e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && player != null) {
+                    // après une longue pause sur une chaîne : on revient au direct
+                    player.seekToDefaultPosition(); player.prepare(); player.play(); return;
+                }
                 if (retries < 2) {
                     retries++;
                     ui.postDelayed(() -> { if (player != null) { player.prepare(); player.play(); } }, 1200);
@@ -209,7 +217,7 @@ public class PlayerActivity extends Activity {
         int k = e.getKeyCode();
         if (k == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_UP) {
-                if (!live && view.isControllerFullyVisible()) view.hideController();
+                if (view.isControllerFullyVisible()) view.hideController();
                 else finishWith(player.getCurrentMediaItemIndex(), player.getCurrentPosition(), player.getDuration());
             }
             return true;
@@ -218,14 +226,23 @@ public class PlayerActivity extends Activity {
         boolean err = errText.getVisibility() == View.VISIBLE;
         if (live) {
             switch (k) {
-                case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_CHANNEL_UP: zap(-1); return true;
-                case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_CHANNEL_DOWN: zap(1); return true;
-                case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_INFO: case KeyEvent.KEYCODE_MENU:
-                    if (err) { retries = 0; player.prepare(); player.play(); }
-                    showInfo(); return true;
+                case KeyEvent.KEYCODE_CHANNEL_UP: zap(-1); return true;
+                case KeyEvent.KEYCODE_CHANNEL_DOWN: zap(1); return true;
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: case KeyEvent.KEYCODE_MEDIA_PLAY: case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    if (player.isPlaying()) player.pause(); else { player.seekToDefaultPosition(); player.play(); }
-                    return true;
+                    if (player.isPlaying()) player.pause(); else player.play();
+                    view.showController(); return true;
+            }
+            if (err && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER)) { retries = 0; errText.setVisibility(View.GONE); player.prepare(); player.play(); return true; }
+            if (!view.isControllerFullyVisible()) {
+                // barre cachée : ⬆ ⬇ changent de chaîne, OK affiche les commandes (pause, chaîne suivante…)
+                switch (k) {
+                    case KeyEvent.KEYCODE_DPAD_UP: zap(-1); return true;
+                    case KeyEvent.KEYCODE_DPAD_DOWN: zap(1); return true;
+                    case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_INFO: case KeyEvent.KEYCODE_MENU:
+                        view.showController(); return true;
+                    case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT:
+                        showInfo(); return true;
+                }
             }
             return super.dispatchKeyEvent(e);
         }

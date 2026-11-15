@@ -270,8 +270,9 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .ep .d b{display:block;font-weight:600;font-size:1rem}
 .ep .d span{display:block;color:var(--faint);font-size:.8rem;margin:.15rem 0 .35rem}
 .ep .d p{margin:0;color:var(--mute);font-size:.85rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ep.on{background:#fff;color:#000;box-shadow:none}
-.ep.on .d p,.ep.on .d span,.ep.on .n{color:#444}
+.ep.on{background:rgba(255,255,255,.09);box-shadow:0 0 0 .18rem #fff}
+.ep.on .th{transform:scale(1.03)}
+.ep .th{transition:transform .16s}
 
 .panel{max-width:46rem;margin:5vh auto;background:var(--s1);border:1px solid var(--line);border-radius:1.3rem;padding:2rem 2.2rem}
 .panel h2{font:800 1.6rem var(--ui);letter-spacing:-.025em;margin:0 0 .3rem}
@@ -314,6 +315,60 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .acc-info{display:flex;gap:1.6rem;flex-wrap:wrap;color:var(--mute);font-size:.85rem;margin:.2rem 0 1rem}
 .acc-info b{color:#fff}
 
+/* fiche film / série */
+.fbd{position:fixed;inset:0;background:#000 center/cover no-repeat}
+.fbd::after{content:"";position:absolute;inset:0;background:linear-gradient(to right,var(--bg) 0%,rgba(7,7,10,.9) 30%,rgba(7,7,10,.3) 68%,rgba(7,7,10,.1) 100%),linear-gradient(to top,var(--bg) 0%,rgba(7,7,10,.45) 34%,rgba(7,7,10,0) 60%)}
+.fbd.blur{filter:blur(34px) saturate(1.4);transform:scale(1.2);opacity:.75}
+.fbd.actor{filter:blur(40px) saturate(1.2);transform:scale(1.3);opacity:.5;background-position:center 20%}
+.ftop{position:relative;min-height:84vh;display:flex;align-items:flex-end;gap:3rem;padding:6rem var(--pad) 2.6rem}
+.ftx{flex:1;min-width:0;max-width:50rem}
+.ftx h1{font:800 3.6rem/1.02 var(--ui);letter-spacing:-.04em;margin:.3rem 0 1rem;text-wrap:balance}
+.fmeta{display:flex;gap:1rem;align-items:center;color:#c9c9d3;font-weight:600;font-size:1rem;flex-wrap:wrap}
+.fmeta b{color:#46D369}
+.fmeta .pill{border:1px solid rgba(255,255,255,.4);border-radius:.3rem;padding:0 .45rem;font-size:.8rem}
+.fgen{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.fgen:empty{display:none}
+.fgen span{background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:.32rem .85rem;border-radius:2rem;font-size:.82rem;font-weight:600;color:#ececf2}
+.fplot{color:#DADAE2;font-size:1.06rem;line-height:1.6;margin:1.2rem 0 1.7rem;max-width:44rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ftx .acts{display:flex;gap:.8rem;flex-wrap:wrap}
+.btn.glass{background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.btn.glass.on{background:#fff;color:#000}
+.btn .bpg{width:3.2rem;height:.24rem;background:rgba(0,0,0,.18);border-radius:1rem;overflow:hidden;margin-left:.3rem}
+.btn .bpg i{display:block;height:100%;background:var(--accent)}
+.fcrew{color:var(--mute);font-size:.92rem;margin-top:1.4rem}
+.fcrew b{color:#fff;font-weight:600}
+.fpo{width:15rem;flex:none;aspect-ratio:2/3;border-radius:1rem;background:var(--s2) center/cover;box-shadow:0 2rem 4rem rgba(0,0,0,.7);transform:rotate(2deg);margin-bottom:1rem}
+.fmore{position:relative;padding:0 0 3rem}
+#fi-eps{padding:0 var(--pad);margin-bottom:2.2rem}
+#fi-eps:empty{display:none}
+.eph{display:flex;align-items:center;gap:1.4rem;margin-bottom:1rem;flex-wrap:wrap}
+.eph h3{margin:0;font:700 1.3rem var(--ui)}
+.eph .seas{margin:0}
+.ep .th{width:14rem}
+.ep .th .pl{position:absolute;inset:0;display:grid;place-items:center;opacity:0;background:rgba(0,0,0,.35);transition:opacity .16s}
+.ep .th .pl .ic{width:2rem;height:2rem;color:#fff}
+.ep.on .th .pl{opacity:1}
+.ep .d b em{font-style:normal;color:var(--faint);margin-right:.15rem}
+
+.cast .strip{gap:1.5rem;padding-top:.8rem}
+.pp{flex:none;width:7.6rem;display:flex;flex-direction:column;align-items:center;gap:.65rem;text-align:center;cursor:pointer;border-radius:1rem}
+.pp.on{box-shadow:none}
+.ph{width:6.6rem;height:6.6rem;border-radius:50%;background:var(--s3) center 20%/cover no-repeat;display:grid;place-items:center;transition:transform .16s,box-shadow .16s;flex:none}
+.ph i{font-style:normal;font-weight:800;font-size:1.5rem;color:var(--mute)}
+.ph.img i{display:none}
+.pp.on .ph{transform:scale(1.1);box-shadow:0 0 0 .2rem #fff,0 .8rem 1.6rem rgba(0,0,0,.5)}
+.pp b{font-size:.86rem;font-weight:600;line-height:1.25;color:#d6d6de}
+.pp.on b{color:#fff}
+.ap{position:relative;padding:6.2rem var(--pad) 3rem}
+.ap-h{display:flex;align-items:center;gap:2.4rem;margin-bottom:2.4rem}
+.ph.big{width:12rem;height:12rem;box-shadow:0 1.5rem 3rem rgba(0,0,0,.6)}
+.ph.big i{font-size:3rem}
+.ap h1{font:800 3.2rem/1.05 var(--ui);letter-spacing:-.035em;margin:.3rem 0 .4rem}
+.ap .sub{color:var(--mute);margin-bottom:1.3rem}
+.ap-out h3{font:700 1.2rem var(--ui);margin:2.6rem 0 1rem}
+.ap-other{display:flex;flex-wrap:wrap;gap:.5rem}
+.ap-other span{background:rgba(255,255,255,.07);padding:.42rem .85rem;border-radius:2rem;font-size:.86rem;color:#c3c3cc}
+.ap-other small{color:var(--faint)}
 /* lecteur web */
 #player{position:fixed;inset:0;z-index:60;background:#000}
 #player video{position:absolute;inset:0;width:100%;height:100%;background:#000}
@@ -379,6 +434,15 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
   .mtile .pr{font-size:.68rem}
   .mhead .mh{display:none}
   .fi-in{flex-direction:column;padding-top:2.6rem;gap:1.3rem}
+  .ftop{min-height:72vh;padding:5rem var(--pad) 1.6rem}
+  .fpo{display:none}
+  .ftx h1{font-size:2.2rem}
+  .fplot{font-size:.95rem}
+  .ep .th{width:9rem}
+  .ap{padding-top:4.5rem}
+  .ap-h{flex-direction:column;align-items:flex-start;gap:1.2rem}
+  .ph.big{width:8rem;height:8rem}
+  .ap h1{font-size:2.2rem}
   .fi-in .po{width:9rem}
   .fi-tx h1{font-size:1.9rem}
   .ep .th{width:8rem}
@@ -740,7 +804,7 @@ async function vodInfo(m) {
       const j = await req(xtApi(srcKind(S)) + "&action=get_vod_info&vod_id=" + m.id, "json", 20000);
       const i = (j && j.info) || {};
       const bd = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path;
-      r = { plot: i.plot || i.description || "", bd: bd || "", genre: i.genre || "", cast: i.cast || i.actors || "", dir: i.director || "", dur: i.duration || "", y: year(i.releasedate || i.release_date) || m.y, r: num(i.rating) / 2 || m.r, img: i.movie_image || m.img };
+      r = { plot: i.plot || i.description || "", bd: bd || "", genre: i.genre || "", cast: i.cast || i.actors || "", dir: i.director || "", dur: i.duration || "", y: year(i.releasedate || i.release_date) || m.y, r: num(i.rating) / 2 || m.r, img: i.movie_image || m.img, trailer: i.youtube_trailer || "", age: i.age || i.mpaa_rating || "" };
       if (j && j.movie_data && j.movie_data.container_extension) m.ext = j.movie_data.container_extension;
     } catch (e) { }
   }
@@ -762,7 +826,7 @@ async function seriesInfo(s) {
     }));
     eps.sort((a, b) => a.se - b.se || a.ep - b.ep);
     const bd = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path;
-    r = { plot: i.plot || s.plot || "", bd: bd || s.bd || "", genre: i.genre || "", cast: i.cast || "", dir: i.director || "", y: year(i.releaseDate || i.release_date) || s.y, r: num(i.rating) / 2 || s.r, img: i.cover || s.img, eps };
+    r = { plot: i.plot || s.plot || "", bd: bd || s.bd || "", genre: i.genre || "", cast: i.cast || "", dir: i.director || "", y: year(i.releaseDate || i.release_date) || s.y, r: num(i.rating) / 2 || s.r, img: i.cover || s.img, eps, trailer: i.youtube_trailer || "" };
   } else {
     const eps = (s.eps || []).slice().sort((a, b) => a.se - b.se || a.ep - b.ep);
     r = { plot: "", bd: "", genre: "", cast: "", dir: "", y: s.y, r: 0, img: s.img, eps };
@@ -829,6 +893,7 @@ function indexCatalog() {
   BEST = VIEW.m.filter(x => x.r >= 3.6).map(x => [x, "m"]).concat(VIEW.s.filter(x => x.r >= 3.6).map(x => [x, "s"]))
     .sort((a, b) => b[0].r - a[0].r || b[0].add - a[0].add).slice(0, 30);
   document.body.classList.toggle("names", !!UI().names);
+  TIDX = null;
 }
 const TOP = { m: [], s: [] };
 let BEST = [];
@@ -1478,87 +1543,189 @@ function toggleFav(x, k) {
 }
 
 /* ---------------- fiche film / série ---------------- */
-let FI = null;
-async function openFiche(x, k, autoplay) {
-  const L = $("#fiche"); L.hidden = false; L.scrollTop = 0;
-  FI = { x, k, ret: CUR };
-  L.innerHTML = `<div class="bd blur" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div>
-    <div class="fi-in"><div class="po" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div>
-    <div class="fi-tx"><div class="kick"><i></i><span>${k === "m" ? "Film" : "Série"}${CATNAME[k][x.c] ? " · " + esc(clean(CATNAME[k][x.c])) : ""}</span></div>
-    <h1>${esc(clean(x.n))}</h1><div class="meta">${metaHtml(x, {})}</div><p>${esc(x.plot || "")}</p><div class="crew"></div>
-    <div class="acts" data-z></div><div id="fi-more"></div></div></div>`;
+let FI = null, FSTACK = [];
+// acteurs : photos et filmographies depuis Wikidata (libre, sans clé)
+const WDQ = q => new Promise((ok, ko) => {
+  const r = new XMLHttpRequest();
+  r.open("GET", "https://query.wikidata.org/sparql?format=json&query=" + enc(q));
+  r.timeout = 15000;
+  r.onload = () => { try { ok(JSON.parse(r.responseText).results.bindings); } catch (e) { ko(e); } };
+  r.onerror = r.ontimeout = () => ko(new Error("wikidata"));
+  r.send();
+});
+const lit = v => '"' + String(v).replace(/["\\\n]/g, " ").trim() + '"';
+const wimg = (u, w) => u ? u.replace(/^http:/, "https:") + "?width=" + (w || 320) : "";
+const PEOPLE = new Map();
+async function people(names) {
+  const todo = names.filter(n => !PEOPLE.has(norm(n)));
+  if (todo.length) {
+    try {
+      const vals = todo.map(n => lit(n) + "@fr " + lit(n) + "@en").join(" ");
+      const b = await WDQ(`SELECT ?name ?p ?img ?links WHERE { VALUES ?name { ${vals} } ?p rdfs:label ?name ; wdt:P31 wd:Q5 ; wikibase:sitelinks ?links . OPTIONAL { ?p wdt:P18 ?img } }`);
+      const best = {};
+      b.forEach(r => { const n = norm(r.name.value), l = +r.links.value; if (!best[n] || l > best[n].l) best[n] = { q: r.p.value.split("/").pop(), img: r.img ? r.img.value : "", l }; });
+      todo.forEach(n => PEOPLE.set(norm(n), best[norm(n)] || null));
+    } catch (e) { }
+  }
+  return names.map(n => PEOPLE.get(norm(n)) || null);
+}
+const tkey = n => norm(clean(n)).replace(/\((19|20)\d\d\)/g, "").replace(/['’]/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/^(le|la|les|l|the|un|une) /, "").trim();
+let TIDX = null;
+function titleIndex() {
+  if (TIDX) return TIDX;
+  TIDX = new Map();
+  ["m", "s"].forEach(k => VIEW[k].forEach(x => { const t = tkey(x.n); if (!t) return; if (!TIDX.has(t)) TIDX.set(t, []); TIDX.get(t).push([x, k]); }));
+  return TIDX;
+}
+const castList = inf => String(inf.cast || "").split(/\s*[,;\/]\s*/).map(x => x.trim()).filter(x => x && x.length < 40).slice(0, 12);
+function similar(x, k) {
+  const same = VIEW[k].filter(y => y !== x && y.c === x.c);
+  return (same.length >= 4 ? same : VIEW[k].filter(y => y !== x)).slice().sort((a, b) => (b.r || 0) - (a.r || 0) || b.add - a.add).slice(0, 20);
+}
+function pushCur() { if (FI && FI.x) FSTACK.push({ x: FI.x, k: FI.k }); else if (FI && FI.actor) FSTACK.push({ actor: FI.actor }); }
+async function openFiche(x, k, autoplay, nav) {
+  const L = $("#fiche");
+  const ret = !L.hidden && FI ? FI.ret : CUR;
+  if (!nav || L.hidden) FSTACK = []; else if (nav === "push") pushCur();
+  L.hidden = false; L.scrollTop = 0;
+  FI = { x, k, ret };
+  const r = TOP[k] ? TOP[k].indexOf(x) + 1 : 0;
+  const kick = r ? `Top 10 · N° ${r} des ${k === "m" ? "films" : "séries"}` : isNew(x) ? (k === "m" ? "Nouveau film" : "Nouvelle série") + " · ajouté " + ago(x.add) : (k === "m" ? "Film" : "Série") + (CATNAME[k][x.c] ? " · " + clean(CATNAME[k][x.c]) : "");
+  L.innerHTML = `<div class="fbd blur" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div>
+    <div class="ftop"><div class="ftx">
+      <div class="kick"><i></i><span>${esc(kick)}</span></div>
+      <h1>${esc(clean(x.n))}</h1>
+      <div class="fmeta">${metaHtml(x, {})}</div>
+      <div class="fgen"></div>
+      <p class="fplot">${esc(x.plot || "")}</p>
+      <div class="acts" data-z></div>
+      <div class="fcrew"></div>
+    </div><div class="fpo" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div></div>
+    <div class="fmore"><div id="fi-eps"></div><div id="fi-cast"></div><div id="fi-sim"></div></div>`;
   const acts = $(".acts", L);
-  const favB = () => { const on = !!FAV[ikey(k, x.id)]; return `${on ? I.check : I.list}Ma liste`; };
-  const bf = h(`<button class="btn">${favB()}</button>`); f(bf, () => { toggleFav(x, k); bf.innerHTML = favB(); });
-  const bx = h(`<button class="btn" aria-label="Retour">${I.back}Retour</button>`); f(bx, closeFiche);
+  const favB = () => { const on = !!FAV[ikey(k, x.id)]; return `${on ? I.check : I.list}${on ? "Dans ma liste" : "Ma liste"}`; };
+  const bf = h(`<button class="btn glass">${favB()}</button>`); f(bf, () => { toggleFav(x, k); bf.innerHTML = favB(); });
+  const bp = h(`<button class="btn pri">${I.play}Lecture</button>`);
+  acts.append(bp);
   if (k === "m") {
     const p = PROG[ikey("m", x.id)];
-    const bp = h(`<button class="btn pri">${I.play}${p && !p.done && p.pos > 30 ? "Reprendre · " + hms(p.pos) : "Lecture"}</button>`);
+    if (p && !p.done && p.pos > 30) { bp.innerHTML = I.play + "Reprendre"; bp.insertAdjacentHTML("beforeend", `<span class="bpg"><i style="width:${100 * p.pos / (p.dur || 1)}%"></i></span>`); const b0 = h(`<button class="btn glass">${I.ref}Depuis le début</button>`); f(b0, () => playMovie(x, 0)); acts.append(b0); }
     f(bp, () => playMovie(x, p && !p.done ? p.pos : 0));
-    acts.append(bp);
-    if (p && !p.done && p.pos > 30) { const b0 = h(`<button class="btn">${I.ref}Depuis le début</button>`); f(b0, () => playMovie(x, 0)); acts.append(b0); }
-    acts.append(bf, bx);
-    focus(bp);
-    const inf = await vodInfo(x);
-    if (FI && FI.x === x) fillFiche(L, x, inf);
-  } else {
-    const bp = h(`<button class="btn pri">${I.play}Lecture</button>`);
-    acts.append(bp, bf, bx);
-    focus(bp);
-    $("#fi-more", L).innerHTML = '<div class="msg wait" style="max-width:24rem">Chargement des épisodes…</div>';
-    let inf;
-    try { inf = await seriesInfo(x); } catch (e) { $("#fi-more", L).innerHTML = '<div class="msg err">' + esc(e.message) + "</div>"; return; }
-    if (!FI || FI.x !== x) return;
-    fillFiche(L, x, inf);
-    const eps = inf.eps;
-    if (!eps.length) { $("#fi-more", L).innerHTML = '<div class="empty">Aucun épisode pour l\'instant.</div>'; return; }
-    // où en est-on ? dernier épisode commencé, sinon le suivant du dernier terminé, sinon le premier
-    let last = null;
-    eps.forEach(e => { const p = PROG[ikey("e", e.id)]; if (p && (!last || p.t > last.p.t)) last = { e, p }; });
-    let start = eps[0], at = 0;
-    if (last) { if (last.p.done) { const i = eps.indexOf(last.e); start = eps[Math.min(i + 1, eps.length - 1)]; } else { start = last.e; at = last.p.pos; } }
-    bp.innerHTML = I.play + (last ? (at > 30 ? "Reprendre " : "Regarder ") + `S${start.se} · É${start.ep}` : "Regarder S" + start.se + " · É" + start.ep);
-    f(bp, () => playEpisodes(x, inf, eps.indexOf(start), at));
-    if (autoplay) { playEpisodes(x, inf, eps.indexOf(start), at); }
-    const seasons = [...new Set(eps.map(e => e.se))];
-    const more = $("#fi-more", L);
-    more.innerHTML = `<div class="seas" data-z></div><div class="eps" data-z></div>`;
-    const sb = $(".seas", more), eb = $(".eps", more);
-    const showSeason = se => {
-      $$(".chip", sb).forEach(c => c.classList.toggle("sel", +c.dataset.s === se));
-      eb.innerHTML = "";
-      eps.filter(e => e.se === se).forEach(e => {
-        const p = PROG[ikey("e", e.id)];
-        const img = e.img || inf.bd || inf.img || "";
-        const b = h(`<button class="ep"><span class="n">${e.ep}</span><span class="th" style="background-image:${img ? `url('${esc(img)}')` : "none"}">${p && !p.done && p.dur ? `<span class="bar"><i style="width:${100 * p.pos / p.dur}%"></i></span>` : ""}${p && p.done ? `<span class="ck">${I.check}</span>` : ""}</span><span class="d"><b>${esc(e.t)}</b><span>Épisode ${e.ep}${e.dur ? " · " + esc(e.dur) : ""}</span><p>${esc(e.plot || "")}</p></span></button>`);
-        f(b, () => playEpisodes(x, inf, eps.indexOf(e), p && !p.done ? p.pos : 0));
-        eb.appendChild(b);
-      });
-    };
-    seasons.forEach(se => {
-      const c = h(`<button class="chip" data-s="${se}">${se ? "Saison " + se : "Épisodes"}</button>`);
-      f(c, () => showSeason(se));
-      let tm; c._focus = () => { clearTimeout(tm); tm = setTimeout(() => CUR === c && !c.classList.contains("sel") && showSeason(se), 300); };
-      sb.appendChild(c);
-    });
-    showSeason(start.se);
-    sb._last = $(`.chip[data-s="${start.se}"]`, sb);
   }
+  acts.append(bf);
+  focus(bp);
+  // films semblables, tout de suite
+  const sim = similar(x, k);
+  if (sim.length) $("#fi-sim", L).appendChild(row(CATNAME[k][x.c] && sim[0].c === x.c ? "Dans le même genre" : "Tu pourrais aussi aimer", sim.map(y => card(y, k, { ok: () => openFiche(y, k, false, "push") }))));
+  let inf;
+  try { inf = k === "m" ? await vodInfo(x) : await seriesInfo(x); }
+  catch (e) { if (k === "s") $("#fi-eps", L).innerHTML = '<div class="msg err">' + esc(e.message) + "</div>"; return; }
+  if (!FI || FI.x !== x) return;
+  // image, résumé, genres
+  if (inf.bd) { const b = $(".fbd", L); b.style.backgroundImage = `url('${inf.bd}')`; b.classList.remove("blur"); $(".fpo", L).hidden = true; }
+  if (inf.img && !x.img) $(".fpo", L).style.backgroundImage = `url('${inf.img}')`;
+  $(".fmeta", L).innerHTML = metaHtml(x, inf) + (inf.age ? `<span class="pill">${esc(inf.age)}</span>` : "");
+  $(".fgen", L).innerHTML = String(inf.genre || "").split(/\s*[,/]\s*/).filter(Boolean).slice(0, 4).map(g => `<span>${esc(g)}</span>`).join("");
+  $(".fplot", L).textContent = inf.plot || x.plot || "";
+  if (inf.dir) $(".fcrew", L).innerHTML = "Réalisation : <b>" + esc(inf.dir) + "</b>";
+  // casting
+  const names = castList(inf);
+  if (names.length) {
+    const cr = h(`<section class="row cast"><h3>Avec</h3><div class="strip" data-z></div></section>`), st = $(".strip", cr);
+    const bub = names.map(n => {
+      const b = h(`<div class="pp" role="button" tabindex="-1"><span class="ph"><i>${esc(n.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase())}</i></span><b>${esc(n)}</b></div>`);
+      f(b, () => openActor(n));
+      st.appendChild(b); return b;
+    });
+    $("#fi-cast", L).appendChild(cr);
+    people(names).then(ps => { if (!FI || FI.x !== x) return; ps.forEach((p, i) => { if (p && p.img) { const ph = $(".ph", bub[i]); ph.style.backgroundImage = `url('${wimg(p.img, 240)}')`; ph.classList.add("img"); } }); });
+  }
+  if (k === "s") ficheEpisodes(L, x, inf, bp, autoplay);
 }
-function fillFiche(L, x, inf) {
-  const bd = $(".bd", L), po = $(".po", L);
-  if (inf.bd) { bd.style.backgroundImage = `url('${inf.bd}')`; bd.classList.remove("blur"); }
-  if (inf.img && !x.img) po.style.backgroundImage = `url('${inf.img}')`;
-  $(".meta", L).innerHTML = metaHtml(x, inf);
-  $(".fi-tx p", L).textContent = inf.plot || x.plot || "";
-  const crew = [];
-  if (inf.dir) crew.push("<b>Réalisation :</b> " + esc(inf.dir));
-  if (inf.cast) crew.push("<b>Avec :</b> " + esc(inf.cast.split(",").slice(0, 6).join(", ")));
-  $(".crew", L).innerHTML = crew.join("<br>");
+function ficheEpisodes(L, x, inf, bp, autoplay) {
+  const eps = inf.eps;
+  const box = $("#fi-eps", L);
+  if (!eps.length) { box.innerHTML = '<div class="empty">Aucun épisode pour l\'instant.</div>'; return; }
+  let last = null;
+  eps.forEach(e => { const p = PROG[ikey("e", e.id)]; if (p && (!last || p.t > last.p.t)) last = { e, p }; });
+  let start = eps[0], at = 0;
+  if (last) { if (last.p.done) { const i = eps.indexOf(last.e); start = eps[Math.min(i + 1, eps.length - 1)]; } else { start = last.e; at = last.p.pos; } }
+  bp.innerHTML = I.play + (last ? (at > 30 ? "Reprendre " : "Regarder ") : "Regarder ") + `S${start.se} · É${start.ep}`;
+  f(bp, () => playEpisodes(x, inf, eps.indexOf(start), at));
+  if (autoplay) playEpisodes(x, inf, eps.indexOf(start), at);
+  const seasons = [...new Set(eps.map(e => e.se))];
+  box.innerHTML = `<div class="eph"><h3>Épisodes</h3><div class="seas" data-z></div></div><div class="eps" data-z></div>`;
+  const sb = $(".seas", box), eb = $(".eps", box);
+  const showSeason = se => {
+    $$(".chip", sb).forEach(c => c.classList.toggle("sel", +c.dataset.s === se));
+    eb.innerHTML = "";
+    eps.filter(e => e.se === se).forEach(e => {
+      const p = PROG[ikey("e", e.id)];
+      const img = e.img || inf.bd || inf.img || "";
+      const b = h(`<button class="ep"><span class="th" style="background-image:${img ? `url('${esc(img)}')` : "none"}"><span class="pl">${I.play}</span>${p && !p.done && p.dur ? `<span class="bar"><i style="width:${100 * p.pos / p.dur}%"></i></span>` : ""}${p && p.done ? `<span class="ck">${I.check}</span>` : ""}</span><span class="d"><b><em>${e.ep}.</em> ${esc(e.t)}</b><span>${e.dur ? esc(String(e.dur).replace(/^0?(\d+):(\d\d):\d\d$/, (m, a, b) => (+a ? a + " h " : "") + (+b) + " min")) : ""}</span><p>${esc(e.plot || "")}</p></span></button>`);
+      f(b, () => playEpisodes(x, inf, eps.indexOf(e), p && !p.done ? p.pos : 0));
+      eb.appendChild(b);
+    });
+  };
+  seasons.forEach(se => {
+    const c = h(`<button class="chip" data-s="${se}">${se ? "Saison " + se : "Épisodes"}</button>`);
+    f(c, () => showSeason(se));
+    let tm; c._focus = () => { clearTimeout(tm); tm = setTimeout(() => CUR === c && !c.classList.contains("sel") && showSeason(se), 300); };
+    sb.appendChild(c);
+  });
+  showSeason(start.se);
+  sb._last = $(`.chip[data-s="${start.se}"]`, sb);
+}
+// page d'un acteur : sa photo, et ses films présents dans ta source
+async function openActor(name, nav) {
+  const L = $("#fiche");
+  if (nav !== "back") pushCur();
+  FI = { actor: name, ret: FI ? FI.ret : CUR };
+  L.scrollTop = 0;
+  const p = (await people([name]))[0];
+  if (!FI || FI.actor !== name) return;
+  L.innerHTML = `<div class="fbd actor"></div><div class="ap">
+    <div class="ap-h"><span class="ph big${p && p.img ? " img" : ""}" style="${p && p.img ? `background-image:url('${wimg(p.img, 480)}')` : ""}"><i>${esc(name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase())}</i></span>
+    <div><div class="kick"><i></i><span>Casting</span></div><h1>${esc(name)}</h1><div class="sub" id="ap-n">Je cherche ses films…</div><div class="acts" data-z></div></div></div>
+    <div id="ap-in"></div><div id="ap-out"></div></div>`;
+  const bb = h(`<button class="btn glass">${I.back}Retour</button>`); f(bb, ficheBack); $(".acts", L).appendChild(bb); focus(bb);
+  const bg = $(".fbd", L); if (p && p.img) bg.style.backgroundImage = `url('${wimg(p.img, 600)}')`;
+  if (!p) { $("#ap-n", L).textContent = "Je n'ai pas trouvé sa filmographie."; return; }
+  let films = [];
+  try {
+    const b = await WDQ(`SELECT ?f ?t ?y WHERE { ?f wdt:P161 wd:${p.q} . ?f rdfs:label ?t . FILTER(lang(?t) = "fr" || lang(?t) = "en") OPTIONAL { ?f wdt:P577 ?d . BIND(YEAR(?d) AS ?y) } }`);
+    const by = new Map();
+    b.forEach(r => { const id = r.f.value; const o = by.get(id) || { t: [], y: 0 }; o.t.push(r.t.value); if (r.y && (!o.y || +r.y.value < o.y)) o.y = +r.y.value; by.set(id, o); });
+    films = [...by.values()];
+  } catch (e) { $("#ap-n", L).textContent = "Sa filmographie n'est pas joignable pour le moment."; return; }
+  if (!FI || FI.actor !== name) return;
+  const idx = titleIndex(), have = [], seen = new Set(), other = [];
+  films.sort((a, b) => (b.y || 0) - (a.y || 0)).forEach(fm => {
+    let hit = null;
+    for (const t of fm.t) { const m = idx.get(tkey(t)); if (m) { hit = m; break; } }
+    if (hit) hit.forEach(([x, k]) => { if (!seen.has(k + x.id)) { seen.add(k + x.id); have.push([x, k]); } });
+    else other.push(fm);
+  });
+  $("#ap-n", L).textContent = have.length ? `${have.length} titre${have.length > 1 ? "s" : ""} dans ta source` : "Aucun de ses films n'est dans ta source pour l'instant.";
+  if (have.length) {
+    const g = h('<div class="grid" data-z></div>');
+    have.forEach(([x, k]) => g.appendChild(card(x, k, { ok: () => openFiche(x, k, false, "push") })));
+    $("#ap-in", L).appendChild(g);
+  }
+  if (other.length) $("#ap-out", L).innerHTML = `<h3>Aussi dans sa filmographie</h3><div class="ap-other">${other.slice(0, 40).map(fm => `<span>${esc(fm.t.find(t => /[a-zàâçéèêëîïôûùüÿñæœ]/i.test(t)) || fm.t[0])}${fm.y ? ` <small>${fm.y}</small>` : ""}</span>`).join("")}</div>`;
+}
+function ficheBack() {
+  if (FSTACK.length) {
+    const p = FSTACK.pop();
+    if (p.actor) { openActor(p.actor, "back"); return; }
+    openFiche(p.x, p.k, false, "back");
+    return;
+  }
+  closeFiche();
 }
 function closeFiche() {
   const L = $("#fiche"); L.hidden = true; L.innerHTML = "";
-  const r = FI && FI.ret; FI = null;
+  const r = FI && FI.ret; FI = null; FSTACK = [];
   refreshHome(r);
 }
 
@@ -1632,7 +1799,7 @@ window.iptvClosed = function (j) {
   afterPlay();
 };
 function afterPlay() {
-  if (!$("#fiche").hidden && FI) { const x = FI.x, k = FI.k, r = FI.ret; openFiche(x, k).then(() => { if (FI) FI.ret = r; }); return; }
+  if (!$("#fiche").hidden && FI && FI.x) { openFiche(FI.x, FI.k, false, "back"); return; }
   if (TAB === "live") { $$(".mtile").forEach(t => t.classList.toggle("cur", !!t._x && t._x.id === LV.ch)); const t = $(".mtile.cur"); if (t) { focus(t); return; } }
   refreshHome(CUR);
 }
@@ -1874,7 +2041,7 @@ function back() {
   if (!$("#player").hidden) return plClose();
   if (!$("#edit").hidden) { const x = $("#se-x") || $("#pe-x"); if (x) x._ok(); else $("#edit").hidden = true; return; }
   if (!$("#menu").hidden) { const L = $("#menu"); L._close ? L._close() : (L.hidden = true); return; }
-  if (!$("#fiche").hidden) return closeFiche();
+  if (!$("#fiche").hidden) return ficheBack();
   if (!$("#app").hidden) {
     const inTop = CUR && CUR.closest("#top");
     if (TAB !== "home") { if (!inTop) { const t = $(".tab.sel") || $("#t-search"); return focus(t); } return go("home"); }
