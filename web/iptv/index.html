@@ -446,6 +446,19 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .cflow h3{font-size:1.5rem;margin:0 var(--pad) .6rem}
 .cf{display:flex;gap:0;overflow-x:auto;overflow-y:visible;scrollbar-width:none;padding:1.2rem calc(50% - 6.8rem) 1rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .cf::-webkit-scrollbar{display:none}
+.mylb{position:relative;margin:.4rem var(--pad) 1.6rem;padding:1.1rem 0 .3rem;border-radius:1.4rem;background:linear-gradient(135deg,rgba(123,92,255,.28),rgba(123,92,255,.06) 55%,rgba(255,255,255,.03));border:1px solid rgba(160,140,255,.22);overflow:hidden}
+.mylb::before{content:"";position:absolute;right:-4rem;top:-5rem;width:16rem;height:16rem;border-radius:50%;background:radial-gradient(circle,rgba(123,92,255,.45),transparent 70%);pointer-events:none}
+.mylb-h{position:relative;display:flex;align-items:center;gap:.8rem;margin:0 1.2rem .5rem}
+.mylb-h h3{margin:0;font:700 1.35rem var(--head)}
+.mylb-h small{color:var(--mute);font-size:.85rem}
+.mylb-ic{display:grid;place-items:center;width:2.6rem;height:2.6rem;border-radius:50%;background:linear-gradient(135deg,#9B7CFF,#6A45F5);box-shadow:0 .4rem 1.2rem rgba(123,92,255,.55);color:#fff}
+.mylb-ic .ic{width:1.25rem;height:1.25rem}
+.mylb .strip{position:relative;padding-left:1.2rem;padding-right:1.2rem;scroll-padding:0 1.2rem}
+.mylb .card.mylc{width:8.6rem;border-radius:.9rem;box-shadow:0 .5rem 1.2rem rgba(0,0,0,.45)}
+.mylb .card.mylc.on{box-shadow:0 0 0 .2rem #B9A6FF,0 .8rem 1.8rem rgba(123,92,255,.5)}
+.mylb-empty{flex:1;display:flex;flex-direction:column;gap:.3rem;padding:1rem 1.2rem;border-radius:1rem;border:1px dashed rgba(185,166,255,.4);color:var(--mute);font-size:.95rem}
+.mylb-empty b{color:#fff;font-size:1.05rem}
+.mylb-empty.on{border-color:#fff}
 .cf .cfc{flex:none;width:13.6rem;margin:0 -.7rem;scroll-snap-align:center;scroll-snap-stop:normal;border-radius:1.2rem;transition:none;box-shadow:0 .8rem 1.6rem rgba(0,0,0,.45);transform-origin:50% 60%;will-change:transform,opacity;backface-visibility:hidden;contain:layout paint}
 .cf .cfc.on{box-shadow:0 0 0 .22rem #fff,0 .8rem 1.6rem rgba(0,0,0,.45)}
 .cf .cfc .rk{position:absolute;left:.7rem;bottom:.5rem;font:900 3.6rem/1 var(--head);color:#fff;text-shadow:0 .2rem 1rem rgba(0,0,0,.7)}
@@ -659,6 +672,7 @@ document.addEventListener("DOMContentLoaded", () => { if (document.documentEleme
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 const I = {
+  heart:'<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21z"/></svg>',
   home:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
   tv:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 3l4 4 4-4"/></svg>',
   film:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></svg>',
@@ -1117,10 +1131,11 @@ function move(dir) {
   const a = CUR.getBoundingClientRect();
   const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
   let best = null, bs = Infinity;
-  const top = !!CUR.closest("#top"), side2 = dir === "left" || dir === "right";
+  const top = !!CUR.closest("#top"), side2 = dir === "left" || dir === "right", cfz = CUR.closest(".cf");
   for (const el of all) {
     if (el === CUR) continue;
     if (side2 && !!el.closest("#top") !== top) continue;  // gauche/droite ne sautent jamais entre la barre du haut et le contenu
+    if (!side2 && cfz && el.closest(".cf") === cfz) continue;  // haut/bas sortent toujours du carrousel
     const b = el.getBoundingClientRect();
     const bx = b.left + b.width / 2, by = b.top + b.height / 2;
     let main, side, overlap;
@@ -1316,7 +1331,7 @@ async function enterProfile(p, force) {
   indexCatalog();
   boot.hidden = true; $("#app").hidden = false;
   drawTop();
-  go(LS.get("tab." + p.id, "home") === "live" ? "live" : "home");
+  go(firstTab());
 }
 function showError(m) {
   const L = $("#menu"); L.hidden = false;
@@ -1342,8 +1357,9 @@ async function refreshQuiet(loud) {
 }
 
 /* ---------------- barre du haut ---------------- */
-const TABS = [["home", "Accueil", I.home], ["live", "Direct", I.tv], ["movies", "Films", I.film], ["series", "Séries", I.ser], ["mylist", "Ma lecture", I.list]];
-let TAB = "home";
+const TABS = [["live", "Direct", I.tv], ["movies", "Films", I.film], ["series", "Séries", I.ser]];
+let TAB = "live";
+const firstTab = () => VIEW.l.length ? "live" : VIEW.m.length ? "movies" : VIEW.s.length ? "series" : "search";
 function drawTop() {
   const t = $("#tabs"); t.innerHTML = "";
   TABS.forEach(([id, label, ic]) => {
@@ -1358,6 +1374,7 @@ function drawTop() {
   const me = $("#t-me"); me.innerHTML = avatar(P); f(me, openMenu);
 }
 function go(tab, keep) {
+  if (tab === "home" || tab === "mylist") tab = firstTab();
   TAB = tab; LS.set("tab." + P.id, tab); CATV = null;
   $$(".tab").forEach(b => b.classList.toggle("sel", b.dataset.t === tab));
   $("#t-search").classList.toggle("sel", tab === "search");
@@ -1623,16 +1640,25 @@ function drawBrowse(k) {
     const x = p.k === "m" ? VIEW.m.find(y => String(y.id) === String(p.id)) : VIEW.s.find(y => String(y.id) === String(p.sid));
     return wideCard(x || { n: p.n, img: p.img }, k, { label: clean(p.n) + (p.lbl ? " · " + p.lbl : ""), bd: p.bd, pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
   });
-  if (cont.length) page.appendChild(row("Continuer la lecture", cont));
   const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
   const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
-  if (mine.length) page.appendChild(row("Ma liste", mine.map(x => wideCard(x, k))));
+  page.appendChild(myListBlock(mine, k));
+  if (cont.length) page.appendChild(row("Continuer à regarder", cont));
   if (k === "m") page.appendChild(sagaRow());
   const add = r => r && page.appendChild(r);
   add(row(k === "m" ? "Nouveaux films" : "Nouvelles séries", NEW[k].slice(0, 30), k));
   const best = VIEW[k].filter(x => x.r >= 3.6).sort((a, b) => b.r - a.r).slice(0, 30);
   if (best.length >= 6) add(row("Les mieux notés", best, k));
   cats.forEach(c => add(lazyRow(clean(c[1]), () => sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 30).map(x => card(x, k)), cnt[c[0]])));
+}
+// « Ma liste » : un bloc à part, mis en valeur
+function myListBlock(mine, k) {
+  const r = h(`<section class="row mylb"><div class="mylb-h"><span class="mylb-ic">${I.heart || "♥"}</span><div><h3>Ma liste</h3><small>${mine.length ? mine.length + (k === "m" ? " film" : " série") + (mine.length > 1 ? "s" : "") + " à regarder" : ""}</small></div></div><div class="strip" data-z></div></section>`);
+  const st = $(".strip", r);
+  if (!mine.length) {
+    st.appendChild(f(h(`<div class="mylb-empty" role="button" tabindex="-1"><b>Ta liste est vide</b><span>Ouvre un ${k === "m" ? "film" : "une série"} et appuie sur « ＋ Ma liste » pour le retrouver ici.</span></div>`), () => { }));
+  } else mine.forEach(x => { const c = card(x, k); c.classList.add("mylc"); st.appendChild(c); });
+  return r;
 }
 // grande carte 16:9 avec l'image de fond du film (chargée seulement quand elle arrive à l'écran)
 function wideCard(x, k, opts) {
@@ -1687,7 +1713,21 @@ function coverflow(title, items, k) {
     const c = cards[best];
     if (c && c !== last) { last = c; const x = c._x; $("b", info).textContent = clean(x.n); $("span", info).innerHTML = metaHtml(x, {}); }
   };
-  const center = (c, smooth) => { cf.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - cf.clientWidth / 2, behavior: smooth ? "smooth" : "auto" }); };
+  // télécommande : une seule animation qui se ré-oriente à chaque appui (appuis rapides = pas de saccade)
+  let goal = null, anim = 0;
+  const step = () => {
+    const d = goal - cf.scrollLeft;
+    if (Math.abs(d) < 1) { cf.scrollLeft = goal; anim = 0; goal = null; cf.style.scrollSnapType = ""; return; }
+    cf.scrollLeft += d * .22; anim = requestAnimationFrame(step);
+  };
+  const center = (c, smooth) => {
+    const t = Math.max(0, Math.min(cf.scrollWidth - cf.clientWidth, c.offsetLeft + c.offsetWidth / 2 - cf.clientWidth / 2));
+    if (!smooth) { cancelAnimationFrame(anim); anim = 0; goal = null; cf.style.scrollSnapType = ""; cf.scrollLeft = t; return; }
+    goal = t; cf.style.scrollSnapType = "none";
+    if (!anim) anim = requestAnimationFrame(step);
+  };
+  const stop = () => { if (anim) { cancelAnimationFrame(anim); anim = 0; goal = null; cf.style.scrollSnapType = ""; } };
+  cf.addEventListener("touchstart", stop, { passive: true }); cf.addEventListener("wheel", stop, { passive: true });
   cf.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
   setTimeout(() => { if (cards[0]) { measure(); center(cards[Math.min(1, cards.length - 1)], false); paint(); } }, 0);
   window.addEventListener("resize", () => { measure(); paint(); });
@@ -2164,7 +2204,7 @@ function saveProg(it, pos, dur) {
 }
 let DIRTY = false;
 function refreshHome(fallback) {
-  if ((TAB === "home" || TAB === "mylist") && DIRTY) {
+  if ((TAB === "movies" || TAB === "series") && DIRTY) {
     DIRTY = false; go(TAB, true);
     setTimeout(() => focus($("#view .row .card") || $(".hero .btn")), 0);
     return true;
@@ -2401,13 +2441,13 @@ function editStudio(ret) {
 }
 function openSettings(ret, tab, kind) {
   const L = $("#menu"); L.hidden = false; L.scrollTop = 0;
-  tab = tab || "home"; kind = kind || "m";
+  tab = tab === "home" || !tab ? "cats" : tab; kind = kind || "m";
   const u = UI();
   const save = () => { P.u = Date.now(); LS.set("profiles", PROFILES); SYNC.push(); MENU_DIRTY = true; };
   L.innerHTML = `<div class="panel wide"><h2>Réglages de l'affichage</h2><p class="sub">Pour le profil ${esc(P.name)}, sur tous tes appareils.</p>
     <div class="stabs" data-z></div><div id="sg"></div></div>`;
   const tabs = $(".stabs", L), sg = $("#sg", L);
-  [["home", "Accueil"], ["cats", "Catégories"], ["view", "Affichage"]].forEach(([id, lab]) => {
+  [["cats", "Catégories"], ["view", "Affichage"]].forEach(([id, lab]) => {
     const c = h(`<button class="chip${id === tab ? " sel" : ""}">${lab}</button>`);
     f(c, () => openSettings(ret, id, kind)); tabs.appendChild(c);
   });
@@ -2476,8 +2516,8 @@ function back() {
   if (CATV && !$("#app").hidden) return closeCat();
   if (!$("#app").hidden) {
     const inTop = CUR && CUR.closest("#top");
-    if (TAB !== "home") { if (!inTop) { const t = $(".tab.sel") || $("#t-search"); return focus(t); } return go("home"); }
-    if (!inTop) { const v = $("#view"); v.scrollTop = 0; return focus($(".hero .btn") || $(".tab.sel")); }
+    if (!inTop) { const v = $("#view"); v.scrollTop = 0; return focus($(".tab.sel") || $("#t-search")); }
+    if (TAB !== firstTab()) return go(firstTab());
     if (Date.now() - lastBack < 2500 && window.FRIPTV && FRIPTV.exit) return FRIPTV.exit();
     lastBack = Date.now(); if (window.FRIPTV && FRIPTV.exit) toast("Appuie encore sur Retour pour quitter");
     return;
