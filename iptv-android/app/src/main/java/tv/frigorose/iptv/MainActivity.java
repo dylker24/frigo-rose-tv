@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseIPTV/1" + (isTv() ? "" : " FrigoRoseTablet"));
+        s.setUserAgentString(s.getUserAgentString() + " FrigoRoseIPTV/2" + (isTv() ? "" : " FrigoRoseTablet"));
 
         web.setWebChromeClient(new WebChromeClient() {
             @Override

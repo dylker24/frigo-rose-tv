@@ -663,6 +663,7 @@ const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const enc = encodeURIComponent;
 const NATIVE = window.FRIPTV && typeof FRIPTV.play === "function";
+const APP_V = +((navigator.userAgent.match(/FrigoRoseIPTV\/(\d+)/) || [])[1] || 0);
 const IS_TV = /FrigoRoseIPTV/.test(navigator.userAgent) && !/Tablet/.test(navigator.userAgent);
 // servie par Studio (http://…:8795/iptv/) : les appels passent par Studio, qui lève les blocages du navigateur
 const VIA = location.protocol.startsWith("http") && /^\/iptv(\/|$)/.test(location.pathname) ? location.origin + "/iptv/p?u=" : "";
@@ -1332,6 +1333,7 @@ async function enterProfile(p, force) {
   boot.hidden = true; $("#app").hidden = false;
   drawTop();
   go(firstTab());
+  if (NATIVE && APP_V < 2 && !window._updTold) { window._updTold = 1; setTimeout(() => toast("Nouveau lecteur dispo : réinstalle l'appli avec is.gd/frigoiptv", 9000), 1500); }
 }
 function showError(m) {
   const L = $("#menu"); L.hidden = false;
@@ -1434,7 +1436,7 @@ function fill(box, items, mk, chunk) {
 /* ---------------- accueil ---------------- */
 let heroT = 0;
 function continueItems() {
-  return Object.entries(PROG).filter(([key, p]) => key.startsWith(S.id + "|") && !p.done && p.pos > 30).sort((a, b) => b[1].t - a[1].t).slice(0, 20);
+  return Object.entries(PROG).filter(([key, p]) => key.startsWith(S.id + "|") && !p.done && !p.hide && p.pos > 30).sort((a, b) => b[1].t - a[1].t).slice(0, 20);
 }
 const ago = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d <= 0 ? "aujourd'hui" : d === 1 ? "hier" : "il y a " + d + " jours"; };
 /* une page « grande image + rangées » : accueil, films, séries, direct */
@@ -1638,12 +1640,15 @@ function drawBrowse(k) {
   // continuer / ma liste : grandes images
   const cont = continueItems().filter(([key, p]) => k === "m" ? p.k === "m" : p.k === "e").map(([key, p]) => {
     const x = p.k === "m" ? VIEW.m.find(y => String(y.id) === String(p.id)) : VIEW.s.find(y => String(y.id) === String(p.sid));
-    return wideCard(x || { n: p.n, img: p.img }, k, { label: clean(p.n) + (p.lbl ? " · " + p.lbl : ""), bd: p.bd, pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
-  });
+    if (!x) return null;  // plus dans la source : on ne l'affiche plus
+    const el = wideCard(x, k, { label: clean(p.n) + (p.lbl ? " · " + p.lbl : ""), bd: p.bd, pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
+    longRemove(el, () => hideProg(p), "Retiré de « Continuer à regarder »");
+    return el;
+  }).filter(Boolean);
   const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
   const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
   page.appendChild(myListBlock(mine, k));
-  if (cont.length) page.appendChild(row("Continuer à regarder", cont));
+  if (cont.length) { const r = row("Continuer à regarder", cont); $("h3", r).insertAdjacentHTML("beforeend", `<small>${HOLD_TXT} pour retirer</small>`); page.appendChild(r); }
   if (k === "m") page.appendChild(sagaRow());
   const add = r => r && page.appendChild(r);
   add(row(k === "m" ? "Nouveaux films" : "Nouvelles séries", NEW[k].slice(0, 30), k));
@@ -1651,13 +1656,31 @@ function drawBrowse(k) {
   if (best.length >= 6) add(row("Les mieux notés", best, k));
   cats.forEach(c => add(lazyRow(clean(c[1]), () => sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 30).map(x => card(x, k)), cnt[c[0]])));
 }
+// appui long (OK maintenu / doigt appuyé) : retirer une carte
+const HOLD_TXT = matchMedia("(pointer:coarse)").matches ? "Appui long" : "Maintiens OK";
+function longRemove(el, del, msg) {
+  el._long = () => {
+    del();
+    const st = el.parentElement, nx = el.nextElementSibling || el.previousElementSibling;
+    el.remove(); toast(msg);
+    if (nx) focus(nx); else { const sec = st && st.closest("section"); const after = sec && sec.nextElementSibling; if (sec && !sec.classList.contains("mylb")) sec.remove(); firstIn(after || $("#view")); }
+  };
+  el.addEventListener("contextmenu", ev => { ev.preventDefault(); el._long(); });
+}
+function hideProg(p) {
+  // retire le film (ou tous les épisodes de la série) de « Continuer », synchronisé sur les autres appareils
+  const now = Date.now();
+  Object.entries(PROG).forEach(([key, q]) => { if (key.startsWith(S.id + "|") && (p.k === "m" ? q.k === "m" && String(q.id) === String(p.id) : q.k === "e" && String(q.sid) === String(p.sid))) { q.hide = 1; q.t = now; } });
+  LS.set(progKey(), PROG); SYNC.push();
+}
 // « Ma liste » : un bloc à part, mis en valeur
 function myListBlock(mine, k) {
   const r = h(`<section class="row mylb"><div class="mylb-h"><span class="mylb-ic">${I.heart || "♥"}</span><div><h3>Ma liste</h3><small>${mine.length ? mine.length + (k === "m" ? " film" : " série") + (mine.length > 1 ? "s" : "") + " à regarder" : ""}</small></div></div><div class="strip" data-z></div></section>`);
   const st = $(".strip", r);
   if (!mine.length) {
     st.appendChild(f(h(`<div class="mylb-empty" role="button" tabindex="-1"><b>Ta liste est vide</b><span>Ouvre un ${k === "m" ? "film" : "une série"} et appuie sur « ＋ Ma liste » pour le retrouver ici.</span></div>`), () => { }));
-  } else mine.forEach(x => { const c = card(x, k); c.classList.add("mylc"); st.appendChild(c); });
+  } else mine.forEach(x => { const c = card(x, k); c.classList.add("mylc"); longRemove(c, () => { if (FAV[ikey(k, x.id)]) toggleFav(x, k); }, "Retiré de ta liste"); st.appendChild(c); });
+  if (mine.length) $("small", r).insertAdjacentHTML("beforeend", ` · ${HOLD_TXT.toLowerCase()} pour retirer`);
   return r;
 }
 // grande carte 16:9 avec l'image de fond du film (chargée seulement quand elle arrive à l'écran)
@@ -2526,7 +2549,7 @@ function back() {
 }
 let holdT = 0, holdDone = true;
 document.addEventListener("keyup", e => {
-  if ((e.key === "Enter" || e.key === " ") && CUR && CUR._long && !holdDone && $("#player").hidden && !(e.target && /INPUT/.test(e.target.tagName))) { holdDone = true; ok(); }
+  if ((e.key === "Enter" || e.key === " ") && CUR && CUR._long && !holdDone && $("#player").hidden && !(e.target && /INPUT/.test(e.target.tagName))) { holdDone = true; clearTimeout(window._holdTm); ok(); }
 });
 document.addEventListener("keydown", e => {
   let k = e.key;
@@ -2549,8 +2572,8 @@ document.addEventListener("keydown", e => {
   }
   if ((k === "Enter" || k === " ") && CUR && CUR._long && layer().contains(CUR)) {
     e.preventDefault();
-    if (!e.repeat) { holdT = Date.now(); holdDone = false; }
-    else if (!holdDone && Date.now() - holdT > 600) { holdDone = true; CUR._long(); }
+    if (!e.repeat) { holdT = Date.now(); holdDone = false; const el = CUR; clearTimeout(window._holdTm); window._holdTm = setTimeout(() => { if (!holdDone && CUR === el) { holdDone = true; el._long(); } }, 650); }
+    else if (!holdDone && Date.now() - holdT > 600) { holdDone = true; clearTimeout(window._holdTm); CUR._long(); }
     return;
   }
   if (k === "Enter" || k === " ") { e.preventDefault(); return ok(); }
