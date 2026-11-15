@@ -11,7 +11,7 @@
 :root{
   --bg:#07070A; --s1:#111116; --s2:#18181F; --s3:#23232C; --line:#2A2A34;
   --ink:#FFFFFF; --mute:#A3A3B2; --faint:#7C7C8C;
-  --accent:#E0245E; --accent-t:#FF6B95; --accent-rgb:224,36,94; --live:#5BE3A3;
+  --accent:#7B5CFF; --accent-t:#A992FF; --accent-rgb:123,92,255; --live:#5BE3A3;
   --ui:"Geist",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --brand:"Unbounded","Arial Black",system-ui,sans-serif;
   --pad:3.2rem;
@@ -38,9 +38,9 @@ svg{display:block}
 .chip.sel{background:#fff;color:#000}
 
 /* ---------- démarrage / profils ---------- */
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 90% at 50% 0%,#1a0c14 0%,var(--bg) 60%)}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 90% at 50% 0%,#140f2a 0%,var(--bg) 60%)}
 .logo{display:flex;align-items:center;gap:.8rem;font:800 1.15rem var(--brand);letter-spacing:-.01em}
-.logo .mk{width:2.3rem;height:2.3rem;border-radius:.7rem;background:linear-gradient(135deg,#FF4D8D,#B5179E);display:grid;place-items:center;box-shadow:0 .4rem 1.4rem rgba(var(--accent-rgb),.35)}
+.logo .mk{width:2.3rem;height:2.3rem;border-radius:.7rem;background:linear-gradient(135deg,#8F73FF,#3D3BE0);display:grid;place-items:center;box-shadow:0 .4rem 1.4rem rgba(var(--accent-rgb),.35)}
 .logo .mk svg{width:1.3rem;height:1.3rem}
 .logo small{font:600 .62rem var(--ui);letter-spacing:.18em;color:var(--accent-t);margin-left:.1rem;align-self:flex-start;margin-top:.15rem}
 #boot .sp{margin-top:2rem;width:2.2rem;height:2.2rem;border-radius:50%;border:.22rem solid var(--s3);border-top-color:var(--accent);animation:spin 1s linear infinite}
@@ -105,7 +105,7 @@ svg{display:block}
 .card{position:relative;flex:none;width:9.6rem;border-radius:.7rem;background:var(--s2);overflow:hidden;aspect-ratio:2/3;cursor:pointer}
 .card img{width:100%;height:100%;object-fit:cover;display:block}
 .card .nm{position:absolute;inset:auto 0 0;padding:2.2rem .7rem .65rem;font-size:.82rem;font-weight:600;line-height:1.2;background:linear-gradient(to top,rgba(0,0,0,.92),transparent);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.card.noimg{background:linear-gradient(150deg,#2a1520,#141420)}
+.card.noimg{background:linear-gradient(150deg,#1d1838,#141420)}
 .card.noimg .nm{inset:0;display:flex;align-items:center;justify-content:center;text-align:center;background:none;font-size:.95rem;padding:1rem}
 .card .nw{position:absolute;top:.5rem;left:.5rem;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;letter-spacing:.08em;padding:.18rem .42rem;border-radius:.3rem}
 .card .rt{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.7);font-size:.68rem;font-weight:700;padding:.15rem .4rem;border-radius:.3rem}
@@ -416,7 +416,7 @@ const I = {
   out:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3"/></svg>',
   edit:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
 };
-const COLORS = [["#FF4D8D","#B5179E"],["#FF8A3D","#E0245E"],["#3DD6C1","#2463EB"],["#9B5CFF","#4B2AD8"],["#FFC93D","#FF6B3D"],["#5BE3A3","#138A6B"],["#8E9AAF","#3F4756"]];
+const COLORS = [["#8F73FF","#3D3BE0"],["#FF4D8D","#B5179E"],["#FF8A3D","#E0245E"],["#3DD6C1","#2463EB"],["#9B5CFF","#4B2AD8"],["#FFC93D","#FF6B3D"],["#5BE3A3","#138A6B"],["#8E9AAF","#3F4756"]];
 const grad = i => { const c = COLORS[i % COLORS.length]; return `linear-gradient(135deg,${c[0]},${c[1]})`; };
 
 /* ---------------- stockage ---------------- */
