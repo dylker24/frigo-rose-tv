@@ -1471,7 +1471,7 @@ function rowsPage(cfg) {
     },
     chRow: (title, list, opts) => list.length ? row(title, list.slice(0, 80).map(x => withFollow(chCard(x, list, ioRoot), x, "l")), "l", opts) : null,
   };
-  (cfg.rows(H) || []).flat().forEach(r => { if (r) rows.appendChild(r); });
+  (cfg.rows(H) || []).reduce((a, r) => a.concat(r), []).forEach(r => { if (r) rows.appendChild(r); });
   if (TVL) rows.appendChild(h('<div style="height:60vh"></div>'));
   if (!rows.children.length && !picks.length) v.innerHTML = '<div class="pane" style="padding-top:7rem"><div class="empty"><b>Rien à afficher</b>Rien de visible ici : vérifie les réglages d\'affichage.</div></div>';
   return { home, hero, rows };
