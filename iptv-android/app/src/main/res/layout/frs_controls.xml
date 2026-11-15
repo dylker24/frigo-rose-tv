@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Commandes du lecteur : discrètes, arrondies, façon Apple -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layoutDirection="ltr">
+
+    <View
+        android:id="@id/exo_controls_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/frs_scrim" />
+
+    <LinearLayout
+        android:id="@id/exo_center_controls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton android:id="@id/exo_prev" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="22dp"
+            android:background="@drawable/frs_btn" android:src="@drawable/frs_prev" android:scaleType="center" android:contentDescription="Précédent" android:focusable="true" />
+        <ImageButton android:id="@id/exo_rew" android:layout_width="56dp" android:layout_height="56dp" android:layout_marginEnd="26dp"
+            android:background="@drawable/frs_btn" android:src="@drawable/frs_rew10" android:scaleType="center" android:contentDescription="Reculer de 10 secondes" android:focusable="true" />
+        <ImageButton android:id="@id/exo_play_pause" android:layout_width="76dp" android:layout_height="76dp"
+            android:background="@drawable/frs_btn" android:scaleType="fitCenter" android:padding="20dp" android:contentDescription="Lecture" android:focusable="true" />
+        <ImageButton android:id="@id/exo_ffwd" android:layout_width="56dp" android:layout_height="56dp" android:layout_marginStart="26dp"
+            android:background="@drawable/frs_btn" android:src="@drawable/frs_ffwd10" android:scaleType="center" android:contentDescription="Avancer de 10 secondes" android:focusable="true" />
+        <ImageButton android:id="@id/exo_next" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginStart="22dp"
+            android:background="@drawable/frs_btn" android:src="@drawable/frs_next" android:scaleType="center" android:contentDescription="Suivant" android:focusable="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@id/exo_bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp"
+        android:paddingBottom="30dp">
+
+        <TextView android:id="@id/exo_position" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#D9FFFFFF" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+
+        <androidx.media3.ui.DefaultTimeBar
+            android:id="@id/exo_progress"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            app:bar_height="4dp"
+            app:played_color="#F2FFFFFF"
+            app:buffered_color="#59FFFFFF"
+            app:unplayed_color="#33FFFFFF"
+            app:scrubber_color="#FFFFFFFF"
+            app:scrubber_enabled_size="12dp"
+            app:scrubber_dragged_size="16dp" />
+
+        <TextView android:id="@id/exo_duration" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#D9FFFFFF" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+    </LinearLayout>
+</FrameLayout>

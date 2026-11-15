@@ -82,7 +82,7 @@ public class PlayerActivity extends Activity {
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
-        view = new PlayerView(this);
+        view = (PlayerView) getLayoutInflater().inflate(R.layout.frs_player, root, false);
         view.setKeepContentOnPlayerReset(false);
         view.setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER);
         view.setUseController(true);
@@ -131,6 +131,8 @@ public class PlayerActivity extends Activity {
         DefaultRenderersFactory rf = new DefaultRenderersFactory(this).setEnableDecoderFallback(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
         player = new ExoPlayer.Builder(this, rf)
+                .setSeekBackIncrementMs(10000)
+                .setSeekForwardIncrementMs(10000)
                 .setTrackSelector(ts)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(http, ex))
                 .build();
@@ -252,7 +254,7 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: case KeyEvent.KEYCODE_MEDIA_PLAY: case KeyEvent.KEYCODE_MEDIA_PAUSE:
                 if (player.isPlaying()) player.pause(); else player.play();
                 view.showController(); return true;
-            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: seek(30000); return true;
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: seek(10000); return true;
             case KeyEvent.KEYCODE_MEDIA_REWIND: seek(-10000); return true;
             case KeyEvent.KEYCODE_CHANNEL_DOWN: case KeyEvent.KEYCODE_MEDIA_NEXT: if (player.hasNextMediaItem()) player.seekToNextMediaItem(); return true;
             case KeyEvent.KEYCODE_CHANNEL_UP: case KeyEvent.KEYCODE_MEDIA_PREVIOUS: if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem(); return true;
@@ -261,7 +263,7 @@ public class PlayerActivity extends Activity {
             // barre cachée : ⬅ ➡ avancent ou reculent directement, OK met en pause
             switch (k) {
                 case KeyEvent.KEYCODE_DPAD_LEFT: seek(-10000); return true;
-                case KeyEvent.KEYCODE_DPAD_RIGHT: seek(30000); return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT: seek(10000); return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
                     if (player.isPlaying()) player.pause(); else player.play();
                     view.showController(); return true;

@@ -376,21 +376,30 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 /* lecteur web */
 #player{position:fixed;inset:0;z-index:60;background:#000}
 #player video{position:absolute;inset:0;width:100%;height:100%;background:#000}
-.pl-ui{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;opacity:0;transition:opacity .25s;background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 22%,transparent 70%,rgba(0,0,0,.85))}
+.pl-ui{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;opacity:0;transition:opacity .35s ease;background:linear-gradient(to bottom,rgba(0,0,0,.45),transparent 18%,transparent 78%,rgba(0,0,0,.5))}
 #player.ui .pl-ui{opacity:1}
-.pl-top{display:flex;align-items:center;gap:1.2rem;padding:2rem var(--pad)}
+.pl-top{display:flex;align-items:center;gap:1rem;padding:1.8rem var(--pad)}
 .pl-top .t{flex:1;min-width:0}
-.pl-top h3{margin:0;font:800 1.5rem var(--ui);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-top span{color:var(--mute);font-size:.92rem}
-.pl-bot{padding:0 var(--pad) 2.4rem}
-.pl-bar{position:relative;height:.35rem;border-radius:1rem;background:rgba(255,255,255,.25);cursor:pointer}
-.pl-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:1rem;background:var(--accent)}
-.pl-bar b{position:absolute;top:50%;width:1rem;height:1rem;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
-.pl-row{display:flex;align-items:center;gap:1.2rem;margin-top:1rem;font-size:.95rem;font-variant-numeric:tabular-nums}
-.pl-row .sp{flex:1}
-.pl-b{width:2.8rem;height:2.8rem;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12)}
-.pl-b svg{width:1.4rem;height:1.4rem}
-.live-pill{display:inline-flex;align-items:center;gap:.45rem;background:var(--accent);color:#fff;font-weight:800;font-size:.75rem;letter-spacing:.12em;padding:.3rem .6rem;border-radius:.35rem}
+.pl-top h3{margin:0;font:700 1.25rem var(--head);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 .1rem .6rem rgba(0,0,0,.5)}
+.pl-top span{color:rgba(255,255,255,.7);font-size:.85rem}
+.pl-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2.2rem}
+.pl-bot{padding:0 var(--pad) 2rem}
+.pl-row{display:flex;align-items:center;gap:1rem;font-size:.82rem;color:rgba(255,255,255,.85);font-variant-numeric:tabular-nums}
+.pl-bar{position:relative;flex:1;height:.3rem;border-radius:1rem;background:rgba(255,255,255,.22);cursor:pointer;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:height .15s}
+.pl-bar:hover{height:.45rem}
+.pl-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:1rem;background:rgba(255,255,255,.95)}
+.pl-bar b{position:absolute;top:50%;width:.8rem;height:.8rem;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 .6rem rgba(0,0,0,.4)}
+.pl-b{width:3.6rem;height:3.6rem;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);color:#fff;transition:transform .15s,background .15s}
+.pl-b:hover{background:rgba(255,255,255,.24)}
+.pl-b:active{transform:scale(.92)}
+.pl-b svg{width:1.6rem;height:1.6rem}
+.pl-b.big{width:5rem;height:5rem}
+.pl-b.big svg{width:2.2rem;height:2.2rem}
+.pl-b.sm{width:2.8rem;height:2.8rem;background:rgba(255,255,255,.08)}
+.pl-b.sm svg{width:1.15rem;height:1.15rem}
+.pl-top .pl-b{width:2.6rem;height:2.6rem}
+.pl-top .pl-b svg{width:1.1rem;height:1.1rem}
+.live-pill{display:inline-flex;align-items:center;gap:.45rem;background:rgba(255,59,48,.9);color:#fff;font-weight:800;font-size:.72rem;letter-spacing:.12em;padding:.3rem .65rem;border-radius:2rem}
 .pl-load{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
 .pl-load .sp{width:3rem;height:3rem;border-radius:50%;border:.3rem solid rgba(255,255,255,.2);border-top-color:#fff;animation:spin 1s linear infinite}
 .pl-err{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;text-align:center;padding:2rem;background:rgba(0,0,0,.7)}
@@ -407,6 +416,29 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 
 /* doigt ou souris : pas de cadre de télécommande */
 @media (pointer:coarse){.f.on{box-shadow:none!important;transform:none!important}.inp.on{box-shadow:none!important}.btn.pri.on{box-shadow:none!important}}
+/* Ma lecture, recherche, sagas */
+.ptitle{font:800 2.4rem var(--head);letter-spacing:-.02em;margin:0 var(--pad) 1.2rem}
+.mylec .stabs{margin:0 var(--pad) 1.4rem}
+.mylec #ml,.srch #res{padding:0 var(--pad)}
+.grid.wgrid{grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
+.grid.wgrid .card.wide2{width:auto}
+.srch .sbox{margin-bottom:1rem}
+.sline2{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:0 var(--pad) .8rem}
+.sline2 .lbl{color:var(--faint);font-size:.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;width:5.5rem}
+.sline2 .chip small{color:var(--faint);font-weight:500;margin-left:.2rem}
+.sline2 .chip.sel small{color:#555}
+.gstat{color:var(--faint);font-size:.8rem;margin:0 var(--pad) 1rem;min-height:1em}
+.rh{font:700 1.15rem var(--head);margin:1.2rem 0 .8rem}
+.saga{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:1.6rem 1rem;padding:.4rem}
+.sgi{position:relative;display:flex;flex-direction:column;gap:.4rem}
+.sgi .card{width:auto}
+.sgi .sgn{position:absolute;top:-.6rem;left:-.4rem;z-index:3;min-width:2rem;height:2rem;padding:0 .5rem;border-radius:2rem;background:var(--accent);font:800 .95rem/2rem var(--head);text-align:center;box-shadow:0 .3rem .8rem rgba(0,0,0,.5)}
+.sgi .sgy{color:var(--mute);font-size:.82rem;text-align:center}
+.sgi.small{flex:none;width:9.6rem}
+.sgi.here .card{box-shadow:0 0 0 .18rem var(--accent)}
+.sgmiss h3{font:700 1.15rem var(--head);margin:2.4rem 0 .9rem}
+.ph-card.wide{width:16rem;aspect-ratio:16/9}
+.card.wide2{width:16rem}
 /* ===== Films / Séries : carrousel + grandes images ===== */
 .bpage{padding:6.4rem 0 4rem}
 .cflow{margin-bottom:1.6rem}
@@ -421,7 +453,7 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .cfi b{display:block;font:700 1.35rem var(--head);letter-spacing:-.01em}
 .cfi span{display:flex;gap:.9rem;justify-content:center;color:var(--mute);font-size:.88rem;margin-top:.3rem;flex-wrap:wrap}
 .cfi span b{display:inline;font:inherit;color:#46D369}
-.card.wide2{width:21rem;border-radius:1rem}
+.card.wide2{width:16rem;border-radius:1rem}
 .card.wide2 .nm{font:700 1.05rem var(--head);padding:2.6rem 1rem .9rem;-webkit-line-clamp:2}
 .card.wide2.poster img{object-position:center 22%}
 .card.wide2 .bar{left:0;right:0;bottom:0;height:.28rem;border-radius:0}
@@ -501,7 +533,10 @@ body.lite .card.on{transform:scale(1.06)}
   .bpage{padding-top:4.6rem}
   .cf{padding:1rem calc(50% - 6.6rem) 1rem}
   .cf .cfc{width:13.2rem;margin:0 -.6rem}
-  .card.wide2{width:15.5rem}
+  .card.wide2{width:12.5rem}
+  .grid.wgrid{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))}
+  .sline2 .lbl{width:100%}
+  .saga{grid-template-columns:repeat(3,minmax(0,1fr))}
   .hero.live .bd.logo{background-image:none!important}
   .strip .mtile.cc{width:9.5rem}
   .catv{padding-top:8rem}
@@ -587,14 +622,15 @@ body.lite .card.on{transform:scale(1.06)}
       <div class="t"><h3 id="pl-t"></h3><span id="pl-s"></span></div>
       <span class="live-pill" id="pl-live" hidden><svg viewBox="0 0 10 10" width="8" height="8"><circle cx="5" cy="5" r="5" fill="#fff"/></svg>EN DIRECT</span>
     </div>
+    <div class="pl-mid">
+      <button class="pl-b sm" id="pl-prev" aria-label="Précédent"></button>
+      <button class="pl-b" id="pl-rw" aria-label="Reculer de 10 secondes"></button>
+      <button class="pl-b big" id="pl-pp" aria-label="Lecture"></button>
+      <button class="pl-b" id="pl-fw" aria-label="Avancer de 10 secondes"></button>
+      <button class="pl-b sm" id="pl-next" aria-label="Suivant"></button>
+    </div>
     <div class="pl-bot">
-      <div class="pl-bar" id="pl-bar"><i id="pl-bi"></i><b id="pl-bb"></b></div>
-      <div class="pl-row">
-        <button class="pl-b" id="pl-prev" aria-label="Précédent"></button>
-        <button class="pl-b" id="pl-pp" aria-label="Lecture"></button>
-        <button class="pl-b" id="pl-next" aria-label="Suivant"></button>
-        <span id="pl-cur">0:00</span><span class="sp"></span><span id="pl-dur"></span>
-      </div>
+      <div class="pl-row"><span id="pl-cur">0:00</span><div class="pl-bar" id="pl-bar"><i id="pl-bi"></i><b id="pl-bb"></b></div><span id="pl-dur"></span></div>
     </div>
   </div>
   <div class="zap" id="zap" hidden></div>
@@ -835,12 +871,12 @@ async function loadXt(k, step) {
   const cats = l => arr(l).map(c => [String(c.category_id), String(c.category_name || "").trim()]);
   const ui = acc.user_info || {};
   return {
-    v: 1, t: Date.now(), kind: "xt", fr,
+    v: 2, t: Date.now(), kind: "xt", fr,
     acc: { exp: num(ui.exp_date), max: num(ui.max_connections), act: num(ui.active_cons), st: ui.status || "", fmt: arr(ui.allowed_output_formats) },
     cats: { l: cats(lc), m: cats(mc), s: cats(sc) },
     l: arr(ls).map(x => ({ id: x.stream_id, n: (x.name || "").trim(), img: x.stream_icon || "", c: String(x.category_id), num: num(x.num), epg: x.epg_channel_id || "", arc: num(x.tv_archive) })),
-    m: arr(ms).map(x => ({ id: x.stream_id, n: (x.name || "").trim(), img: x.stream_icon || "", c: String(x.category_id), add: ts(x.added), r: num(x.rating_5based) || num(x.rating) / 2, ext: x.container_extension || "mp4", y: year(x.year || x.releaseDate || x.name) })),
-    s: arr(ss).map(x => ({ id: x.series_id, n: (x.name || "").trim(), img: x.cover || "", c: String(x.category_id), add: ts(x.last_modified), r: num(x.rating_5based) || num(x.rating) / 2, y: year(x.releaseDate || x.release_date || x.year), plot: x.plot || "", bd: arr(x.backdrop_path)[0] || "" })),
+    m: arr(ms).map(x => ({ id: x.stream_id, n: (x.name || "").trim(), img: x.stream_icon || "", c: String(x.category_id), add: ts(x.added), r: num(x.rating_5based) || num(x.rating) / 2, ext: x.container_extension || "mp4", y: year(x.year || x.releaseDate || x.name), g: x.genre || "" })),
+    s: arr(ss).map(x => ({ id: x.series_id, n: (x.name || "").trim(), img: x.cover || "", c: String(x.category_id), add: ts(x.last_modified), r: num(x.rating_5based) || num(x.rating) / 2, y: year(x.releaseDate || x.release_date || x.year), plot: x.plot || "", bd: arr(x.backdrop_path)[0] || "", g: x.genre || "" })),
   };
 }
 
@@ -925,6 +961,7 @@ async function vodInfo(m) {
       const bd = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path;
       r = { plot: i.plot || i.description || "", bd: bd || "", genre: i.genre || "", cast: i.cast || i.actors || "", dir: i.director || "", dur: i.duration || "", y: year(i.releasedate || i.release_date) || m.y, r: num(i.rating) / 2 || m.r, img: i.movie_image || m.img, trailer: i.youtube_trailer || "", age: i.age || i.mpaa_rating || "" };
       if (j && j.movie_data && j.movie_data.container_extension) m.ext = j.movie_data.container_extension;
+      if (GIDX && GSRC === S.id && !GIDX["m" + m.id]) GIDX["m" + m.id] = [...genresOf(r.genre)].join("|") || "-";
     } catch (e) { }
   }
   INFO.set(key, r);
@@ -1264,6 +1301,7 @@ async function enterProfile(p, force) {
   let cached = force ? null : await IDB.get(S.id);
   try {
     if (cached && (cached.fr !== false) !== frOnly()) cached = null;
+    if (cached && cached.kind === "xt" && cached.v !== 2) cached = null;
     if (!cached) { C = await loadSource(S, step); await IDB.set(S.id, C); }
     else {
       C = cached;
@@ -1304,7 +1342,7 @@ async function refreshQuiet(loud) {
 }
 
 /* ---------------- barre du haut ---------------- */
-const TABS = [["home", "Accueil", I.home], ["live", "Direct", I.tv], ["movies", "Films", I.film], ["series", "Séries", I.ser], ["mylist", "Ma liste", I.list]];
+const TABS = [["home", "Accueil", I.home], ["live", "Direct", I.tv], ["movies", "Films", I.film], ["series", "Séries", I.ser], ["mylist", "Ma lecture", I.list]];
 let TAB = "home";
 function drawTop() {
   const t = $("#tabs"); t.innerHTML = "";
@@ -1589,6 +1627,7 @@ function drawBrowse(k) {
   const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
   const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
   if (mine.length) page.appendChild(row("Ma liste", mine.map(x => wideCard(x, k))));
+  if (k === "m") page.appendChild(sagaRow());
   const add = r => r && page.appendChild(r);
   add(row(k === "m" ? "Nouveaux films" : "Nouvelles séries", NEW[k].slice(0, 30), k));
   const best = VIEW[k].filter(x => x.r >= 3.6).sort((a, b) => b.r - a.r).slice(0, 30);
@@ -1671,6 +1710,7 @@ function openCat(k, id) {
 function closeCat() {
   const c = CATV; CATV = null;
   go(c.tab, true);
+  if (c.id === "saga") { setTimeout(() => focus($$(".card.wide2").find(e => e.textContent.indexOf(c.saga.n) >= 0) || $(".row.chips .chip")), 600); return; }
   setTimeout(() => { const chip = $$(".row.chips .chip").find(b => b._ok && b.textContent.indexOf(c.id === "all" ? "Tout voir" : clean(CATNAME[c.k][c.id] || "§")) >= 0); focus(chip || $(".row.chips .chip") || $(".hero .btn")); }, 0);
 }
 
@@ -1697,46 +1737,211 @@ function drawLive() {
 }
 
 /* ---------------- ma liste / recherche ---------------- */
+/* ---------------- Ma lecture ---------------- */
+let MLT = "";
 function drawMyList() {
   const v = $("#view");
-  const wrap = h('<div class="pane" style="padding-top:6.5rem;padding-left:var(--pad)"><h2>Ma liste</h2><div class="sub">Ce que tu as mis de côté, et ce que tu as commencé.</div><div id="ml"></div></div>');
+  const wrap = h('<div class="bpage mylec"><h1 class="ptitle">Ma lecture</h1><div class="stabs" data-z></div><div id="ml"></div></div>');
   v.appendChild(wrap);
-  const ml = $("#ml", wrap);
-  const cont = continueItems().map(([key, p]) => card({ n: p.n, img: p.img }, "c", { wide: true, img: p.bd || p.img, label: p.lbl ? clean(p.n) + " · " + p.lbl : clean(p.n), pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) }));
-  const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
+  const ml = $("#ml", wrap), tabs = $(".stabs", wrap);
   const get = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
-  const m = favs.filter(x => x.k === "m").map(x => get("m", x.id)).filter(Boolean);
-  const s = favs.filter(x => x.k === "s").map(x => get("s", x.id)).filter(Boolean);
-  const l = favs.filter(x => x.k === "l").map(x => get("l", x.id)).filter(Boolean);
-  const pad = r => { if (r) { r.querySelector("h3").style.marginLeft = "0"; r.querySelector(".strip").style.paddingLeft = ".4rem"; ml.appendChild(r); } };
-  pad(row("Continuer à regarder", cont));
-  pad(row("Films", m, "m"));
-  pad(row("Séries", s, "s"));
-  pad(row("Chaînes", l, "l", { list: l }));
-  if (!ml.children.length) ml.innerHTML = '<div class="empty"><b>Ta liste est vide</b>Sur la fiche d\'un film ou d\'une série, choisis « Ma liste ». Dans TV en direct, appuie sur ➜ pour garder une chaîne.</div>';
+  const cont = continueItems();
+  const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
+  const mine = favs.filter(x => x.k !== "l").map(x => [get(x.k, x.id), x.k]).filter(a => a[0]);
+  const chans = favs.filter(x => x.k === "l").map(x => get("l", x.id)).filter(Boolean);
+  const seen = []; const seenS = new Set();
+  Object.entries(PROG).filter(([key, p]) => key.startsWith(S.id + "|") && p.done).sort((a, b) => b[1].t - a[1].t).forEach(([key, p]) => {
+    if (p.k === "m") { const x = get("m", p.id); if (x) seen.push([x, "m"]); }
+    else if (p.sid != null && !seenS.has(String(p.sid))) { seenS.add(String(p.sid)); const x = get("s", p.sid); if (x) seen.push([x, "s"]); }
+  });
+  const secs = [["cont", "En cours", cont.length], ["list", "Ma liste", mine.length], ["seen", "Déjà vus", seen.length], ["ch", "Mes chaînes", chans.length]];
+  const show = id => {
+    MLT = id;
+    $$(".chip", tabs).forEach(c => c.classList.toggle("sel", c.dataset.s === id));
+    ml.innerHTML = "";
+    let g;
+    if (id === "cont") {
+      g = h('<div class="grid wgrid" data-z></div>');
+      cont.forEach(([key, p]) => {
+        const x = p.k === "m" ? get("m", p.id) : get("s", p.sid);
+        g.appendChild(wideCard(x || { n: p.n, img: p.img }, p.k === "m" ? "m" : "s", { label: clean(p.n) + (p.lbl ? " · " + p.lbl : ""), bd: p.bd, pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) }));
+      });
+    } else if (id === "list") { g = h('<div class="grid" data-z></div>'); mine.forEach(([x, k]) => g.appendChild(card(x, k))); }
+    else if (id === "seen") { g = h('<div class="grid" data-z></div>'); seen.forEach(([x, k]) => g.appendChild(card(x, k))); }
+    else { g = h('<div class="grid mgrid" data-z></div>'); chans.forEach(x => g.appendChild(chCard(x, chans))); }
+    if (!g.children.length) ml.innerHTML = `<div class="empty"><b>Rien ici pour l'instant</b>${id === "cont" ? "Les films et épisodes que tu commences apparaissent ici." : id === "list" ? "Sur la fiche d'un film ou d'une série, choisis « Ma liste »." : id === "seen" ? "Les films et séries que tu as finis apparaissent ici." : "Maintiens OK sur une chaîne (appui long sur le tel) pour l'ajouter."}</div>`;
+    else ml.appendChild(g);
+  };
+  secs.forEach(([id, l, n]) => { const c = h(`<button class="chip big" data-s="${id}">${l} <small>${n}</small></button>`); f(c, () => show(id)); let tm; c._focus = () => { clearTimeout(tm); tm = setTimeout(() => CUR === c && MLT !== id && show(id), 300); }; tabs.appendChild(c); });
+  show(MLT && secs.some(s => s[0] === MLT) ? MLT : cont.length ? "cont" : mine.length ? "list" : "seen");
 }
+
+/* ---------------- genres ---------------- */
+const GMAP = { action: "Action", adventure: "Aventure", aventure: "Aventure", aventures: "Aventure", comedy: "Comédie", comedie: "Comédie", comedies: "Comédie", drama: "Drame", drame: "Drame", dramatique: "Drame", horror: "Horreur", horreur: "Horreur", epouvante: "Horreur", thriller: "Thriller", suspense: "Thriller", "science fiction": "Science-fiction", "science-fiction": "Science-fiction", "sci-fi": "Science-fiction", sf: "Science-fiction", war: "Guerre", guerre: "Guerre", animation: "Animation", "dessin anime": "Animation", "dessins animes": "Animation", family: "Famille", familial: "Famille", famille: "Famille", fantasy: "Fantastique", fantastique: "Fantastique", crime: "Policier", policier: "Policier", polar: "Policier", mystery: "Mystère", mystere: "Mystère", romance: "Romance", romantique: "Romance", documentary: "Documentaire", documentaire: "Documentaire", documentaires: "Documentaire", history: "Histoire", histoire: "Histoire", historique: "Histoire", music: "Musique", musique: "Musique", musical: "Musique", western: "Western", "tv movie": "Téléfilm", telefilm: "Téléfilm", kids: "Enfants", enfants: "Enfants", jeunesse: "Enfants", sport: "Sport", sports: "Sport", biopic: "Biopic", biographie: "Biopic", biography: "Biopic", reality: "Téléréalité", "tele-realite": "Téléréalité", manga: "Animé", mangas: "Animé", anime: "Animé", animes: "Animé", "arts martiaux": "Arts martiaux", espionnage: "Espionnage", catastrophe: "Catastrophe", noel: "Noël", christmas: "Noël", "action & adventure": "Action|Aventure", "sci-fi & fantasy": "Science-fiction|Fantastique", "war & politics": "Guerre", "comedie dramatique": "Comédie|Drame", "comedie romantique": "Comédie|Romance", "film noir": "Policier", "super-heros": "Super-héros", "super heros": "Super-héros", superhero: "Super-héros" };
+const genresOf = str => {
+  const out = new Set();
+  if (!str) return out;
+  const n = norm(String(str)).replace(/^[^a-z]*(fr|vf|vostfr)[^a-z]+/, " ");
+  Object.keys(GMAP).forEach(k => { if (k.length > 3 ? n.indexOf(k) >= 0 : new RegExp("(^|[^a-z])" + k + "([^a-z]|$)").test(n)) GMAP[k].split("|").forEach(g => out.add(g)); });
+  return out;
+};
+let GIDX = null, GSRC = "", GRUN = false, GDONE = 0;
+async function genreIndex() {
+  if (GIDX && GSRC === S.id) return GIDX;
+  GSRC = S.id; GIDX = (await IDB.get("g:" + S.id)) || {};
+  return GIDX;
+}
+function itemGenres(x, k) {
+  const s = genresOf(x.g);
+  if (GIDX && GIDX[k + x.id]) GIDX[k + x.id].split("|").forEach(g => s.add(g));
+  genresOf(CATNAME[k][x.c]).forEach(g => s.add(g));
+  return s;
+}
+// on lit tranquillement la fiche des films pour connaître leurs genres (une seule fois, gardé sur l'appareil)
+async function genreCrawl(onStep) {
+  if (GRUN || C.kind !== "xt") return;
+  GRUN = true;
+  await genreIndex();
+  const sid = S.id, todo = VIEW.m.filter(x => !GIDX["m" + x.id] && !genresOf(x.g).size);
+  let i = 0, n = 0;
+  const work = async () => {
+    while (i < todo.length && GRUN && S.id === sid) {
+      if (!$("#player").hidden || PL) { await new Promise(r => setTimeout(r, 3000)); continue; }
+      const x = todo[i++];
+      try {
+        const inf = await vodInfo(x);
+        const g = [...genresOf(inf.genre)].join("|");
+        GIDX["m" + x.id] = g || "-";
+      } catch (e) { GIDX["m" + x.id] = "-"; }
+      GDONE++; n++;
+      if (n % 40 === 0) IDB.set("g:" + sid, GIDX);
+      if (onStep) onStep(i, todo.length);
+    }
+  };
+  await Promise.all([work(), work()]);
+  IDB.set("g:" + sid, GIDX);
+  GRUN = false;
+  if (onStep) onStep(todo.length, todo.length);
+}
+
+/* ---------------- recherche (titres + genres) ---------------- */
+let SQ = { q: "", k: "all", g: [] };
 function drawSearch() {
   const v = $("#view");
-  const wrap = h(`<div style="padding-top:6.5rem"><div class="sbox" data-z>${I.search}<input id="q" placeholder="Film, série, chaîne…" autocomplete="off" spellcheck="false" enterkeyhint="search"></div><div id="res"></div></div>`);
+  const wrap = h(`<div class="bpage srch"><div class="sbox" data-z>${I.search}<input id="q" placeholder="Film, série, chaîne, acteur…" autocomplete="off" spellcheck="false" enterkeyhint="search"></div>
+    <div class="sline2" data-z><span class="lbl">Type</span></div><div class="sline2 gen" data-z><span class="lbl">Genres</span></div><div class="gstat"></div><div id="res"></div></div>`);
   v.appendChild(wrap);
-  const q = $("#q", wrap), box = $(".sbox", wrap), res = $("#res", wrap);
+  const q = $("#q", wrap), box = $(".sbox", wrap), res = $("#res", wrap), types = $$(".sline2", wrap)[0], gens = $(".gen", wrap), gst = $(".gstat", wrap);
+  q.value = SQ.q;
   f(box, () => q.focus());
   q.addEventListener("focus", () => focus(box, { noscroll: true }));
+  [["all", "Tout"], ["m", "Films"], ["s", "Séries"], ["l", "Chaînes"]].forEach(([k, l]) => { const c = h(`<button class="chip${SQ.k === k ? " sel" : ""}" data-k="${k}">${l}</button>`); f(c, () => { SQ.k = k; $$(".chip", types).forEach(b => b.classList.toggle("sel", b.dataset.k === k)); drawGenres(); run(); }); types.appendChild(c); });
+  const drawGenres = () => {
+    $$(".chip", gens).forEach(c => c.remove());
+    const cnt = {};
+    ["m", "s"].forEach(k => { if (SQ.k !== "all" && SQ.k !== k) return; VIEW[k].forEach(x => itemGenres(x, k).forEach(g => cnt[g] = (cnt[g] || 0) + 1)); });
+    const list = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 24);
+    SQ.g.forEach(g => { if (list.indexOf(g) < 0) list.unshift(g); });
+    list.forEach(g => { const c = h(`<button class="chip${SQ.g.indexOf(g) >= 0 ? " sel" : ""}">${esc(g)} <small>${cnt[g] || 0}</small></button>`); f(c, () => { const i = SQ.g.indexOf(g); i >= 0 ? SQ.g.splice(i, 1) : SQ.g.push(g); c.classList.toggle("sel", i < 0); run(); }); gens.appendChild(c); });
+    gens.hidden = SQ.k === "l" || !list.length;
+  };
   let tm;
   const run = () => {
-    const t = norm(q.value.trim());
+    SQ.q = q.value;
+    const t = norm(q.value.trim()), words = t ? t.split(/\s+/) : [], sel = SQ.g;
     res.innerHTML = "";
-    if (t.length < 2) { res.innerHTML = '<div class="empty" style="padding:1rem var(--pad)">Tape au moins deux lettres.</div>'; return; }
-    const words = t.split(/\s+/);
+    if (!words.length && !sel.length) { res.innerHTML = '<div class="empty">Tape un titre, ou choisis un ou plusieurs genres (ils se combinent : « Guerre » + « Thriller »).</div>'; return; }
     const hit = x => { const n = norm(x.n); return words.every(w => n.indexOf(w) >= 0); };
-    const m = VIEW.m.filter(hit).slice(0, 40), s = VIEW.s.filter(hit).slice(0, 40), l = VIEW.l.filter(hit).slice(0, 40);
-    [row("Films", m, "m", { count: m.length }), row("Séries", s, "s", { count: s.length }), row("Chaînes", l, "l", { list: l, count: l.length })].forEach(r => r && res.appendChild(r));
-    if (!res.children.length) res.innerHTML = '<div class="empty" style="padding:1rem var(--pad)"><b>Aucun résultat</b>Essaie un autre mot.</div>';
+    const ok = (x, k) => (!words.length || hit(x)) && (!sel.length || (() => { const g = itemGenres(x, k); return sel.every(s => g.has(s)); })());
+    const out = [];
+    ["m", "s"].forEach(k => { if (SQ.k === "all" || SQ.k === k) VIEW[k].forEach(x => { if (ok(x, k)) out.push([x, k]); }); });
+    out.sort((a, b) => (b[0].r || 0) - (a[0].r || 0) || b[0].add - a[0].add);
+    const ch = (SQ.k === "all" || SQ.k === "l") && words.length && !sel.length ? VIEW.l.filter(hit).slice(0, 40) : [];
+    if (ch.length) res.appendChild(row("Chaînes", ch.map(x => chCard(x, ch)), "l", { count: ch.length }));
+    if (out.length) {
+      res.insertAdjacentHTML("beforeend", `<h3 class="rh">${out.length} résultat${out.length > 1 ? "s" : ""}</h3>`);
+      const g = h('<div class="grid" data-z></div>'); res.appendChild(g);
+      fill(g, out, ([x, k]) => card(x, k));
+    }
+    if (!out.length && !ch.length) res.innerHTML = '<div class="empty"><b>Aucun résultat</b>' + (sel.length > 1 ? "Essaie avec moins de genres." : "Essaie un autre mot.") + "</div>";
   };
   q.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(run, 280); });
   q.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); q.blur(); run(); const c = $(".card", res); if (c) focus(c); } });
-  run();
+  genreIndex().then(() => { drawGenres(); run(); if (C.kind === "xt") genreCrawl((i, n) => { if (!gst.isConnected) return; gst.textContent = i < n ? `Je lis les genres des films en arrière-plan : ${i} / ${n}. Les résultats se complètent tout seuls.` : ""; if (i % 60 === 0 || i === n) { drawGenres(); if (SQ.g.length) run(); } }); });
   setTimeout(() => focus(box), 0);
+}
+
+/* ---------------- sagas (Wikidata, ordre de sortie) ---------------- */
+const SAGA_NAMES = ["Marvel Cinematic Universe", "Star Wars", "Harry Potter", "Spider-Man", "Fast & Furious", "Jurassic Park", "Mission: Impossible", "James Bond", "The Lord of the Rings", "The Hobbit", "Pirates of the Caribbean", "Toy Story", "Shrek", "Transformers", "X-Men", "The Hunger Games", "The Twilight Saga", "The Matrix", "Alien", "Terminator", "Indiana Jones", "Back to the Future", "Rocky", "Creed", "John Wick", "Avatar", "Despicable Me", "Ice Age", "Madagascar", "Kung Fu Panda", "How to Train Your Dragon", "Cars", "Men in Black", "Saw", "Scream", "The Conjuring Universe", "Fantastic Beasts", "Wizarding World", "DC Extended Universe", "The Dark Knight Trilogy", "Planet of the Apes", "Mad Max", "Die Hard", "Rambo", "Lethal Weapon", "Bad Boys", "Taken", "The Expendables", "Kingsman", "Ocean's", "Night at the Museum", "Paddington", "Les Visiteurs", "Taxi", "Les Tuche", "OSS 117", "Astérix", "Les Bronzés", "Bienvenue chez les Ch'tis", "Qu'est-ce qu'on a fait au Bon Dieu ?", "Le Gendarme", "Fantômas", "La Grande Vadrouille", "Dune", "Top Gun", "Jaws", "Halloween", "The Godfather", "Despicable Me (franchise)", "Minions", "Frozen", "The Incredibles", "Finding Nemo", "Kill Bill", "Bourne", "Jason Bourne", "Resident Evil", "Underworld", "Insidious", "Annabelle", "The Purge", "Final Destination", "Hotel Transylvania", "The Lion King", "Mamma Mia!", "Pitch Perfect", "Bridget Jones", "The Mummy", "Sherlock Holmes", "Now You See Me", "Hellboy", "Ghostbusters", "Gremlins", "Predator", "Blade Runner", "Tron", "Zorro", "Kung Fu Panda", "Puss in Boots"];
+let SAGAS = null;
+async function loadSagas() {
+  if (SAGAS) return SAGAS;
+  const cache = LS.get("sagas", null);
+  let raw = cache && Date.now() - cache.t < 7 * 86400e3 ? cache.v : null;
+  if (!raw) {
+    const vals = SAGA_NAMES.map(n => lit(n) + "@en " + lit(n) + "@fr").join(" ");
+    const b = await WDQ(`SELECT ?s ?sl ?f ?fr ?en ?d WHERE { VALUES ?name { ${vals} } VALUES ?type { wd:Q24856 wd:Q196600 wd:Q1440277 wd:Q15416 wd:Q17517379 } ?s rdfs:label ?name ; wdt:P31 ?type . ?f wdt:P179 ?s ; wdt:P577 ?d . OPTIONAL { ?s rdfs:label ?sl FILTER(lang(?sl) = "fr") } OPTIONAL { ?f rdfs:label ?fr FILTER(lang(?fr) = "fr") } OPTIONAL { ?f rdfs:label ?en FILTER(lang(?en) = "en") } }`);
+    const by = {};
+    b.forEach(r => {
+      const sid = r.s.value.split("/").pop();
+      const s = by[sid] || (by[sid] = { id: sid, n: r.sl ? r.sl.value : "", f: {} });
+      const fid = r.f.value.split("/").pop(), d = +String(r.d.value).slice(0, 4) || 9999;
+      const o = s.f[fid] || (s.f[fid] = { t: [], y: d });
+      if (r.fr && o.t.indexOf(r.fr.value) < 0) o.t.push(r.fr.value);
+      if (r.en && o.t.indexOf(r.en.value) < 0) o.t.push(r.en.value);
+      if (d < o.y) o.y = d;
+    });
+    raw = Object.values(by).map(s => ({ id: s.id, n: s.n, f: Object.values(s.f).sort((a, b) => a.y - b.y) }));
+    LS.set("sagas", { t: Date.now(), v: raw });
+  }
+  const idx = titleIndex();
+  SAGAS = raw.map(s => {
+    const have = [], seen = new Set();
+    s.f.forEach((fm, i) => { for (const t of fm.t) { const m = idx.get(tkey(t)); if (m) { m.forEach(([x, k]) => { if (!seen.has(k + x.id)) { seen.add(k + x.id); have.push({ x, k, y: fm.y, i }); } }); break; } } });
+    return { id: s.id, n: s.n || (s.f[0] && s.f[0].t[0]) || "Saga", total: s.f.length, have, all: s.f };
+  }).filter(s => s.have.length >= 2).sort((a, b) => b.have.length - a.have.length);
+  return SAGAS;
+}
+function sagaRow(onDone) {
+  const r = h('<section class="row"><h3>Sagas</h3><div class="strip" data-z><div class="ph-card wide"></div></div></section>');
+  loadSagas().then(list => {
+    const st = $(".strip", r);
+    if (!list.length) { r.remove(); return; }
+    st.innerHTML = "";
+    list.forEach(sg => { const x = sg.have[0].x; st.appendChild(wideCard(x, sg.have[0].k, { label: sg.n + " · " + sg.have.length + (sg.have.length > 1 ? " titres" : " titre"), ok: () => openSaga(sg) })); });
+    if (onDone) onDone();
+  }).catch(() => r.remove());
+  return r;
+}
+function openSaga(sg, order) {
+  order = order || "out";
+  CATV = { k: "m", id: "saga", tab: TAB, saga: sg };
+  const v = $("#view"); v.innerHTML = ""; v.style.overflow = ""; v.scrollTop = 0; clearInterval(heroT);
+  const wrap = h(`<div class="catv"><div class="phead"><div><button class="chip back">${I.back}Retour</button><div class="kick" style="margin-top:1rem"><i></i><span>Saga</span></div><h2>${esc(sg.n)}</h2><div class="sub">${sg.have.length} sur ${sg.total} dans ta source · dans l'ordre de sortie</div></div><div class="sorts" data-z></div></div><div class="saga" data-z></div><div class="sgmiss"></div></div>`);
+  v.appendChild(wrap);
+  f($(".back", wrap), closeCat);
+  [["out", "Ordre de sortie"], ["rev", "Du plus récent"]].forEach(([o, l]) => { const c = h(`<button class="chip${o === order ? " sel" : ""}">${l}</button>`); f(c, () => openSaga(sg, o)); $(".sorts", wrap).appendChild(c); });
+  const list = sg.have.slice().sort((a, b) => order === "rev" ? b.y - a.y || b.i - a.i : a.y - b.y || a.i - b.i);
+  const box = $(".saga", wrap);
+  list.forEach((it, n) => {
+    const w = h(`<div class="sgi"><span class="sgn">${order === "rev" ? list.length - n : n + 1}</span><span class="sgy">${it.y < 9999 ? it.y : ""}</span></div>`);
+    w.insertBefore(card(it.x, it.k), w.firstChild); box.appendChild(w);
+  });
+  const haveT = new Set(sg.have.map(h_ => h_.i));
+  const miss = sg.all.filter((fm, i) => !haveT.has(i));
+  if (miss.length) $(".sgmiss", wrap).innerHTML = `<h3>Pas dans ta source</h3><div class="ap-other">${miss.map(fm => `<span>${esc(fm.t.find(t => /[àâçéèêëîïôûùüÿœ]/i.test(t)) || fm.t[0])} <small>${fm.y < 9999 ? fm.y : ""}</small></span>`).join("")}</div>`;
+  setTimeout(() => firstIn(box), 0);
+}
+// sur la fiche d'un film : sa saga, dans l'ordre de sortie
+async function ficheSaga(L, x, k) {
+  if (k !== "m") return;
+  let list;
+  try { list = await loadSagas(); } catch (e) { return; }
+  const sg = list.find(s => s.have.some(h_ => h_.x === x));
+  if (!sg || !FI || FI.x !== x) return;
+  const items = sg.have.slice().sort((a, b) => a.y - b.y || a.i - b.i);
+  const r = row(`La saga ${sg.n} · ordre de sortie`, items.map((it, n) => { const w = h(`<div class="sgi small"><span class="sgn">${n + 1}</span></div>`); w.insertBefore(card(it.x, it.k, { ok: () => openFiche(it.x, it.k, false, "push") }), w.firstChild); if (it.x === x) w.classList.add("here"); return w; }));
+  const box = $("#fi-saga", L); if (box) box.appendChild(r);
 }
 
 /* ---------------- ma liste (favoris) ---------------- */
@@ -1808,7 +2013,7 @@ async function openFiche(x, k, autoplay, nav) {
       <div class="acts" data-z></div>
       <div class="fcrew"></div>
     </div><div class="fpo" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div></div>
-    <div class="fmore"><div id="fi-eps"></div><div id="fi-cast"></div><div id="fi-sim"></div></div>`;
+    <div class="fmore"><div id="fi-eps"></div><div id="fi-saga"></div><div id="fi-cast"></div><div id="fi-sim"></div></div>`;
   const acts = $(".acts", L);
   const favB = () => { const on = !!FAV[ikey(k, x.id)]; return `${on ? I.check : I.list}${on ? "Dans ma liste" : "Ma liste"}`; };
   const bf = h(`<button class="btn glass">${favB()}</button>`); f(bf, () => { toggleFav(x, k); bf.innerHTML = favB(); });
@@ -1848,6 +2053,7 @@ async function openFiche(x, k, autoplay, nav) {
     people(names).then(ps => { if (!FI || FI.x !== x) return; ps.forEach((p, i) => { if (p && p.img) { const ph = $(".ph", bub[i]); ph.style.backgroundImage = `url('${wimg(p.img, 240)}')`; ph.classList.add("img"); } }); });
   }
   if (k === "s") ficheEpisodes(L, x, inf, bp, autoplay);
+  ficheSaga(L, x, k);
 }
 function ficheEpisodes(L, x, inf, bp, autoplay) {
   const eps = inf.eps;
@@ -2016,7 +2222,9 @@ let HLS = null, MPG = null, uiT = 0, zapT = 0, failT = 0;
 function loadScript(src) { return new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => ko(new Error("script")); document.head.appendChild(s); }); }
 function webPlay() {
   const L = $("#player"); L.hidden = false;
-  ["pl-close", "pl-prev", "pl-pp", "pl-next"].forEach(id => $("#" + id).innerHTML = I[{ "pl-close": "back", "pl-prev": "prev", "pl-pp": "pause", "pl-next": "next" }[id]]);
+  ["pl-close", "pl-prev", "pl-pp", "pl-next"].forEach(id => $("#" + id).innerHTML = I[{ "pl-close": "x", "pl-prev": "prev", "pl-pp": "pause", "pl-next": "next" }[id]]);
+  const ten = d => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d < 0 ? '<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/>' : '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4h-4"/>'}<text x="12" y="15.2" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">10</text></svg>`;
+  $("#pl-rw").innerHTML = ten(-1); $("#pl-fw").innerHTML = ten(1);
   plLoad();
 }
 function plStop() {
@@ -2030,7 +2238,9 @@ async function plLoad() {
   plStop();
   $("#pl-err").hidden = true; $("#pl-load").hidden = false;
   $("#pl-t").textContent = it.title; $("#pl-s").textContent = it.sub || "";
-  $("#pl-live").hidden = !it.live; $("#pl-bar").style.visibility = it.live ? "hidden" : "";
+  $("#pl-live").hidden = !it.live; $(".pl-bot").style.visibility = it.live ? "hidden" : "";
+  $("#pl-rw").hidden = $("#pl-fw").hidden = !!it.live;
+  $("#pl-prev").hidden = PL.i <= 0 && !it.live; $("#pl-next").hidden = PL.i >= PL.list.length - 1 && !it.live;
   $("#pl-cur").textContent = ""; $("#pl-dur").textContent = "";
   plUi();
   if (it.live) zap(it);
@@ -2107,6 +2317,8 @@ function plStep(d) {
   $("#pl-close").onclick = plClose;
   $("#pl-pp").onclick = () => v.paused ? v.play() : v.pause();
   $("#pl-prev").onclick = () => plStep(-1);
+  $("#pl-rw").onclick = () => { v.currentTime = Math.max(0, v.currentTime - 10); plUi(); };
+  $("#pl-fw").onclick = () => { v.currentTime = Math.min(v.duration || 1e9, v.currentTime + 10); plUi(); };
   $("#pl-next").onclick = () => plStep(1);
   $("#pl-bar").onclick = e => { const r = e.currentTarget.getBoundingClientRect(); if (isFinite(v.duration)) v.currentTime = v.duration * (e.clientX - r.left) / r.width; };
   $("#player").addEventListener("mousemove", () => plUi());
@@ -2124,7 +2336,7 @@ function plKey(k) {
     return;
   }
   if (k === "ArrowLeft" || k === "MediaRewind") { v.currentTime = Math.max(0, v.currentTime - 10); return plUi(); }
-  if (k === "ArrowRight" || k === "MediaFastForward") { v.currentTime = Math.min(v.duration || 1e9, v.currentTime + 30); return plUi(); }
+  if (k === "ArrowRight" || k === "MediaFastForward") { v.currentTime = Math.min(v.duration || 1e9, v.currentTime + 10); return plUi(); }
   if (k === "ChannelDown") return plStep(1);
   if (k === "ChannelUp") return plStep(-1);
   plUi();
