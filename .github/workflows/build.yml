@@ -80,6 +80,7 @@ jobs:
           cp frigo-rose-tv.apk web/tv.apk
           gh release download iptv --repo "$GITHUB_REPOSITORY" --pattern frigo-rose-iptv.apk --output web/iptv.apk || true
           curl -fsSL --retry 3 -o web/dyna.apk https://github.com/dylker24/dyna-tv/releases/download/tv/dyna-tv.apk || true
+          curl -fsSL --retry 3 -o web/yt.apk https://github.com/dylker24/dyna-tv/releases/download/youtube/dyna-youtube.apk || true
           ls -la frigo-rose-tv.apk
       - uses: actions/download-artifact@v4
         with:
