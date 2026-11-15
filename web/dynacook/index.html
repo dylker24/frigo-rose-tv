@@ -184,6 +184,66 @@ img{display:block}
 .zoneh:first-child{margin-top:4px}
 .zoneh span{margin-left:auto;color:var(--dim)}
 
+/* frigo en mode frigo */
+.posts{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;margin:0 -18px 18px;padding:10px 18px 8px}
+.posts::-webkit-scrollbar{display:none}
+.pi{flex:none;position:relative;width:104px;padding:16px 10px 12px;background:linear-gradient(170deg,#ffeb8f,#ffd84f);color:#3a2c00;border-radius:4px 4px 14px 4px;transform:rotate(var(--r));box-shadow:0 10px 18px -8px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;transition:transform .25s var(--spring)}
+.pi:active{transform:rotate(0) scale(.95)}
+.pi::before{content:"";position:absolute;top:-7px;left:50%;width:44px;height:14px;transform:translateX(-50%) rotate(-2deg);background:rgba(255,255,255,.45);border-radius:2px}
+.pi span{font-size:26px}
+.pi b{font-size:12.5px;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi small{font-size:11px;font-weight:800;color:#b23b00}
+.appls{display:grid;gap:18px;margin-top:6px}
+@media(min-width:820px){.appls{grid-template-columns:1.5fr 1fr;align-items:start}}
+.fridge,.cupboard{position:relative;border-radius:32px;padding:12px;border:1px solid var(--line2);box-shadow:0 30px 60px -28px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.18)}
+.fridge{background:linear-gradient(100deg,color-mix(in srgb,var(--bg),#fff 17%),color-mix(in srgb,var(--bg),#fff 9%) 35%,color-mix(in srgb,var(--bg),#fff 14%) 65%,color-mix(in srgb,var(--bg),#fff 7%));padding-bottom:16px;margin-bottom:10px}
+.cupboard{background:linear-gradient(100deg,color-mix(in srgb,#8a5a3a 30%,var(--bg)),color-mix(in srgb,#6b4428 22%,var(--bg)) 50%,color-mix(in srgb,#8a5a3a 26%,var(--bg)))}
+.feet{position:absolute;left:34px;right:34px;bottom:-9px;display:flex;justify-content:space-between}
+.feet i{width:34px;height:10px;border-radius:0 0 6px 6px;background:color-mix(in srgb,var(--bg),#fff 6%)}
+.cmp{position:relative;border-radius:22px;perspective:1600px}
+.cmp+.cmp{margin-top:10px}
+.inside{position:relative;border-radius:22px;padding:34px 12px 6px;min-height:150px;overflow:hidden;background:radial-gradient(130% 80% at 50% -10%,color-mix(in srgb,#fff 26%,var(--bg)),color-mix(in srgb,var(--bg),#fff 5%) 72%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),inset 0 -30px 40px -30px rgba(0,0,0,.6);filter:brightness(.25) saturate(.6);transition:filter .5s ease .55s}
+.frz .inside{background:radial-gradient(130% 80% at 50% -10%,color-mix(in srgb,#bfe6ff 30%,var(--bg)),color-mix(in srgb,#7fc4ff 7%,var(--bg)) 72%);min-height:120px}
+.main .inside{min-height:300px}
+.pl .inside{background:radial-gradient(130% 80% at 50% -10%,color-mix(in srgb,#ffd9a8 22%,var(--bg)),color-mix(in srgb,#8a5a3a 12%,var(--bg)) 72%);min-height:200px}
+.appl.open .inside{filter:none}
+.appl.anim.open .inside{animation:flick .5s steps(1) .55s}
+@keyframes flick{0%{filter:brightness(.6)}20%{filter:brightness(1.15)}35%{filter:brightness(.5)}55%{filter:none}}
+.lamp{position:absolute;top:0;left:50%;transform:translateX(-50%);width:46%;height:5px;border-radius:0 0 8px 8px;background:#fff;opacity:.85;box-shadow:0 0 30px 10px rgba(255,255,255,.35)}
+.frz .lamp{background:#d8f0ff;box-shadow:0 0 30px 10px rgba(160,215,255,.35)}
+.pl .lamp{background:#ffe1b8;box-shadow:0 0 30px 10px rgba(255,200,140,.3)}
+.lbl{position:absolute;top:11px;left:14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.75);display:flex;gap:7px}
+.lbl span{color:rgba(255,255,255,.4)}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));grid-auto-rows:104px;background:repeating-linear-gradient(to bottom,transparent 0 99px,rgba(255,255,255,.28) 99px 101px,rgba(0,0,0,.25) 101px 104px)}
+.frz .shelf{background:repeating-linear-gradient(to bottom,transparent 0 99px,rgba(200,235,255,.35) 99px 101px,rgba(0,0,0,.25) 101px 104px)}
+.pl .shelf{background:repeating-linear-gradient(to bottom,transparent 0 96px,color-mix(in srgb,#c08a5c 70%,transparent) 96px 101px,rgba(0,0,0,.35) 101px 104px)}
+.it{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding:0 2px 7px;min-width:0;transition:transform .25s var(--spring)}
+.it:active{transform:scale(.9)}
+.appl:not(.open) .it{opacity:0}
+.appl.anim.open .it{animation:drop .55s var(--spring) both;animation-delay:var(--d)}
+@keyframes drop{from{opacity:0;transform:translateY(-14px) scale(.8)}}
+.jar{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:27px;background:linear-gradient(160deg,rgba(255,255,255,.18),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.18);box-shadow:0 6px 12px -6px rgba(0,0,0,.6);overflow:hidden}
+.jar img{width:100%;height:100%;object-fit:cover}
+.it b{font-size:11.5px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.dot{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:6px;white-space:nowrap}
+.dot.k{background:rgba(62,229,154,.2);color:#8cf5c6}.dot.w{background:rgba(255,177,74,.25);color:#ffcf8a}.dot.x{background:rgba(255,93,108,.3);color:#ffb0b8}.dot.n{background:rgba(255,255,255,.1);color:rgba(255,255,255,.6)}
+.vide{display:grid;place-items:center;text-align:center;min-height:80px;color:rgba(255,255,255,.45);font-weight:700;font-size:13px;line-height:1.5}
+.main .vide{min-height:230px}
+.vide small{font-weight:600;opacity:.8}
+.door{position:absolute;inset:0;z-index:3;border-radius:22px;transform-origin:left center;background:linear-gradient(100deg,color-mix(in srgb,var(--bg),#fff 22%),color-mix(in srgb,var(--bg),#fff 12%) 40%,color-mix(in srgb,var(--bg),#fff 18%) 70%,color-mix(in srgb,var(--bg),#fff 10%));border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 24px -10px rgba(0,0,0,.7);display:grid;place-items:center;transition:transform 1s cubic-bezier(.55,0,.2,1) .15s,opacity .35s ease .8s;backface-visibility:visible}
+.door i{position:absolute;right:16px;top:50%;width:9px;height:46%;transform:translateY(-50%);border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.55),rgba(255,255,255,.12));box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.frz .door i{height:56%}
+.door .logo{font-family:var(--fd);font-weight:800;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.28)}
+.frz .door .logo{font-size:30px;letter-spacing:0}
+.appl.open .door{transform:rotateY(-104deg);opacity:0;pointer-events:none}
+.appl.open:not(.anim) .door{transition:none}
+.pl .door{width:50%;background:linear-gradient(100deg,color-mix(in srgb,#9a6a46 38%,var(--bg)),color-mix(in srgb,#7a4f30 28%,var(--bg)))}
+.pl .door.l{left:0;right:auto;border-radius:22px 6px 6px 22px}
+.pl .door.r{left:auto;right:0;transform-origin:right center;border-radius:6px 22px 22px 6px}
+.pl .door.l i{right:10px;height:28%}
+.pl .door.r i{right:auto;left:10px;height:28%}
+.appl.open .door.r{transform:rotateY(104deg)}
+
 /* semaine */
 .wnav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .wnav .rb{width:44px;height:44px;border-radius:14px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center}
@@ -643,7 +703,8 @@ function render(){
   setBadge("fridge",urg,"w");setBadge("shop",sc);
   const v={home:vHome,fridge:vFridge,recipes:vRecipes,week:vWeek,shop:vShop}[view]||vHome;
   const y=scrollY;$("main").innerHTML=`<div class="${animNext?"view":""}">${v()}</div>`;if(!animNext)scrollTo(0,y);
-  bindView();animNext=false;
+  const wasAnim=animNext;bindView();animNext=false;
+  if(view==="fridge"&&wasAnim)setTimeout(()=>document.querySelectorAll(".appl").forEach((e,i)=>setTimeout(()=>e.classList.add("open"),i*160)),180);
 }
 function setBadge(v,n,cls){const b=document.querySelector(`#nav [data-v=${v}]`);let e=b.querySelector(".bdg");if(!n){if(e)e.remove();return}if(!e){e=document.createElement("i");b.appendChild(e)}e.className="bdg "+(cls||"");e.textContent=n>99?"99+":n}
 function go(v){view=v;LS.set("dc_view",v);const i=["home","fridge","recipes","week","shop"].indexOf(v);document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));document.querySelector("#nav .pill").style.transform=`translateX(${i*100}%)`;animNext=true;render();scrollTo({top:0,behavior:"instant"})}
@@ -674,6 +735,7 @@ function vHome(){
   out+=`<button class="dice" data-dice><span class="cube">🎲</span><span><b>Surprends-moi</b><small>${F.length?"Une recette avec ce que vous avez":"Une recette au hasard"}</small></span></button>`;
   if(urg.length)out+=`<div class="sec"><h3>À manger vite</h3><span>anti-gaspi</span></div><div class="hs">${urg.map(o=>{const[c,l]=expLabel(o.d);return`<div class="urg" data-ingf="${esc(o.x.k||o.x.n)}"><div class="ic">${o.x.img?`<img src="${esc(o.x.img)}" alt="">`:esc(o.x.e||"🍽️")}</div><div><b>${esc(o.x.n)}</b><span class="exp ${c}">${l}</span></div></div>`}).join("")}</div>`;
   if(R.length)out+=`<div class="sec"><h3>Avec ce qu'il y a</h3><button data-go="recipes" data-cat="ok">Tout voir</button></div><div class="hs">${R.map((o,i)=>rcard(o.r,o.m,i)).join("")}</div>`;
+  else if(!allRecipes().length)out+=`<div class="sec"><h3>Vos recettes</h3></div>`+empty("🍳","Pas encore de recettes","Ajoutez vos recettes : un lien TikTok, Marmiton ou à la main. L'appli vous dira ensuite quoi cuisiner avec votre frigo.",`<button class="mini" data-go="recipes">${IC.plus}Ajouter une recette</button>`);
   else out+=`<div class="sec"><h3>Pour commencer</h3></div>`+(F.length?`<p class="sub">Rien ne colle encore avec votre frigo, ajoutez quelques produits.</p>`:empty("🧊","Le frigo est vide","Scannez ou ajoutez ce que vous avez, l'appli vous propose quoi cuisiner avec.",`<button class="mini" data-go="fridge">${IC.plus}Remplir le frigo</button>`));
   const favR=allRecipes().filter(r=>favs[r.id]);
   if(favR.length)out+=`<div class="sec"><h3>Vos coups de cœur</h3></div><div class="hs">${favR.map((r,i)=>rcard(r,null,i)).join("")}</div>`;
@@ -682,20 +744,28 @@ function vHome(){
 
 /* ---- Frigo ---- */
 function vFridge(){
-  const F=fridgeList();const cnt=z=>F.filter(x=>x.z===z).length;
-  let L=F;if(ff.zone!=="all")L=L.filter(x=>x.z===ff.zone);
-  if(ff.q){const s=norm(ff.q);L=L.filter(x=>norm(x.n).includes(s))}
-  L=L.map(x=>({x,d:daysLeft(x)}));
-  const tile=(o,i)=>{const[c,l]=expLabel(o.d);return`<button class="fi ${o.d!=null&&o.d<0?"x":""} ${animNext?"in":""}" style="animation-delay:${Math.min(i,20)*25}ms" data-f="${o.x.id}"><div class="ic">${o.x.img?`<img src="${esc(o.x.img)}" alt="" onerror="this.replaceWith('${esc(o.x.e||"🍽️")}')">`:esc(o.x.e||"🍽️")}</div><div class="t"><b>${esc(o.x.n)}</b><small>${o.x.q?esc(o.x.q)+" · ":""}<span class="exp ${c}" style="padding:0 5px">${l}</span></small></div></button>`};
-  let out=`<div class="seg" id="zseg">${[["all","Tout",F.length],...ZONES.map(z=>[z[0],z[1],cnt(z[0])])].map(([k,l,n])=>`<button data-z="${k}" class="${ff.zone===k?"on":""}">${l}<small>${n}</small></button>`).join("")}</div>
-  <div class="tools fr"><div class="search">${IC.search}<input id="fq" placeholder="Chercher…" value="${esc(ff.q)}" autocomplete="off"></div><button class="ibtn" id="scanB">${IC.scan}Scanner</button><button class="ibtn pri" id="addF">${IC.plus}Ajouter</button></div>`;
-  if(!L.length)return out+(F.length?empty("🔎","Rien trouvé","Essaie un autre mot ou une autre zone."):empty("🧊","Le frigo est vide","Scanne le code-barres d'un produit ou ajoute-le en deux clics.",`<div class="row2" style="justify-content:center"><button class="mini" id="scanB2">${IC.scan}Scanner</button><button class="mini gh" id="addF2">${IC.plus}Ajouter</button></div>`));
-  const urg=L.filter(o=>o.d!=null&&o.d<=3).sort((a,b)=>a.d-b.d),rest=L.filter(o=>!(o.d!=null&&o.d<=3));
-  let i=0;
-  if(urg.length)out+=`<div class="zoneh">⏳ À manger vite<span>${urg.length}</span></div><div class="fgrid">${urg.map(o=>tile(o,i++)).join("")}</div>`;
-  const zs=ff.zone==="all"?ZONES:ZONES.filter(z=>z[0]===ff.zone);
-  zs.forEach(z=>{const g=rest.filter(o=>o.x.z===z[0]).sort((a,b)=>(a.d??9e9)-(b.d??9e9));if(g.length)out+=`<div class="zoneh">${z[2]} ${z[1]}<span>${g.length}</span></div><div class="fgrid">${g.map(o=>tile(o,i++)).join("")}</div>`});
-  const other=rest.filter(o=>!ZONES.some(z=>z[0]===o.x.z));if(other.length&&ff.zone==="all")out+=`<div class="zoneh">Autres<span>${other.length}</span></div><div class="fgrid">${other.map(o=>tile(o,i++)).join("")}</div>`;
+  const F=fridgeList();
+  let L=F;if(ff.q){const s=norm(ff.q);L=L.filter(x=>norm(x.n).includes(s))}
+  L=L.map(x=>({x,d:daysLeft(x)})).sort((a,b)=>(a.d??9e9)-(b.d??9e9));
+  const urg=L.filter(o=>o.d!=null&&o.d<=3);
+  const op=animNext?"anim":"open";
+  const item=(o,i)=>{const[c,l]=expLabel(o.d);return`<button class="it" style="--d:${.75+Math.min(i,24)*.04}s" data-f="${o.x.id}"><span class="jar">${o.x.img?`<img src="${esc(o.x.img)}" alt="" onerror="this.replaceWith('${esc(o.x.e||"🍽️")}')">`:esc(o.x.e||"🍽️")}</span><b>${esc(o.x.n)}</b><span class="dot ${c}">${l}</span></button>`};
+  const zoneOf=o=>ZONES.some(z=>z[0]===o.x.z)?o.x.z:"placard";
+  const shelf=(z,emptyTxt)=>{const g=L.filter(o=>zoneOf(o)===z);return g.length?`<div class="shelf">${g.map(item).join("")}</div>`:`<div class="vide">${emptyTxt}</div>`};
+  const n=z=>L.filter(o=>zoneOf(o)===z).length;
+  let out=`<div class="tools fr"><div class="search">${IC.search}<input id="fq" placeholder="Chercher dans le frigo…" value="${esc(ff.q)}" autocomplete="off"></div><button class="ibtn" id="scanB">${IC.scan}Scanner</button><button class="ibtn pri" id="addF">${IC.plus}Ajouter</button></div>`;
+  if(urg.length)out+=`<div class="sec" style="margin-top:8px"><h3>À manger vite</h3><span>${urg.length}</span></div><div class="posts">${urg.map((o,i)=>{const[c,l]=expLabel(o.d);return`<button class="pi" style="--r:${[-3,2,-1.5,3,-2.5][i%5]}deg" data-f="${o.x.id}"><span>${esc(o.x.e||"🍽️")}</span><b>${esc(o.x.n)}</b><small>${l}</small></button>`}).join("")}</div>`;
+  out+=`<div class="appls">
+   <div class="fridge">
+    <div class="appl cmp frz ${op}"><div class="inside"><div class="lamp"></div><div class="lbl">❄️ Congélo<span>${n("congelo")}</span></div>${shelf("congelo","Rien au congélo")}</div><div class="door"><span class="logo">❄</span><i></i></div></div>
+    <div class="appl cmp main ${op}"><div class="inside"><div class="lamp"></div><div class="lbl">🧊 Frigo<span>${n("frigo")}</span></div>${shelf("frigo",F.length?"Rien au frigo":"Le frigo est vide<br><small>Scanne ou ajoute ce que vous avez</small>")}</div><div class="door"><span class="logo">DynaCook</span><i></i></div></div>
+    <div class="feet"><i></i><i></i></div>
+   </div>
+   <div class="cupboard">
+    <div class="appl cmp pl ${op}"><div class="inside"><div class="lamp"></div><div class="lbl">🗄️ Placard<span>${n("placard")}</span></div>${shelf("placard","Placard vide")}</div><div class="door l"><i></i></div><div class="door r"><i></i></div></div>
+   </div>
+  </div>`;
+  if(ff.q&&!L.length)out+=`<p class="note" style="justify-content:center;margin-top:14px">Rien trouvé pour « ${esc(ff.q)} »</p>`;
   return out;
 }
 
@@ -718,7 +788,7 @@ function vRecipes(){
   <div class="chips" id="rchips">${chips.map(([k,l])=>`<button class="chip ${rf.cat===k?"on":""}" data-c="${esc(k)}">${l}</button>`).join("")}</div>`;
   if(rf.ing)out+=`<div class="banner">${esc((FOOD[rf.ing]||{}).e||"🍽️")} Recettes avec <b>${esc(rf.ing)}</b><button id="clrIng">${IC.x}</button></div>`;
   out+=`<div class="rgrid"><button class="rc addc" id="addR"><div><i>${IC.plus}</i>Ajouter une recette<br><small style="font-weight:600;font-size:12px">TikTok, lien ou à la main</small></div></button>${L.map((o,i)=>rcard(o.r,o.m,i)).join("")}</div>`;
-  if(!L.length)out+=empty("🍳","Aucune recette ici","Change de filtre ou ajoute la tienne.");
+  if(!L.length&&allRecipes().length)out+=empty("🍳","Aucune recette ici","Change de filtre ou ajoute la tienne.");
   return out;
 }
 
@@ -999,6 +1069,7 @@ function autoWeek(){
   Object.values(plan).forEach(P=>["midi","soir"].forEach(sl=>P[sl]&&P[sl].r&&used.add(P[sl].r)));
   const R=ranked().filter(o=>(o.r.c!=="Dessert")&&!used.has(o.r.id));
   const pool=[...R.filter(o=>o.m.have).slice(0,12),...R.filter(o=>!o.m.have).sort(()=>Math.random()-.5)];
+  if(!pool.length){toast("Ajoute d'abord quelques recettes");return}
   let n=0;
   for(let i=0;i<7;i++){const t=s+i*DAY;if(t<t0)continue;const k=dkey(t+3600e3);const P={...(plan[k]||{})};if(!P.soir){const o=pool.shift();if(!o)break;P.soir={r:o.r.id};n++;put("plan",k,P,true)}}
   render();toast(n?`✨ ${n} soir${n>1?"s":""} rempli${n>1?"s":""}`:"La semaine est déjà pleine");
@@ -1158,7 +1229,7 @@ function stopAlarm(t){clearInterval(t.alarm);t.alarm=null}
 
 /* ================= Roulette ================= */
 function roulette(){
-  const R=ranked();const F=fridgeList().length;
+  const R=ranked();if(!R.length){toast("Ajoute d'abord quelques recettes");rf={q:"",cat:"all",ing:null};go("recipes");return}const F=fridgeList().length;
   let pool=F?R.filter(o=>o.m.have>0&&o.r.c!=="Dessert").slice(0,14):[];if(pool.length<4)pool=R.filter(o=>o.r.c!=="Dessert").sort(()=>Math.random()-.5).slice(0,14);
   const pick=pool[Math.floor(Math.random()*Math.min(pool.length,F?6:pool.length))];
   const ro=$("roul");ro.classList.add("on");
