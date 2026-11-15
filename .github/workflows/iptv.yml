@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
   issues: write
 concurrency:
   group: iptv
@@ -38,6 +39,10 @@ jobs:
           gh release view iptv --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create iptv --repo "$GITHUB_REPOSITORY" --title "Frigo Rosé IPTV" --notes "Appli Frigo Rosé IPTV pour Google TV, Fire Stick et Android." --latest=false
           gh release upload iptv frigo-rose-iptv.apk --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit iptv --repo "$GITHUB_REPOSITORY" --notes "Appli Frigo Rosé IPTV — version ${{ github.run_number }} ($(date -u +%d/%m/%Y))." --latest=false
+      - name: Lien court pour la télé (dylker24.github.io/frigo-rose-tv/iptv.apk)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref main || true
       - name: Rapport d'erreur
         if: failure()
         env:
