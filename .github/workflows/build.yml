@@ -5,6 +5,8 @@ on:
     paths-ignore:
       - "dynamusique/**"
       - ".github/workflows/dynamusique.yml"
+      - "iptv-android/**"
+      - ".github/workflows/iptv.yml"
   workflow_dispatch:
 permissions:
   contents: write

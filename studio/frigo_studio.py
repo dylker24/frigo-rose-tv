@@ -8,7 +8,7 @@ téléchargés automatiquement au premier lancement sur Windows.
 """
 import hashlib, hmac, secrets, json, os, re, shutil, string, subprocess, sys, threading, time, urllib.request, urllib.error, uuid, webbrowser, zipfile, io
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs, urlencode, quote
+from urllib.parse import urlparse, parse_qs, urlencode, quote, urljoin
 # Tout est chargé dès le démarrage : une version « .exe » relit ses morceaux dans son propre fichier,
 # et si une mise à jour remplace ce fichier pendant qu'elle tourne, un module chargé plus tard serait illisible.
 import traceback, unicodedata, difflib, random, ctypes, ipaddress, socket, email.utils, http.client, encodings.idna, json.decoder  # noqa: F401
@@ -4723,6 +4723,124 @@ def tv_app_html():
     return None
 
 
+# ---------------------------------------------------------------- Frigo Rosé IPTV (appli à part, servie aussi par Studio)
+IPTVAPP_URL = os.environ.get("FRS_IPTVAPP_URL") or "https://dylker24.github.io/frigo-rose-tv/iptv/"
+_iptvapp = {"t": 0, "b": None}
+
+
+def iptv_app_html():
+    """La dernière version de Frigo Rosé IPTV (gardée 10 min, et une copie sur le disque si internet coupe)."""
+    cache = os.path.join(DATA, "iptvapp.html")
+    if _iptvapp["b"] and time.time() - _iptvapp["t"] < 600:
+        return _iptvapp["b"]
+    try:
+        b = urllib.request.urlopen(urllib.request.Request(IPTVAPP_URL + "?v=%d" % time.time(), headers={"Cache-Control": "no-cache"}), timeout=8).read()
+        if len(b) > 20000:
+            _iptvapp.update(t=time.time(), b=b)
+            try:
+                with open(cache, "wb") as f:
+                    f.write(b)
+            except OSError:
+                pass
+            return b
+    except Exception:
+        pass
+    if _iptvapp["b"]:
+        return _iptvapp["b"]
+    if os.path.exists(cache):
+        with open(cache, "rb") as f:
+            _iptvapp["b"] = f.read()
+        return _iptvapp["b"]
+    return None
+
+
+
+IPTV_UA = "VLC/3.0.20 LibVLC/3.0.20"
+
+
+def _iptv_hls(text, base, me):
+    """Les adresses d'une playlist HLS repassent par le relais (sinon le navigateur les bloque)."""
+    def wrap(x):
+        return me + "/iptv/p?u=" + quote(urljoin(base, x.strip()), safe="")
+    out = []
+    for line in text.splitlines():
+        s = line.strip()
+        if s and not s.startswith("#"):
+            out.append(wrap(s))
+        elif 'URI="' in s:
+            out.append(re.sub(r'URI="([^"]+)"', lambda m: 'URI="%s"' % wrap(m.group(1)), line))
+        else:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def iptv_relay(h, url):
+    """Relais IPTV : l'appli dans un navigateur (téléphone, PC) passe par ici pour joindre la source."""
+    cors = [("Access-Control-Allow-Origin", "*"), ("Access-Control-Expose-Headers", "Content-Length, Content-Range")]
+
+    def reply(code, body=b"", ct="text/plain; charset=utf-8"):
+        h.send_response(code)
+        h.send_header("Content-Type", ct)
+        h.send_header("Content-Length", str(len(body)))
+        for k, v in cors:
+            h.send_header(k, v)
+        h.send_header("Cache-Control", "no-store")
+        h.end_headers()
+        if body:
+            h.wfile.write(body)
+
+    if not re.match(r"^https?://[^/\s]+", url or "", re.I):
+        return reply(400, b"adresse")
+    hd = {"User-Agent": IPTV_UA, "Accept": "*/*", "Connection": "close"}
+    if h.headers.get("Range"):
+        hd["Range"] = h.headers["Range"]
+    try:
+        r = urllib.request.urlopen(urllib.request.Request(url, headers=hd), timeout=40)
+    except urllib.error.HTTPError as e:
+        try:
+            b = e.read()[:20000]
+        except Exception:
+            b = b""
+        return reply(e.code, b, e.headers.get("Content-Type") or "text/plain")
+    except Exception as e:
+        return reply(502, ("Source injoignable : %s" % e).encode("utf-8"))
+    with r:
+        ct = r.headers.get("Content-Type") or "application/octet-stream"
+        n = r.headers.get("Content-Length")
+        low = r.geturl().split("?")[0].lower()
+        small = n is not None and int(n) < 8 << 20
+        if "mpegurl" in ct.lower() or low.endswith(".m3u8") or low.endswith(".m3u") or (small and ("json" in ct or "text" in ct or "xml" in ct)):
+            b = r.read()
+            if b[:7] == b"#EXTM3U" and b"#EXT-X-" in b[:4000]:
+                me = "http://" + (h.headers.get("Host") or "localhost")
+                b = _iptv_hls(b.decode("utf-8", "replace"), r.geturl(), me).encode("utf-8")
+                ct = "application/vnd.apple.mpegurl"
+            return reply(r.status, b, ct)
+        h.send_response(r.status)
+        h.send_header("Content-Type", ct)
+        for k in ("Content-Length", "Content-Range", "Accept-Ranges"):
+            if r.headers.get(k):
+                h.send_header(k, r.headers[k])
+        if n is None:
+            h.close_connection = True  # flux en direct : envoyé tel quel jusqu'à la fermeture
+            h.send_header("Connection", "close")
+        for k, v in cors:
+            h.send_header(k, v)
+        h.send_header("Cache-Control", "no-store")
+        h.end_headers()
+        while True:
+            try:
+                chunk = r.read(1 << 16)
+            except Exception:
+                break
+            if not chunk:
+                break
+            try:
+                h.wfile.write(chunk)
+            except OSError:
+                break
+
+
 class _NoRedir(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *a, **k):
         return None
@@ -4917,6 +5035,17 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         u = urlparse(self.path)
+        if u.path == "/iptv":
+            self.send_response(301); self.send_header("Location", "/iptv/"); self.send_header("Content-Length", "0"); self.end_headers()
+            return
+        if u.path == "/iptv/":
+            b = iptv_app_html()
+            if not b:
+                return self.send(503, "<h1>Frigo Rosé IPTV</h1><p>L'appli n'a pas pu être chargée, réessaie dans un instant.</p>".encode("utf-8"), "text/html; charset=utf-8")
+            return self.send(200, b, "text/html; charset=utf-8")
+        if u.path == "/iptv/p":
+            # relais vers la source IPTV : ton téléphone et ton PC (le navigateur bloque ces appels sinon). Seulement ce PC et ton Tailscale.
+            return iptv_relay(self, (parse_qs(u.query).get("u") or [""])[0])
         if u.path in ("/tv", "/tv/"):
             b = tv_app_html()
             if not b:

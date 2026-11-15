@@ -1,0 +1,48 @@
+name: Appli IPTV
+on:
+  push:
+    branches: [main]
+    paths:
+      - "iptv-android/**"
+      - "web/iptv/**"
+      - ".github/workflows/iptv.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: iptv
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fabrication de l'APK Frigo Rosé IPTV
+        run: |
+          set -eo pipefail
+          exec > >(tee build.log) 2>&1
+          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          for u in https://services.gradle.org/distributions/gradle-8.7-bin.zip https://downloads.gradle.org/distributions/gradle-8.7-bin.zip; do curl -fsSL --retry 4 --retry-delay 5 -o gradle.zip "$u" && unzip -tq gradle.zip >/dev/null && break; rm -f gradle.zip; done
+          unzip -q gradle.zip -d "$RUNNER_TEMP"
+          mkdir -p iptv-android/app/src/main/assets && cp web/iptv/index.html iptv-android/app/src/main/assets/index.html
+          echo "sdk.dir=$ANDROID_HOME" > iptv-android/local.properties
+          "$RUNNER_TEMP/gradle-8.7/bin/gradle" -p iptv-android assembleRelease --no-daemon --stacktrace
+          cp iptv-android/app/build/outputs/apk/release/app-release.apk frigo-rose-iptv.apk
+          ls -la frigo-rose-iptv.apk
+      - name: Publication (lien fixe)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view iptv --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create iptv --repo "$GITHUB_REPOSITORY" --title "Frigo Rosé IPTV" --notes "Appli Frigo Rosé IPTV pour Google TV, Fire Stick et Android." --latest=false
+          gh release upload iptv frigo-rose-iptv.apk --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit iptv --repo "$GITHUB_REPOSITORY" --notes "Appli Frigo Rosé IPTV — version ${{ github.run_number }} ($(date -u +%d/%m/%Y))." --latest=false
+      - name: Rapport d'erreur
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          touch build.log
+          { echo '```'; grep -E "error:|ERROR|FAILURE|What went wrong" -A3 build.log | head -80; echo; tail -n 80 build.log; echo '```'; } > report.md
+          gh issue create --repo ${{ github.repository }} --title "Erreur fabrication IPTV ${{ github.run_number }}" --body-file report.md

@@ -1,0 +1,26 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'tv.frigorose.iptv'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'tv.frigorose.iptv'
+        minSdk 21
+        targetSdk 34
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ? System.getenv('GITHUB_RUN_NUMBER').toInteger() : 1)
+        versionName '1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+    signingConfigs {
+        release { storeFile file('../../android/frigo.keystore'); storePassword 'frigorosetv'; keyAlias 'frigo'; keyPassword 'frigorosetv' }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
+    implementation 'androidx.annotation:annotation-experimental:1.4.1'
+}
