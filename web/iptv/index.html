@@ -146,6 +146,9 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .phead{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
 .phead .sub{margin:0}
 .sorts{display:flex;gap:.4rem}
+.row.inpane{margin:0 0 1.6rem}
+.row.inpane h3{margin-left:.4rem}
+.row.inpane .strip{padding-left:.4rem;padding-right:.4rem}
 .cat.pin span::before{content:"★ ";color:#FFC93D}
 .panel.wide{max-width:62rem}
 .stabs,.kinds{display:flex;gap:.5rem;margin:0 0 1.2rem;flex-wrap:wrap}
@@ -403,6 +406,15 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 
 /* doigt ou souris : pas de cadre de télécommande */
 @media (pointer:coarse){.f.on{box-shadow:none!important;transform:none!important}.inp.on{box-shadow:none!important}.btn.pri.on{box-shadow:none!important}}
+/* télé (Fire Stick, Google TV) : on retire les flous et ombres qui ralentissent */
+body.lite .layer{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(7,7,10,.96)}
+body.lite .fbd.blur,body.lite .hero .bd.blur,body.lite #fiche .bd.blur{filter:none;transform:none;opacity:.35}
+body.lite .fbd.actor{filter:none;opacity:.25}
+body.lite .mth .bl{display:none}
+body.lite .btn.glass,body.lite .fgen span{-webkit-backdrop-filter:none;backdrop-filter:none}
+body.lite .card.on,body.lite .mtile.on .mth,body.lite .pp.on .ph{box-shadow:0 0 0 .2rem #fff}
+body.lite .f{transition:none}
+body.lite .card.on{transform:scale(1.06)}
 /* téléphone */
 @media (max-width:760px){
   html{font-size:14px}
@@ -525,6 +537,8 @@ const IS_TV = /FrigoRoseIPTV/.test(navigator.userAgent) && !/Tablet/.test(naviga
 // servie par Studio (http://…:8795/iptv/) : les appels passent par Studio, qui lève les blocages du navigateur
 const VIA = location.protocol.startsWith("http") && /^\/iptv(\/|$)/.test(location.pathname) ? location.origin + "/iptv/p?u=" : "";
 const px = u => VIA && /^https?:/i.test(u) ? VIA + enc(u) : u;
+if (/FrigoRoseIPTV/.test(navigator.userAgent) && !/FrigoRoseTablet/.test(navigator.userAgent)) document.documentElement.classList.add("tv");
+document.addEventListener("DOMContentLoaded", () => { if (document.documentElement.classList.contains("tv")) document.body.classList.add("lite"); });
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 const I = {
@@ -704,21 +718,43 @@ async function xtCheck(k) {
   if (String(r.user_info.auth) === "0") throw new Error("Nom d'utilisateur ou mot de passe refusé");
   return r;
 }
+// catégories d'un autre pays (« UK | Films », « AR - Séries »…) : on ne les charge même pas quand « français seulement » est activé
+const FRCAT = /(^|[^a-z])(fr|fra|france|french|fran[cç]ais|vf|vff|vfq|vostfr|truefrench|belgique|be|suisse|ch|qu[eé]bec|qc|lu|mc)([^a-z]|$)/i;
+const FOREIGN_CODE = /^[^a-z0-9]*(en|eng|uk|gb|us|usa|ar|arb|de|ger|es|esp|it|ita|pt|por|br|nl|pl|tr|ru|in|ind|pk|af|kr|jp|cn|ca|gr|ro|al|yu|ir|se|swe|no|dk|fi|mt|il|hu|cz|sk|bg|hr|rs|ba|mk|si|ua|ph|th|vn|id|my|au|nz|mx|co|cl|pe|ve|irl|sc|ex-?yu|latam|lat)([^a-z]|$)/i;
+const FOREIGN_WORD = /(^|[^a-z])(english|arab|arabic|german\w*|deutsch\w*|espa[nñ]\w*|spain|spanish|ital\w+|portug\w+|brazil\w*|latino|latin|dutch|nederland\w*|polsk\w*|polish|turk\w*|russ\w*|india\w*|hindi|punjabi|urdu|pakistan\w*|africa|asia\w*|korea\w*|japan\w*|chin\w*|canada|greek|greece|romania\w*|albania\w*|ex-?yu|balkan\w*|kurd\w*|iran\w*|persian|swed\w*|norw\w*|denmark|danish|finland|nordic|scandinav\w*|carib\w*|malta|israel\w*|hungar\w*|czech|slovak\w*|bulgar\w*|croat\w*|serbia\w*|bosnia\w*|macedonia\w*|sloven\w*|ukrain\w*|philippin\w*|thai\w*|viet\w*|indonesia\w*|malaysia\w*|austral\w*|mexic\w*|colombia\w*|chile|peru|venezuela\w*|ireland|irish|scotland|usa)([^a-z]|$)/i;
+const foreignCat = name => { const n = String(name || "").replace(/\b(4k|hd|fhd|uhd|sd|vod|tv|24\/7|ppv)\b/gi, " "); return !FRCAT.test(n) && (FOREIGN_CODE.test(n) || FOREIGN_WORD.test(n)); };
+const frOnly = () => !P || !P.ui || P.ui.fronly !== false;
 async function loadXt(k, step) {
   const api = xtApi(k);
   step("Connexion au serveur…");
   const acc = await xtCheck(k);
   const arr = v => Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []);
-  step("Chargement des chaînes…");
-  const [lc, ls] = await Promise.all([req(api + "&action=get_live_categories"), req(api + "&action=get_live_streams")]);
-  step("Chargement des films…");
-  const [mc, ms] = await Promise.all([req(api + "&action=get_vod_categories"), req(api + "&action=get_vod_streams")]);
-  step("Chargement des séries…");
-  const [sc, ss] = await Promise.all([req(api + "&action=get_series_categories"), req(api + "&action=get_series")]);
+  const fr = frOnly();
+  // on ne télécharge que les catégories gardées : beaucoup plus léger quand la source est surtout étrangère
+  const grab = async (catAction, action, label) => {
+    step("Chargement " + label + "…");
+    let cats = arr(await req(api + "&action=" + catAction));
+    if (!fr) return [cats, arr(await req(api + "&action=" + action))];
+    const keep = cats.filter(c => !foreignCat(c.category_name));
+    const ok = new Set(keep.map(c => String(c.category_id)));
+    if (keep.length >= cats.length * 0.7) return [keep, arr(await req(api + "&action=" + action)).filter(x => ok.has(String(x.category_id)))];
+    const out = []; let i = 0, done = 0;
+    await Promise.all([0, 1, 2, 3].map(async () => {
+      while (i < keep.length) {
+        const c = keep[i++];
+        try { out.push(...arr(await req(api + "&action=" + action + "&category_id=" + enc(c.category_id)))); } catch (e) { }
+        step("Chargement " + label + "… " + Math.round(100 * ++done / keep.length) + " %");
+      }
+    }));
+    return [keep, out];
+  };
+  const [lc, ls] = await grab("get_live_categories", "get_live_streams", "des chaînes");
+  const [mc, ms] = await grab("get_vod_categories", "get_vod_streams", "des films");
+  const [sc, ss] = await grab("get_series_categories", "get_series", "des séries");
   const cats = l => arr(l).map(c => [String(c.category_id), String(c.category_name || "").trim()]);
   const ui = acc.user_info || {};
   return {
-    v: 1, t: Date.now(), kind: "xt",
+    v: 1, t: Date.now(), kind: "xt", fr,
     acc: { exp: num(ui.exp_date), max: num(ui.max_connections), act: num(ui.active_cons), st: ui.status || "", fmt: arr(ui.allowed_output_formats) },
     cats: { l: cats(lc), m: cats(mc), s: cats(sc) },
     l: arr(ls).map(x => ({ id: x.stream_id, n: (x.name || "").trim(), img: x.stream_icon || "", c: String(x.category_id), num: num(x.num), epg: x.epg_channel_id || "", arc: num(x.tv_archive) })),
@@ -734,7 +770,8 @@ async function loadM3u(k, step) {
   if (!/#EXTM3U|#EXTINF/i.test(txt.slice(0, 5000))) throw new Error("Ce lien ne donne pas une liste M3U");
   step("Lecture de la liste…");
   const lines = txt.split(/\r?\n/);
-  const out = { v: 1, t: Date.now(), kind: "m3u", acc: null, cats: { l: [], m: [], s: [] }, l: [], m: [], s: [] };
+  const fr = frOnly();
+  const out = { v: 1, t: Date.now(), kind: "m3u", fr, acc: null, cats: { l: [], m: [], s: [] }, l: [], m: [], s: [] };
   const cmap = { l: new Map(), m: new Map(), s: new Map() };
   const catId = (k2, g) => { g = g || "Autres"; let id = cmap[k2].get(g); if (!id) { id = String(cmap[k2].size + 1); cmap[k2].set(g, id); out.cats[k2].push([id, g]); } return id; };
   const series = new Map();
@@ -752,6 +789,7 @@ async function loadM3u(k, step) {
     if (L.startsWith("#EXTGRP:") && cur && !cur.g) { cur.g = L.slice(8).trim(); continue; }
     if (L.startsWith("#")) continue;
     if (!cur) cur = { n: L.split("/").pop(), img: "", g: "", epg: "", num: 0 };
+    if (fr && cur.g && foreignCat(cur.g)) { cur = null; continue; }
     const url = L; n++;
     const low = url.toLowerCase().split("?")[0];
     const isVod = /\/(movie|movies|vod)\//.test(low) || /\.(mp4|mkv|avi|mov|wmv|m4v|webm)$/.test(low);
@@ -865,7 +903,7 @@ function UI() {
   return u;
 }
 function catsOf(k, withHidden) {
-  const all = C.cats[k] || [], u = UI(), hid = new Set(u.hide[k]), pin = u.pin[k];
+  const all = (C.cats[k] || []).filter(c => !frOnly() || !foreignCat(c[1])), u = UI(), hid = new Set(u.hide[k]), pin = u.pin[k];
   let l = all.filter(c => (P.adult || !ADULT.test(c[1])) && (withHidden || !hid.has(c[0])));
   const pinned = pin.map(id => l.find(c => c[0] === id)).filter(Boolean);
   return pinned.concat(l.filter(c => pin.indexOf(c[0]) < 0));
@@ -1144,6 +1182,7 @@ async function enterProfile(p, force) {
   step("");
   let cached = force ? null : await IDB.get(S.id);
   try {
+    if (cached && (cached.fr !== false) !== frOnly()) cached = null;
     if (!cached) { C = await loadSource(S, step); await IDB.set(S.id, C); }
     else {
       C = cached;
@@ -1380,7 +1419,12 @@ function metaHtml(x, inf) {
 const BR = { m: { c: "new" }, s: { c: "new" } };
 function drawBrowse(k) {
   const v = $("#view"); v.style.overflow = "hidden";
-  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="phead"><div><h2></h2><div class="sub"></div></div><div class="sorts" data-z></div></div><div class="grid" data-z data-nomem></div></div></div>`);
+  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="mylist-top"></div><div class="phead"><div><h2></h2><div class="sub"></div></div><div class="sorts" data-z></div></div><div class="grid" data-z data-nomem></div></div></div>`);
+  {
+    const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
+    const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
+    if (mine.length) { const r = row("Ma liste", mine, k, { count: mine.length }); r.classList.add("inpane"); $(".mylist-top", wrap).appendChild(r); }
+  }
   v.appendChild(wrap);
   const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".grid", wrap);
   const cnt = {}; VIEW[k].forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
@@ -1433,8 +1477,10 @@ function drawLive() {
   const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".mgrid", wrap);
   const cnt = {}; VIEW.l.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
   const favIds = () => new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === "l").map(x => String(x.id)));
-  const list = [["all", "Toutes les chaînes", VIEW.l.length]];
-  if (favIds().size) list.push(["fav", "Mes chaînes", favIds().size]);
+  const list = [];
+  if (favIds().size) list.push(["fav", "★ Mes chaînes", favIds().size]);
+  list.push(["all", "Toutes les chaînes", VIEW.l.length]);
+  if (!LV.seen) { LV.seen = true; if (favIds().size) LV.c = "fav"; }
   visibleCats("l").forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]]]));
   const fmt = t => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   // programme en cours, chargé seulement pour les vignettes visibles (3 à la fois)
@@ -1458,7 +1504,8 @@ function drawLive() {
     LV.c = id;
     $$(".cat", cats).forEach(b => b.classList.toggle("sel", b.dataset.c === id));
     const fi = favIds();
-    const items = id === "all" ? VIEW.l : id === "fav" ? VIEW.l.filter(x => fi.has(String(x.id))) : VIEW.l.filter(x => x.c === id);
+    const favFirst = l => l.filter(x => fi.has(String(x.id))).concat(l.filter(x => !fi.has(String(x.id))));
+    const items = id === "all" ? favFirst(VIEW.l) : id === "fav" ? VIEW.l.filter(x => fi.has(String(x.id))) : favFirst(VIEW.l.filter(x => x.c === id));
     grid.innerHTML = ""; pane.scrollTop = 0; queue.length = 0;
     fill(grid, items, (x, i) => {
       const fav = FAV[ikey("l", x.id)];
@@ -1955,7 +2002,7 @@ function openMenu() {
   L._close = () => { L.hidden = true; if (MENU_DIRTY) { MENU_DIRTY = false; drawTop(); go(TAB); } else focus(ret); };
   firstIn(mn);
 }
-let MENU_DIRTY = false;
+let MENU_DIRTY = false, FRCHANGED = false;
 function editStudio(ret) {
   const L = $("#edit"); L.hidden = false;
   L.innerHTML = `<div class="panel"><h2>Synchro avec Studio</h2>
@@ -2024,13 +2071,18 @@ function openSettings(ret, tab, kind) {
     const box = $(".mlist", sg);
     const tg = (label, get, set) => { const b = h(`<button class="mi"><span>${label}</span>${sw(get())}</button>`); f(b, () => { set(!get()); save(); $(".sw", b).classList.toggle("y", get()); }); box.appendChild(b); };
     tg("Afficher les titres sous les affiches", () => !!u.names, v => u.names = v);
+    tg("Seulement les catégories françaises", () => frOnly(), v => { u.fronly = v; FRCHANGED = true; });
     tg("Cacher les catégories pour adultes", () => !P.adult, v => P.adult = !v);
     const fmtL = { auto: "Automatique", ts: "MPEG-TS", hls: "HLS (m3u8)" };
     const fm = h(`<button class="mi"><span>Format des chaînes</span><small>${fmtL[LS.get("livefmt", "auto")]}</small></button>`);
     f(fm, () => { const o = ["auto", "ts", "hls"], c = LS.get("livefmt", "auto"); const n = o[(o.indexOf(c) + 1) % o.length]; LS.set("livefmt", n); $("small", fm).textContent = fmtL[n]; });
     box.appendChild(fm);
   }
-  L._close = () => { L.hidden = true; if (MENU_DIRTY) { MENU_DIRTY = false; indexCatalog(); drawTop(); go(TAB); } else if (ret && ret.isConnected) focus(ret); };
+  L._close = () => {
+    L.hidden = true;
+    if (FRCHANGED) { FRCHANGED = false; MENU_DIRTY = false; enterProfile(P, true); return; }
+    if (MENU_DIRTY) { MENU_DIRTY = false; indexCatalog(); drawTop(); go(TAB); } else if (ret && ret.isConnected) focus(ret);
+  };
   focus($(".stabs .chip.sel", L));
 }
 function closeAll() { ["fiche", "menu", "edit"].forEach(i => $("#" + i).hidden = true); }
