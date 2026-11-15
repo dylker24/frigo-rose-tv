@@ -9,3 +9,4 @@ L'appli télé de Frigo Rosé TV (Fire TV / Google TV).
 - `web/totoche/` : **Inspecteur Totoche**, jeu d'enquête sur téléphone (épisodes). Jouer : https://dylker24.github.io/frigo-rose-tv/totoche/
 - `web/culture/` : **Cahier de culture**, histoire, géo, drapeaux des 195 pays et animaux, avec fiches, cartes et quiz. Ouvrir : https://dylker24.github.io/frigo-rose-tv/culture/
 - `web/dynashop/` : **Dyna Shop**, les envies (liens, photos, prix) et la liste d'achats maison de Dylan et Léna, synchronisées. Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynashop/
+- `web/dynacook/` : **DynaCook**, frigo (scan code-barres), « on mange quoi ce soir », recettes (base + les nôtres + TikTok), semaine, courses et mode cuisine. Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynacook/
