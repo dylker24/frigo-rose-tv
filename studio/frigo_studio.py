@@ -4774,6 +4774,65 @@ def _iptv_hls(text, base, me):
     return "\n".join(out) + "\n"
 
 
+_iptv_lock = threading.Lock()
+
+
+def _iptv_t(e):
+    return (e.get("t") or 0) if isinstance(e, dict) else (e or 0)
+
+
+def iptv_sync_merge(cur, inc):
+    """Fusion des profils Frigo Rosé IPTV venant d'un appareil : pour chaque élément, la version la plus récente gagne."""
+    prof = {p["id"]: p for p in cur.get("profiles") or [] if isinstance(p, dict) and p.get("id")}
+    for p in inc.get("profiles") or []:
+        if isinstance(p, dict) and p.get("id"):
+            o = prof.get(p["id"])
+            if o is None or (p.get("u") or 0) >= (o.get("u") or 0):
+                prof[p["id"]] = p
+    cur["profiles"] = sorted(prof.values(), key=lambda p: (p.get("c") or 0, p.get("id")))
+    for k in ("prog", "fav", "favdel"):
+        dst = cur.setdefault(k, {})
+        for pid, m in (inc.get(k) or {}).items():
+            if not isinstance(m, dict):
+                continue
+            d = dst.setdefault(pid, {})
+            for key, e in m.items():
+                if key not in d or _iptv_t(e) >= _iptv_t(d[key]):
+                    d[key] = e
+    for pid, dm in cur.get("favdel", {}).items():
+        fm = cur["fav"].get(pid, {})
+        for key, t in list(dm.items()):
+            if key in fm and _iptv_t(fm[key]) <= _iptv_t(t):
+                del fm[key]
+    for pid, pm in cur.get("prog", {}).items():
+        if len(pm) > 400:
+            for key in sorted(pm, key=lambda k: _iptv_t(pm[k]))[:len(pm) - 400]:
+                del pm[key]
+    gone = {p["id"] for p in cur["profiles"] if p.get("del")}
+    for k in ("prog", "fav", "favdel"):
+        for pid in gone:
+            cur.get(k, {}).pop(pid, None)
+    cur["t"] = int(time.time() * 1000)
+    return cur
+
+
+def iptv_sync(inc=None):
+    path = os.path.join(DATA, "iptv-sync.json")
+    with _iptv_lock:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                cur = json.load(f)
+        except Exception:
+            cur = {}
+        if inc:
+            cur = iptv_sync_merge(cur, inc)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(cur, f, ensure_ascii=False)
+            os.replace(tmp, path)
+        return cur
+
+
 def iptv_relay(h, url):
     """Relais IPTV : l'appli dans un navigateur (téléphone, PC) passe par ici pour joindre la source."""
     cors = [("Access-Control-Allow-Origin", "*"), ("Access-Control-Expose-Headers", "Content-Length, Content-Range")]
@@ -5043,6 +5102,9 @@ class H(BaseHTTPRequestHandler):
             if not b:
                 return self.send(503, "<h1>Frigo Rosé IPTV</h1><p>L'appli n'a pas pu être chargée, réessaie dans un instant.</p>".encode("utf-8"), "text/html; charset=utf-8")
             return self.send(200, b, "text/html; charset=utf-8")
+        if u.path == "/iptv/sync":
+            # profils, sources, « Continuer » et « Ma liste » de Frigo Rosé IPTV, partagés entre tes appareils (seulement ce PC et ton Tailscale)
+            return self.send(200, iptv_sync(), headers={"Access-Control-Allow-Origin": "*"})
         if u.path == "/iptv/p":
             # relais vers la source IPTV : ton téléphone et ton PC (le navigateur bloque ces appels sinon). Seulement ce PC et ton Tailscale.
             return iptv_relay(self, (parse_qs(u.query).get("u") or [""])[0])
@@ -5314,6 +5376,16 @@ class H(BaseHTTPRequestHandler):
         return self.send(200, {"ok": True, "path": final, "job": j["id"]})
 
     def do_POST(self):
+        if urlparse(self.path).path == "/iptv/sync":
+            n = int(self.headers.get("Content-Length") or 0)
+            cors = {"Access-Control-Allow-Origin": "*"}
+            if n > 8 << 20:
+                return self.send(413, {"error": "trop gros"}, headers=cors)
+            try:
+                inc = json.loads(self.rfile.read(n) or b"{}")
+                return self.send(200, iptv_sync(inc if isinstance(inc, dict) else {}), headers=cors)
+            except Exception as e:
+                return self.send(400, {"error": str(e)}, headers=cors)
         if not self.guard():
             return self.send(403, {"error": "refusé"})
         u = urlparse(self.path)

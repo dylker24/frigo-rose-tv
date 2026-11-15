@@ -450,11 +450,70 @@ let PROFILES = LS.get("profiles", []);
 let P = null;          // profil actif
 let S = null;          // source active
 let C = null;          // catalogue de la source active
-const saveProfiles = () => LS.set("profiles", PROFILES);
+const alive = () => PROFILES.filter(p => !p.del);
+const saveProfiles = () => { LS.set("profiles", PROFILES); SYNC.push(); };
 const progKey = () => "prog." + P.id;
 const favKey = () => "fav." + P.id;
 let PROG = {}, FAV = {};
 const ikey = (k, id) => S.id + "|" + k + "|" + id;
+
+/* ---------------- synchro entre appareils (par Studio, sur ton PC) ---------------- */
+const SYNC = (() => {
+  const tt = e => (e && typeof e === "object") ? (e.t || 0) : (e || 0);
+  const base = () => VIA ? location.origin : String(LS.get("studio", "http://100.107.91.60:8795")).replace(/\/+$/, "");
+  let state = "?", tm = 0, busy = false, again = false;
+  function x(method, body, timeout) {
+    return new Promise((ok, ko) => {
+      const r = new XMLHttpRequest();
+      try { r.open(method, base() + "/iptv/sync"); } catch (e) { return ko(e); }
+      r.timeout = timeout || 6000;
+      if (body) r.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+      r.onload = () => { if (r.status === 200) { try { ok(JSON.parse(r.responseText)); } catch (e) { ko(e); } } else ko(new Error("" + r.status)); };
+      r.onerror = r.ontimeout = () => ko(new Error("net"));
+      r.send(body || null);
+    });
+  }
+  function local() {
+    const prog = {}, fav = {}, favdel = {};
+    alive().forEach(p => { prog[p.id] = LS.get("prog." + p.id, {}) || {}; fav[p.id] = LS.get("fav." + p.id, {}) || {}; favdel[p.id] = LS.get("favdel." + p.id, {}) || {}; });
+    return { profiles: PROFILES, prog, fav, favdel };
+  }
+  // ce qui vient de Studio : pour chaque élément, la version la plus récente gagne
+  function merge(r) {
+    if (!r || typeof r !== "object") return false;
+    let ch = false;
+    const map = new Map(PROFILES.map(p => [p.id, p]));
+    (r.profiles || []).forEach(p => { if (!p || !p.id) return; const o = map.get(p.id); if (!o || (p.u || 0) > (o.u || 0)) { map.set(p.id, p); ch = true; } });
+    if (ch) { PROFILES = [...map.values()].sort((a, b) => (a.c || 0) - (b.c || 0) || String(a.id).localeCompare(String(b.id))); LS.set("profiles", PROFILES); }
+    ["prog", "fav", "favdel"].forEach(k => Object.keys(r[k] || {}).forEach(pid => {
+      const m = r[k][pid] || {}, cur = LS.get(k + "." + pid, {}) || {}; let c = false;
+      Object.keys(m).forEach(key => { if (cur[key] === undefined || tt(m[key]) > tt(cur[key])) { cur[key] = m[key]; c = true; } });
+      if (c) { LS.set(k + "." + pid, cur); ch = true; }
+    }));
+    alive().forEach(p => {
+      const fd = LS.get("favdel." + p.id, {}) || {}, fv = LS.get("fav." + p.id, {}) || {}; let c = false;
+      Object.keys(fd).forEach(key => { if (fv[key] && tt(fv[key]) <= tt(fd[key])) { delete fv[key]; c = true; } });
+      if (c) LS.set("fav." + p.id, fv);
+    });
+    if (ch && P) {
+      const np = PROFILES.find(q => q.id === P.id);
+      if (np && !np.del) { P = np; PROG = LS.get(progKey(), {}) || {}; FAV = LS.get(favKey(), {}) || {}; const ns = S && P.sources.find(q => q.id === S.id); if (ns) S = ns; }
+    }
+    return ch;
+  }
+  async function pull(timeout) {
+    try { const ch = merge(await x("GET", null, timeout)); state = "ok"; return ch; }
+    catch (e) { state = "ko"; return false; }
+  }
+  async function send() {
+    if (busy) { again = true; return; }
+    busy = true;
+    try { merge(await x("POST", JSON.stringify(local()), 15000)); state = "ok"; } catch (e) { state = "ko"; }
+    busy = false;
+    if (again) { again = false; send(); }
+  }
+  return { pull, push() { clearTimeout(tm); tm = setTimeout(send, 1500); }, now: send, base, state: () => state };
+})();
 
 /* ---------------- réseau ---------------- */
 function req(u, type, timeout) {
@@ -771,7 +830,7 @@ function showWho(manage) {
   ["boot", "app"].forEach(i => $("#" + i).hidden = true);
   $("#who").hidden = false;
   const box = $("#profs"); box.innerHTML = "";
-  PROFILES.forEach(p => {
+  alive().forEach(p => {
     const b = h(`<button class="prof"><span class="av" style="background:${grad(p.color || 0)}">${esc(p.name.charAt(0).toUpperCase())}</span><span>${esc(p.name)}</span></button>`);
     if (manage) b.querySelector(".av").insertAdjacentHTML("beforeend", "");
     f(b, () => manage ? editProfile(p) : enterProfile(p));
@@ -783,14 +842,14 @@ function showWho(manage) {
   const eb = $("#who-edit");
   eb.textContent = manage ? "Terminé" : "Gérer les profils";
   f(eb, () => showWho(!manage));
-  $("#who h1").textContent = manage ? "Modifier un profil" : (PROFILES.length ? "Qui regarde ?" : "Bienvenue !");
-  const last = PROFILES.findIndex(p => p.id === LS.get("last"));
+  $("#who h1").textContent = manage ? "Modifier un profil" : (alive().length ? "Qui regarde ?" : "Bienvenue !");
+  const last = alive().findIndex(p => p.id === LS.get("last"));
   focus(box.children[Math.max(0, last)] || add);
 }
 
 function editProfile(p) {
   const isNew = !p;
-  const d = p ? JSON.parse(JSON.stringify(p)) : { id: uid(), name: "", color: PROFILES.length % COLORS.length, sources: [], src: "", adult: false };
+  const d = p ? JSON.parse(JSON.stringify(p)) : { id: uid(), name: "", color: alive().length % COLORS.length, sources: [], src: "", adult: false, c: Date.now() };
   const L = $("#edit"); L.hidden = false;
   const draw = () => {
     L.innerHTML = `<div class="panel">
@@ -816,7 +875,7 @@ function editProfile(p) {
     f($("#pe-x"), () => { L.hidden = true; showWho(!isNew); });
     if (!isNew) f($("#pe-del"), () => {
       if ($("#pe-del").dataset.sure) {
-        PROFILES = PROFILES.filter(x => x.id !== d.id); saveProfiles();
+        PROFILES = PROFILES.map(x => x.id === d.id ? { id: d.id, del: true, u: Date.now() } : x); saveProfiles();
         d.sources.forEach(s => IDB.del(s.id)); LS.set("prog." + d.id, null); LS.set("fav." + d.id, null);
         L.hidden = true; showWho(false);
       } else { $("#pe-del").dataset.sure = 1; $("#pe-del").textContent = "Appuie encore pour confirmer"; }
@@ -825,6 +884,7 @@ function editProfile(p) {
       d.name = (name.value || "").trim();
       if (!d.name) { $("#pe-msg").innerHTML = '<div class="msg err">Donne un prénom au profil.</div>'; focus(name); return; }
       if (!d.src && d.sources[0]) d.src = d.sources[0].id;
+      d.u = Date.now();
       const i = PROFILES.findIndex(x => x.id === d.id);
       if (i >= 0) PROFILES[i] = d; else PROFILES.push(d);
       saveProfiles(); L.hidden = true;
@@ -1241,9 +1301,11 @@ function drawSearch() {
 /* ---------------- ma liste (favoris) ---------------- */
 function toggleFav(x, k) {
   const key = ikey(k, x.id);
-  if (FAV[key]) { delete FAV[key]; toast("Retiré de ta liste"); }
-  else { FAV[key] = { src: S.id, k, id: x.id, n: x.n, img: x.img, t: Date.now() }; toast(k === "l" ? "Ajoutée à mes chaînes" : "Ajouté à ta liste"); }
-  LS.set(favKey(), FAV);
+  const fd = LS.get("favdel." + P.id, {}) || {};
+  if (FAV[key]) { delete FAV[key]; fd[key] = Date.now(); toast("Retiré de ta liste"); }
+  else { FAV[key] = { src: S.id, k, id: x.id, n: x.n, img: x.img, t: Date.now() }; delete fd[key]; toast(k === "l" ? "Ajoutée à mes chaînes" : "Ajouté à ta liste"); }
+  LS.set(favKey(), FAV); LS.set("favdel." + P.id, fd);
+  SYNC.push();
 }
 
 /* ---------------- fiche film / série ---------------- */
@@ -1342,6 +1404,7 @@ function saveProg(it, pos, dur) {
   const keys = Object.keys(PROG); if (keys.length > 400) keys.sort((a, b) => PROG[a].t - PROG[b].t).slice(0, keys.length - 400).forEach(k => delete PROG[k]);
   LS.set(progKey(), PROG);
   DIRTY = true;
+  SYNC.push();
 }
 let DIRTY = false;
 function refreshHome(fallback) {
@@ -1536,15 +1599,19 @@ function openMenu() {
     <div class="mlist" id="mn" data-z></div></div>`;
   const mn = $("#mn", L);
   const item = (ic, label, small, fn) => { const b = h(`<button class="mi">${ic}<span>${label}</span>${small || ""}</button>`); f(b, fn); mn.appendChild(b); return b; };
-  if (P.sources.length > 1) P.sources.forEach(s => item(I.src, "Source : " + esc(s.name), s.id === S.id ? `<small>${I.check}</small>` : "", () => { if (s.id === S.id) return; P.src = s.id; saveProfiles(); L.hidden = true; enterProfile(P); }));
+  if (P.sources.length > 1) P.sources.forEach(s => item(I.src, "Source : " + esc(s.name), s.id === S.id ? `<small>${I.check}</small>` : "", () => { if (s.id === S.id) return; P.src = s.id; P.u = Date.now(); saveProfiles(); L.hidden = true; enterProfile(P); }));
   item(I.ref, "Actualiser la liste", "<small>nouveautés du fournisseur</small>", () => { L.hidden = true; focus(ret); refreshQuiet(true); });
   item(I.edit, "Modifier le profil et les sources", "", () => { L.hidden = true; editProfile(P); });
+  const sy = item(I.user, "Profils sur tous tes appareils", `<small>${SYNC.state() === "ok" ? "synchronisés ✓" : "Studio pas joignable"}</small>`, () => {
+    if (VIA) { $("small", sy).textContent = "vérification…"; SYNC.now().then(() => $("small", sy).textContent = SYNC.state() === "ok" ? "synchronisés ✓" : "Studio pas joignable"); return; }
+    L.hidden = true; editStudio(ret);
+  });
   const fm = item(I.tv, "Format des chaînes", `<small>${fmtL[LS.get("livefmt", "auto")]}</small>`, () => {
     const o = ["auto", "ts", "hls"], c = LS.get("livefmt", "auto"); const n = o[(o.indexOf(c) + 1) % o.length]; LS.set("livefmt", n);
     $("small", fm).textContent = fmtL[n];
   });
   const ad = item(I.shield, "Cacher les catégories pour adultes", `<span class="sw ${P.adult ? "" : "y"}"></span>`, () => {
-    P.adult = !P.adult; saveProfiles(); $(".sw", ad).classList.toggle("y", !P.adult); indexCatalog(); MENU_DIRTY = true;
+    P.adult = !P.adult; P.u = Date.now(); saveProfiles(); $(".sw", ad).classList.toggle("y", !P.adult); indexCatalog(); MENU_DIRTY = true;
   });
   item(I.user, "Changer de profil", "", () => { L.hidden = true; closeAll(); showWho(false); });
   if (window.FRIPTV && FRIPTV.exit) item(I.out, "Quitter l'appli", "", () => FRIPTV.exit());
@@ -1552,6 +1619,23 @@ function openMenu() {
   firstIn(mn);
 }
 let MENU_DIRTY = false;
+function editStudio(ret) {
+  const L = $("#edit"); L.hidden = false;
+  L.innerHTML = `<div class="panel"><h2>Synchro avec Studio</h2>
+    <p class="sub">Tes profils, sources, « Ma liste » et « Continuer à regarder » passent par Frigo Rosé Studio sur ton PC, pour être les mêmes sur toutes tes télés et ton téléphone. Il faut que Tailscale soit allumé sur l'appareil.</p>
+    <div class="fld"><label>Adresse de Studio</label><input class="inp" id="st-u" value="${esc(SYNC.base())}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url"></div>
+    <div class="acts-r" data-z><button class="btn" id="st-x">Fermer</button><button class="btn pri" id="st-ok">Tester</button></div><div id="st-msg"></div></div>`;
+  const u = $("#st-u"); f(u, () => u.focus());
+  f($("#st-x"), () => { L.hidden = true; if (ret && ret.isConnected) focus(ret); });
+  f($("#st-ok"), async () => {
+    let v = u.value.trim(); if (v && !/^https?:\/\//i.test(v)) v = "http://" + v; if (v && !/:\d+$/.test(v.replace(/\/+$/, ""))) v = v.replace(/\/+$/, "") + ":8795";
+    LS.set("studio", v || "http://100.107.91.60:8795"); u.value = SYNC.base();
+    $("#st-msg").innerHTML = '<div class="msg wait">Je teste…</div>';
+    await SYNC.now();
+    $("#st-msg").innerHTML = SYNC.state() === "ok" ? '<div class="msg ok">Connecté à Studio : tes profils sont synchronisés.</div>' : '<div class="msg err">Studio ne répond pas. Vérifie que le PC est allumé, que Studio tourne et que Tailscale est actif sur cet appareil.</div>';
+  });
+  focus($("#st-ok"));
+}
 function closeAll() { ["fiche", "menu", "edit"].forEach(i => $("#" + i).hidden = true); }
 
 /* ---------------- touches ---------------- */
@@ -1600,8 +1684,12 @@ document.addEventListener("mousedown", e => { const el = e.target.closest && e.t
 window.addEventListener("popstate", () => { });
 
 /* ---------------- démarrage ---------------- */
-(function boot() {
-  if (!PROFILES.length) {
+(async function boot() {
+  $("#boot-msg").textContent = "Synchronisation…";
+  await SYNC.pull(3500);
+  $("#boot-msg").textContent = "";
+  setInterval(() => { if (document.hidden) return; SYNC.pull(5000).then(ch => { if (ch && !$("#who").hidden) showWho(false); }); }, 120000);
+  if (!alive().length) {
     $("#boot").hidden = true;
     showWho(false);
     $("#who h1").textContent = "Bienvenue ! Crée ton profil";
@@ -1609,7 +1697,7 @@ window.addEventListener("popstate", () => { });
     return;
   }
   $("#boot").hidden = true;
-  if (PROFILES.length === 1 && LS.get("skipwho", false)) return enterProfile(PROFILES[0]);
+  if (alive().length === 1 && LS.get("skipwho", false)) return enterProfile(alive()[0]);
   showWho(false);
 })();
 </script>
