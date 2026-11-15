@@ -406,6 +406,48 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 
 /* doigt ou souris : pas de cadre de télécommande */
 @media (pointer:coarse){.f.on{box-shadow:none!important;transform:none!important}.inp.on{box-shadow:none!important}.btn.pri.on{box-shadow:none!important}}
+/* ===== look 2025 : menu en pastille, pages en rangées ===== */
+#top{gap:1.2rem}
+#top .logo{flex:1}
+#top .grow{flex:1}
+#tabs{flex:none;gap:.15rem;padding:.3rem;border-radius:2rem;background:rgba(20,20,28,.55);border:1px solid rgba(255,255,255,.08);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.tab{height:2.3rem;padding:0 1.15rem;border-radius:2rem;color:#c9c9d4;font-weight:600}
+.tab.sel{background:rgba(255,255,255,.16);color:#fff}
+.tab.sel::after{display:none}
+.tab.on{background:#fff;color:#000}
+#top .me{margin-left:.6rem}
+.chip.big{height:2.5rem;padding:0 1.2rem;font-size:.92rem;background:rgba(255,255,255,.08);color:#e3e3ea;border:1px solid rgba(255,255,255,.06)}
+.chip.big small{color:var(--faint);font-weight:500;margin-left:.15rem}
+.chip.big.on{background:#fff;color:#000;box-shadow:none;transform:scale(1.05)}
+.chip.big.on small{color:#555}
+.row.chips{margin-bottom:1rem}
+.row.chips .strip{gap:.6rem;padding-top:.6rem;padding-bottom:.6rem}
+.ph-card{flex:none;width:9.6rem;aspect-ratio:2/3;border-radius:.7rem;background:linear-gradient(110deg,var(--s1) 30%,var(--s2) 50%,var(--s1) 70%)}
+/* direct : vignettes de chaîne dans les rangées */
+.strip .mtile.cc{flex:none;width:13.5rem}
+.home .mtile.cc .mth{background:linear-gradient(145deg,#1d1d27,#121219)}
+/* grande image du direct */
+.hero.live .bd.logo{background-size:auto 30%;background-position:72% 32%;background-color:transparent;opacity:.9}
+.hero.live .bd::after{background:radial-gradient(60% 70% at 72% 35%,rgba(var(--accent-rgb),.22),transparent 70%),linear-gradient(to right,var(--bg) 0%,rgba(7,7,10,.75) 35%,rgba(7,7,10,.2) 70%),linear-gradient(to top,var(--bg) 42%,rgba(7,7,10,.4) 62%,rgba(7,7,10,0) 82%)}
+.hero.live .kick{color:var(--live)}
+.hero.live .kick i{background:var(--live);animation:pulse 1.6s infinite}
+.lvbar{height:.28rem;border-radius:1rem;background:rgba(255,255,255,.15);max-width:26rem;margin:.9rem 0 .2rem;overflow:hidden}
+.lvbar i{display:block;height:100%;background:var(--live);border-radius:1rem}
+.hero .next{color:var(--mute);font-size:.95rem;margin:-.4rem 0 1.2rem}
+.hero .next span{color:var(--faint);text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:800;margin-right:.5rem}
+.hero .next b{color:#fff;font-weight:600}
+.hero .next i{font-style:normal;color:var(--faint);margin-left:.6rem}
+/* page d'une catégorie */
+.catv{padding:6.6rem var(--pad) 4rem}
+.catv .phead{align-items:flex-end;margin-bottom:1.4rem}
+.catv h2{font:800 2.4rem var(--ui);letter-spacing:-.03em;margin:.8rem 0 .2rem}
+.catv .chip.back{background:rgba(255,255,255,.08);color:#ddd}
+.catv .chip.back .ic{width:1em;height:1em}
+.catv .grid{padding:.4rem}
+.catv .mgrid{grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))}
+.mtile.on b{color:#fff}
+.mtile.on .pr{color:#bdbdc8}
+body.lite #tabs{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(20,20,28,.9)}
 /* télé (Fire Stick, Google TV) : on retire les flous et ombres qui ralentissent */
 body.lite .layer{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(7,7,10,.96)}
 body.lite .fbd.blur,body.lite .hero .bd.blur,body.lite #fiche .bd.blur{filter:none;transform:none;opacity:.35}
@@ -424,6 +466,11 @@ body.lite .card.on{transform:scale(1.06)}
   #tabs{order:3;flex-basis:100%;overflow-x:auto;scrollbar-width:none}
   #tabs::-webkit-scrollbar{display:none}
   .tab{height:2.1rem;padding:0 .7rem;font-size:.9rem}
+  #tabs{order:3;flex:1 1 100%;margin:0;justify-content:flex-start}
+  .hero.live .bd.logo{background-image:none!important}
+  .strip .mtile.cc{width:9.5rem}
+  .catv{padding-top:8rem}
+  .catv h2{font-size:1.8rem}
   .tab .ic{display:none}
   #top .grow{flex:1}
   .hero{height:62vh;padding-bottom:4.5rem}
@@ -1239,7 +1286,7 @@ function drawTop() {
   const me = $("#t-me"); me.innerHTML = avatar(P); f(me, openMenu);
 }
 function go(tab, keep) {
-  TAB = tab; LS.set("tab." + P.id, tab);
+  TAB = tab; LS.set("tab." + P.id, tab); CATV = null;
   $$(".tab").forEach(b => b.classList.toggle("sel", b.dataset.t === tab));
   $("#t-search").classList.toggle("sel", tab === "search");
   const v = $("#view"); v.scrollTop = 0; v.innerHTML = ""; v.className = "view"; v.style.overflow = "";
@@ -1301,38 +1348,76 @@ function continueItems() {
   return Object.entries(PROG).filter(([key, p]) => key.startsWith(S.id + "|") && !p.done && p.pos > 30).sort((a, b) => b[1].t - a[1].t).slice(0, 20);
 }
 const ago = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d <= 0 ? "aujourd'hui" : d === 1 ? "hier" : "il y a " + d + " jours"; };
-function drawHome() {
+/* une page « grande image + rangées » : accueil, films, séries, direct */
+const fmtH = t => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+// programme en cours des chaînes visibles, 3 à la fois
+const EPQ = { q: [], run: 0 };
+function epgLater(el, x, done) { EPQ.q.push([el, x, done]); epgPump(); }
+function epgPump() {
+  while (EPQ.run < 3 && EPQ.q.length) {
+    const [el, x, done] = EPQ.q.shift();
+    if (!el.isConnected) continue;
+    EPQ.run++;
+    shortEpg(x).then(e => { if (e && e.length && el.isConnected) done(e); }).finally(() => { EPQ.run--; epgPump(); });
+  }
+}
+function nowOf(e) { const n = Date.now() / 1000; return e.find(p => p.a <= n && p.b > n) || e[0]; }
+function chCard(x, list, ioRoot) {
+  const fav = FAV[ikey("l", x.id)];
+  const t = h(`<div class="mtile cc${LV.ch === x.id ? " cur" : ""}" role="button" tabindex="-1"><div class="mth">${x.img ? `<img class="lg" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.parentNode.classList.add('nol');this.remove()">` : ""}<span class="ini">${esc(clean(x.n).slice(0, 3).toUpperCase())}</span>${x.num ? `<span class="n">${x.num}</span>` : ""}${fav ? `<span class="st">${I.star}</span>` : ""}<div class="pg"><i></i></div></div><b>${esc(x.n)}</b><span class="pr">${esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")}</span></div>`);
+  if (!x.img) $(".mth", t).classList.add("nol");
+  t._x = x;
+  f(t, () => playLive(x, list));
+  t._long = () => { toggleFav(x, "l"); const st = $(".st", t); if (FAV[ikey("l", x.id)]) { if (!st) $(".mth", t).insertAdjacentHTML("beforeend", `<span class="st">${I.star}</span>`); } else if (st) st.remove(); };
+  t.addEventListener("contextmenu", ev => { ev.preventDefault(); focus(t, { noscroll: true }); t._long(); });
+  if (C.kind === "xt" && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { io.disconnect(); epgLater(t, x, e => { const c = nowOf(e); $(".pr", t).textContent = c.t; $(".pg i", t).style.width = Math.max(2, Math.min(100, 100 * (Date.now() / 1000 - c.a) / ((c.b - c.a) || 1))) + "%"; }); } }, { root: ioRoot || null, rootMargin: "300px" });
+    io.observe(t);
+  }
+  return t;
+}
+function rowsPage(cfg) {
   const v = $("#view"), TVL = innerWidth > 760;
   v.style.overflow = TVL ? "hidden" : "";
-  const home = h(`<div class="home${TVL ? " tvl" : ""}"><section class="hero"><div class="bd"></div><div class="hp"></div><div class="tx"><div class="kick"><i></i><span></span></div><h2></h2><div class="meta"></div><p></p><div class="acts" data-z></div></div></section><div class="hrows"></div></div>`);
+  const home = h(`<div class="home${TVL ? " tvl" : ""}"><section class="hero"><div class="bd"></div><div class="hp"></div><div class="tx"><div class="kick"><i></i><span></span></div><h2></h2><div class="meta"></div><div class="lvbar" hidden><i></i></div><p></p><div class="next" hidden></div><div class="acts" data-z></div></div></section><div class="hrows"></div></div>`);
   v.appendChild(home);
-  const hero = $(".hero", home), rows = $(".hrows", home);
+  const hero = $(".hero", home), rows = $(".hrows", home), ioRoot = TVL ? rows : null;
   const rank = new Map(); ["m", "s"].forEach(k => TOP[k].forEach((x, i) => rank.set(k + x.id, i + 1)));
-  // la grande image : ce qui est mis en avant, puis ce que tu sélectionnes
   let tok = 0;
   const show = async (x, k, extra) => {
     const my = ++tok;
     hero._x = [x, k];
     const r = rank.get(k + x.id);
+    const meta = $(".meta", hero), pp = $("p", hero), bd = $(".bd", hero), hp = $(".hp", hero), lb = $(".lvbar", hero), nx = $(".next", hero);
+    lb.hidden = true; nx.hidden = true; hero.classList.toggle("live", k === "l");
+    if (k === "l") {
+      $(".kick span", hero).textContent = "En direct" + (x.num ? " · " + x.num : "") + " · " + x.n;
+      $("h2", hero).textContent = x.n;
+      meta.innerHTML = esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "");
+      pp.textContent = "";
+      bd.style.backgroundImage = x.img ? `url("${x.img}")` : "none"; bd.className = "bd logo";
+      hp.hidden = true;
+      const e = await shortEpg(x);
+      if (my !== tok || !e || !e.length) return;
+      const c = nowOf(e), n = Date.now() / 1000, nxt = e.filter(p => p.a >= c.b - 1);
+      $("h2", hero).textContent = c.t;
+      meta.innerHTML = `<span>${esc(x.n)}</span><span>${fmtH(c.a)} – ${fmtH(c.b)}</span><span>encore ${Math.max(1, Math.round((c.b - n) / 60))} min</span>`;
+      lb.hidden = false; $("i", lb).style.width = Math.max(2, Math.min(100, 100 * (n - c.a) / ((c.b - c.a) || 1))) + "%";
+      pp.textContent = c.d || "";
+      if (nxt[0]) { nx.hidden = false; nx.innerHTML = `<span>Ensuite</span> ${fmtH(nxt[0].a)} · <b>${esc(nxt[0].t)}</b>${nxt[1] ? ` <i>puis ${fmtH(nxt[1].a)} · ${esc(nxt[1].t)}</i>` : ""}`; }
+      return;
+    }
     $(".kick span", hero).textContent = extra && extra.kick ? extra.kick
       : r ? `Top 10 · N° ${r} des ${k === "m" ? "films" : "séries"}`
       : isNew(x) ? (k === "m" ? "Nouveau film" : "Nouvelle série") + " · ajouté " + ago(x.add)
-      : k === "l" ? "En direct" : (k === "m" ? "Film" : "Série") + (CATNAME[k][x.c] ? " · " + clean(CATNAME[k][x.c]) : "");
-    $("h2", hero).textContent = extra && extra.title || clean(x.n);
-    const meta = $(".meta", hero), pp = $("p", hero), bd = $(".bd", hero), hp = $(".hp", hero);
-    meta.innerHTML = k === "l" ? esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "") : metaHtml(x, {});
+      : (k === "m" ? "Film" : "Série") + (CATNAME[k][x.c] ? " · " + clean(CATNAME[k][x.c]) : "");
+    $("h2", hero).textContent = clean(x.n);
+    meta.innerHTML = metaHtml(x, {});
     pp.textContent = x.plot || "";
     const img = extra && extra.bd || x.bd;
+    bd.className = "bd" + (img ? "" : " blur");
     bd.style.backgroundImage = img ? `url("${img}")` : (x.img ? `url("${x.img}")` : "none");
-    bd.classList.toggle("blur", !img); bd.classList.toggle("logo", k === "l");
-    hp.style.backgroundImage = x.img ? `url("${x.img}")` : "none"; hp.hidden = !!img || !x.img || k === "l";
-    if (k === "l") {
-      const e = await shortEpg(x);
-      if (my !== tok || !e || !e.length) return;
-      const n = Date.now() / 1000, c = e.find(q => q.a <= n && q.b > n) || e[0];
-      meta.innerHTML = `<b style="color:var(--live)">● En ce moment</b><span>${esc(c.t)}</span>`; pp.textContent = c.d || "";
-      return;
-    }
+    hp.style.backgroundImage = x.img ? `url("${x.img}")` : "none"; hp.hidden = !!img || !x.img;
     let inf = null;
     try { inf = k === "m" ? await vodInfo(x) : (C.kind === "xt" ? await seriesInfo(x) : null); } catch (e) { }
     if (my !== tok || !inf) return;
@@ -1342,69 +1427,98 @@ function drawHome() {
   };
   let ft = 0;
   const follow = (x, k, extra) => { if (!TVL) return; home.classList.add("browsing"); clearTimeout(ft); ft = setTimeout(() => show(x, k, extra), 160); };
-  // ce qu'on met en avant au départ : nouveautés et Top 10
-  const picks = [];
-  const pushP = (x, k) => { if (x && !picks.some(p => p[0] === x)) picks.push([x, k]); };
-  NEW.m.slice(0, 3).forEach(x => pushP(x, "m")); TOP.m.slice(0, 2).forEach(x => pushP(x, "m"));
-  NEW.s.slice(0, 2).forEach(x => pushP(x, "s")); TOP.s.slice(0, 1).forEach(x => pushP(x, "s"));
+  const picks = (cfg.picks || []).filter(p => p && p[0]);
   let feat = 0;
   if (picks.length) {
     const acts = $(".acts", hero);
-    const bp = h(`<button class="btn pri">${I.play}Lecture</button>`), bi = h(`<button class="btn">${I.info}Plus d'infos</button>`);
-    f(bp, () => { const [x, k] = picks[feat]; k === "m" ? playMovie(x) : openFiche(x, k, true); });
-    f(bi, () => { const [x, k] = picks[feat]; openFiche(x, k); });
-    bp._focus = bi._focus = () => { home.classList.remove("browsing"); clearTimeout(ft); if (hero._x !== picks[feat]) show(...picks[feat]); };
-    acts.append(bp, bi);
+    const live = picks[0][1] === "l";
+    const bp = h(`<button class="btn pri">${I.play}${live ? "Regarder" : "Lecture"}</button>`), bi = live ? null : h(`<button class="btn glass">${I.info}Plus d'infos</button>`);
+    f(bp, () => { const [x, k] = picks[feat]; k === "l" ? playLive(x, cfg.liveList || VIEW.l) : k === "m" ? playMovie(x) : openFiche(x, k, true); });
+    if (bi) f(bi, () => { const [x, k] = picks[feat]; openFiche(x, k); });
+    const back = () => { home.classList.remove("browsing"); clearTimeout(ft); if (hero._x !== picks[feat]) show(...picks[feat]); };
+    bp._focus = back; if (bi) bi._focus = back;
+    acts.append(bp); if (bi) acts.append(bi);
     show(...picks[0]);
-    if (picks.length > 1) heroT = setInterval(() => {
+    if (picks.length > 1 && !live) heroT = setInterval(() => {
       if (!$("#fiche").hidden || !$("#player").hidden || document.hidden || home.classList.contains("browsing")) return;
       feat = (feat + 1) % picks.length; show(...picks[feat]);
     }, 10000);
   } else hero.hidden = true;
-  const add = r => { if (r) rows.appendChild(r); };
   const withFollow = (el, x, k, extra) => { const o = el._focus; el._focus = () => { if (o) o(); follow(x, k, extra); }; return el; };
-  const crow = (title, items, k, opts) => {
-    if (!items.length) return null;
-    return row(title, items.map(x => withFollow(card(x, k, opts), x, k)), k);
+  // rangée remplie seulement quand elle arrive à l'écran (pages avec beaucoup de catégories)
+  const lazy = (title, make, opts) => {
+    const r = h(`<section class="row"><h3>${esc(title)}${opts && opts.count ? `<small>${opts.count}</small>` : ""}</h3><div class="strip" data-z></div></section>`);
+    const st = $(".strip", r);
+    const go_ = () => { if (r._done) return; r._done = 1; st.innerHTML = ""; make().forEach(n => st.appendChild(n)); };
+    if ("IntersectionObserver" in window) { const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { io.disconnect(); go_(); } }, { root: ioRoot, rootMargin: TVL ? "0px 0px 1200px 0px" : "900px" }); io.observe(r); }
+    else go_();
+    if (!r._done) st.appendChild(h('<div class="ph-card"></div>'));
+    return r;
   };
-  const t10row = (title, items, k) => {
-    if (items.length < 3) return null;
-    const r = row(title, items.map((x, i) => { const w = h(`<div class="t10"><span class="num">${i + 1}</span></div>`); w.appendChild(withFollow(card(x, k), x, k)); return w; }), k);
-    r.classList.add("top10"); return r;
-  };
-  const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
-  const find = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
-  const build = {
-    continue: () => {
-      const items = continueItems().map(([key, p]) => {
-        const x = p.k === "m" ? find("m", p.id) : p.sid != null ? find("s", p.sid) : null;
-        const el = card({ n: p.n, img: p.img }, "c", { wide: true, img: p.bd || p.img, label: p.lbl ? clean(p.n) + " · " + p.lbl : clean(p.n), pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
-        return x ? withFollow(el, x, p.k === "m" ? "m" : "s", { kick: "Reprendre" + (p.lbl ? " · " + p.lbl : "") + " · encore " + Math.max(1, Math.round((p.dur - p.pos) / 60)) + " min" }) : el;
-      });
-      return row("Continuer à regarder", items);
+  const H = {
+    TVL, ioRoot, withFollow, lazy,
+    cards: (items, k, opts) => items.map(x => withFollow(card(x, k, opts), x, k)),
+    crow: (title, items, k, opts) => items.length ? row(title, items.map(x => withFollow(card(x, k, opts), x, k)), k, opts) : null,
+    t10row: (title, items, k) => {
+      if (items.length < 3) return null;
+      const r = row(title, items.map((x, i) => { const w = h(`<div class="t10"><span class="num">${i + 1}</span></div>`); w.appendChild(withFollow(card(x, k), x, k)); return w; }), k);
+      r.classList.add("top10"); return r;
     },
-    newm: () => crow("Nouveaux films", NEW.m.slice(0, 30), "m"),
-    news: () => crow("Nouvelles séries", NEW.s.slice(0, 30), "s"),
-    top10m: () => t10row(C.kind === "xt" ? "Top 10 des films" : "À la une : films", TOP.m, "m"),
-    top10s: () => t10row(C.kind === "xt" ? "Top 10 des séries" : "À la une : séries", TOP.s, "s"),
-    best: () => BEST.length >= 6 ? row("Les mieux notés", BEST.map(([x, k]) => withFollow(card(x, k), x, k))) : null,
-    mych: () => { const l = favs.filter(x => x.k === "l").map(x => find("l", x.id)).filter(Boolean); return l.length ? row("Mes chaînes", l.map(x => withFollow(card(x, "l", { list: l }), x, "l"))) : null; },
-    mylist: () => { const l = favs.filter(x => x.k !== "l").map(x => [find(x.k, x.id), x.k]).filter(a => a[0]); return l.length ? row("Ma liste", l.map(([x, k]) => withFollow(card(x, k), x, k))) : null; },
-    live: () => VIEW.l.length ? row("En direct", VIEW.l.slice(0, 24).map(x => withFollow(card(x, "l"), x, "l"))) : null,
-    cats: () => {
-      const u = UI(), out = [];
-      const pick = k => (u.pin[k].length ? visibleCats(k).filter(c => u.pin[k].indexOf(c[0]) >= 0) : visibleCats(k).slice(0, k === "m" ? 4 : 2));
-      [["m", "Films"], ["s", "Séries"]].forEach(([k, lab]) => pick(k).forEach(c => {
-        const items = sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 24);
-        if (items.length >= 4) out.push(crow(lab + " · " + clean(c[1]), items, k));
-      }));
-      u.pin.l.forEach(id => { const l = VIEW.l.filter(x => x.c === id); if (l.length) out.push(row("Chaînes · " + clean(CATNAME.l[id] || ""), l.slice(0, 30).map(x => withFollow(card(x, "l", { list: l }), x, "l")))); });
-      return out;
+    chips: (title, list) => {
+      const r = h(`<section class="row chips"><div class="strip" data-z></div></section>`), st = $(".strip", r);
+      list.forEach(([label, fn, cls]) => { const c = h(`<button class="chip big${cls ? " " + cls : ""}">${label}</button>`); f(c, fn); c._focus = () => home.classList.add("browsing"); st.appendChild(c); });
+      return r;
     },
+    chRow: (title, list, opts) => list.length ? row(title, list.slice(0, 80).map(x => withFollow(chCard(x, list, ioRoot), x, "l")), "l", opts) : null,
   };
-  UI().rows.forEach(r => { if (!r.on || !build[r.id]) return; const x = build[r.id](); (Array.isArray(x) ? x : [x]).forEach(add); });
+  (cfg.rows(H) || []).flat().forEach(r => { if (r) rows.appendChild(r); });
   if (TVL) rows.appendChild(h('<div style="height:60vh"></div>'));
-  if (!rows.children.length && !picks.length) v.innerHTML = '<div class="pane" style="padding-top:7rem"><div class="empty"><b>Rien à afficher</b>Cette source ne contient ni film, ni série, ni chaîne visibles, ou tout est masqué dans les réglages.</div></div>';
+  if (!rows.children.length && !picks.length) v.innerHTML = '<div class="pane" style="padding-top:7rem"><div class="empty"><b>Rien à afficher</b>Rien de visible ici : vérifie les réglages d\'affichage.</div></div>';
+  return { home, hero, rows };
+}
+function homePicks(kinds) {
+  const picks = [], push = (x, k) => { if (x && !picks.some(p => p[0] === x)) picks.push([x, k]); };
+  if (kinds.indexOf("m") >= 0) { NEW.m.slice(0, 3).forEach(x => push(x, "m")); TOP.m.slice(0, 2).forEach(x => push(x, "m")); }
+  if (kinds.indexOf("s") >= 0) { NEW.s.slice(0, 2).forEach(x => push(x, "s")); TOP.s.slice(0, 1).forEach(x => push(x, "s")); }
+  return picks;
+}
+function drawHome() {
+  rowsPage({
+    picks: homePicks(["m", "s"]),
+    rows: H => {
+      const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
+      const find = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
+      const build = {
+        continue: () => {
+          const items = continueItems().map(([key, p]) => {
+            const x = p.k === "m" ? find("m", p.id) : p.sid != null ? find("s", p.sid) : null;
+            const el = card({ n: p.n, img: p.img }, "c", { wide: true, img: p.bd || p.img, label: p.lbl ? clean(p.n) + " · " + p.lbl : clean(p.n), pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
+            return x ? H.withFollow(el, x, p.k === "m" ? "m" : "s", { kick: "Reprendre" + (p.lbl ? " · " + p.lbl : "") + " · encore " + Math.max(1, Math.round((p.dur - p.pos) / 60)) + " min" }) : el;
+          });
+          return row("Continuer à regarder", items);
+        },
+        newm: () => H.crow("Nouveaux films", NEW.m.slice(0, 30), "m"),
+        news: () => H.crow("Nouvelles séries", NEW.s.slice(0, 30), "s"),
+        top10m: () => H.t10row(C.kind === "xt" ? "Top 10 des films" : "À la une : films", TOP.m, "m"),
+        top10s: () => H.t10row(C.kind === "xt" ? "Top 10 des séries" : "À la une : séries", TOP.s, "s"),
+        best: () => BEST.length >= 6 ? row("Les mieux notés", BEST.map(([x, k]) => H.withFollow(card(x, k), x, k))) : null,
+        mych: () => H.chRow("★ Mes chaînes", favs.filter(x => x.k === "l").map(x => find("l", x.id)).filter(Boolean)),
+        mylist: () => { const l = favs.filter(x => x.k !== "l").map(x => [find(x.k, x.id), x.k]).filter(a => a[0]); return l.length ? row("Ma liste", l.map(([x, k]) => H.withFollow(card(x, k), x, k))) : null; },
+        live: () => H.chRow("En direct", VIEW.l.slice(0, 24)),
+        cats: () => {
+          const u = UI(), out = [];
+          const pick = k => (u.pin[k].length ? visibleCats(k).filter(c => u.pin[k].indexOf(c[0]) >= 0) : visibleCats(k).slice(0, k === "m" ? 4 : 2));
+          [["m", "Films"], ["s", "Séries"]].forEach(([k, lab]) => pick(k).forEach(c => {
+            const items = sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 24);
+            if (items.length >= 4) out.push(H.crow(lab + " · " + clean(c[1]), items, k));
+          }));
+          u.pin.l.forEach(id => { const l = VIEW.l.filter(x => x.c === id); if (l.length) out.push(H.chRow("Chaînes · " + clean(CATNAME.l[id] || ""), l)); });
+          return out;
+        },
+      };
+      return UI().rows.filter(r => r.on && build[r.id]).map(r => build[r.id]());
+    },
+  });
 }
 function metaHtml(x, inf) {
   const r = inf.r || x.r, y = inf.y || x.y, parts = [];
@@ -1417,123 +1531,75 @@ function metaHtml(x, inf) {
 
 /* ---------------- films / séries ---------------- */
 const BR = { m: { c: "new" }, s: { c: "new" } };
+let CATV = null;  // grille d'une catégorie ouverte depuis Films / Séries / Direct
 function drawBrowse(k) {
-  const v = $("#view"); v.style.overflow = "hidden";
-  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="mylist-top"></div><div class="phead"><div><h2></h2><div class="sub"></div></div><div class="sorts" data-z></div></div><div class="grid" data-z data-nomem></div></div></div>`);
-  {
-    const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
-    const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
-    if (mine.length) { const r = row("Ma liste", mine, k, { count: mine.length }); r.classList.add("inpane"); $(".mylist-top", wrap).appendChild(r); }
-  }
-  v.appendChild(wrap);
-  const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".grid", wrap);
+  const u = UI(), lab = k === "m" ? "films" : "séries";
   const cnt = {}; VIEW[k].forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
-  const favN = Object.values(FAV).filter(x => x.src === S.id && x.k === k).length;
-  const list = [["new", "Nouveautés", ""], ["all", k === "m" ? "Tous les films" : "Toutes les séries", VIEW[k].length]];
-  if (favN) list.push(["fav", "Ma liste", favN]);
-  const pinned = new Set(UI().pin[k]);
-  visibleCats(k).forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]], pinned.has(c[0])]));
-  const sorts = $(".sorts", wrap);
-  [["new", "Nouveautés"], ["best", "Mieux notés"], ["az", "A → Z"]].forEach(([id, lab]) => {
-    const c = h(`<button class="chip" data-s="${id}">${lab}</button>`);
-    f(c, () => { UI().sort[k] = id; P.u = Date.now(); saveProfiles(); const cur = list.find(x => x[0] === BR[k].c) || list[0]; pick(cur[0], cur[1]); });
-    sorts.appendChild(c);
+  const cats = visibleCats(k).filter(c => cnt[c[0]]);
+  rowsPage({
+    picks: homePicks([k]),
+    rows: H => {
+      const out = [];
+      out.push(H.chips("Catégories", [[`Tout voir <small>${VIEW[k].length}</small>`, () => openCat(k, "all")]].concat(cats.map(c => [`${u.pin[k].indexOf(c[0]) >= 0 ? "★ " : ""}${esc(clean(c[1]))} <small>${cnt[c[0]]}</small>`, () => openCat(k, c[0])]))));
+      const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
+      const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
+      out.push(H.crow("Ma liste", mine, k));
+      out.push(H.crow(k === "m" ? "Nouveaux films" : "Nouvelles séries", NEW[k].slice(0, 30), k));
+      out.push(H.t10row(C.kind === "xt" ? "Top 10 des " + lab : "À la une", TOP[k], k));
+      const best = VIEW[k].filter(x => x.r >= 3.6).sort((a, b) => b.r - a.r).slice(0, 30);
+      if (best.length >= 6) out.push(H.crow("Les mieux notés", best, k));
+      cats.forEach(c => out.push(H.lazy(clean(c[1]), () => H.cards(sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 30), k), { count: cnt[c[0]] })));
+      return out;
+    },
   });
-  const pick = (id, label) => {
-    BR[k].c = id;
-    const how = id === "new" ? "new" : (UI().sort[k] || (id === "all" ? "az" : "new"));
+}
+function openCat(k, id) {
+  CATV = { k, id, tab: TAB };
+  const v = $("#view"); v.innerHTML = ""; v.style.overflow = ""; v.scrollTop = 0; clearInterval(heroT);
+  const isL = k === "l";
+  const name = id === "all" ? (isL ? "Toutes les chaînes" : k === "m" ? "Tous les films" : "Toutes les séries") : id === "fav" ? "★ Mes chaînes" : clean(CATNAME[k][id] || "");
+  const wrap = h(`<div class="catv"><div class="phead"><div><button class="chip back">${I.back}Retour</button><h2>${esc(name)}</h2><div class="sub"></div></div><div class="sorts" data-z></div></div><div class="grid${isL ? " mgrid" : ""}" data-z data-nomem></div></div>`);
+  v.appendChild(wrap);
+  const grid = $(".grid", wrap), sorts = $(".sorts", wrap);
+  f($(".back", wrap), closeCat);
+  const base = isL ? (id === "all" ? VIEW.l : id === "fav" ? VIEW.l.filter(x => FAV[ikey("l", x.id)]) : VIEW.l.filter(x => x.c === id)) : (id === "all" ? VIEW[k] : VIEW[k].filter(x => x.c === id));
+  const draw = how => {
+    const items = isL ? base : sortItems(base, how);
     $$(".chip", sorts).forEach(c => c.classList.toggle("sel", c.dataset.s === how));
-    sorts.hidden = id === "new";
-    $$(".cat", cats).forEach(b => b.classList.toggle("sel", b.dataset.c === id));
-    let items;
-    if (id === "new") items = NEW[k].slice(0, 300);
-    else if (id === "all") items = sortItems(VIEW[k], how);
-    else if (id === "fav") { const ids = new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === k).map(x => String(x.id))); items = sortItems(VIEW[k].filter(x => ids.has(String(x.id))), how); }
-    else items = sortItems(VIEW[k].filter(x => x.c === id), how);
-    $("h2", pane).textContent = label;
-    $(".sub", pane).textContent = items.length + (k === "m" ? " film" : " série") + (items.length > 1 ? "s" : "");
-    grid.innerHTML = ""; pane.scrollTop = 0;
-    fill(grid, items, x => card(x, k));
+    $(".sub", wrap).textContent = items.length + (isL ? " chaîne" : k === "m" ? " film" : " série") + (items.length > 1 ? "s" : "");
+    grid.innerHTML = "";
+    fill(grid, items, x => isL ? chCard(x, base) : card(x, k));
   };
-  list.forEach(([id, label, n, pin]) => {
-    const b = h(`<button class="cat${pin ? " pin" : ""}" data-c="${esc(id)}"><span>${esc(label)}</span>${n !== "" ? `<small>${n}</small>` : ""}</button>`);
-    f(b, () => { pick(id, label); firstIn(grid); });
-    let tm; b._focus = () => { clearTimeout(tm); if (BR[k].c !== id) tm = setTimeout(() => CUR === b && pick(id, label), 350); };
-    cats.appendChild(b);
-  });
-  const cur = list.find(x => x[0] === BR[k].c) || list[0];
-  pick(cur[0], cur[1]);
-  cats._last = $(`.cat[data-c="${CSS.escape(cur[0])}"]`, cats);
-  // en bas de la grille, on charge la suite
-  grid._edge = null;
+  if (!isL) [["new", "Nouveautés"], ["best", "Mieux notés"], ["az", "A → Z"]].forEach(([s, l]) => { const c = h(`<button class="chip" data-s="${s}">${l}</button>`); f(c, () => { UI().sort[k] = s; P.u = Date.now(); saveProfiles(); draw(s); }); sorts.appendChild(c); });
+  draw(id === "all" && !isL ? (UI().sort[k] === "new" ? "az" : UI().sort[k] || "az") : (UI().sort[k] || "new"));
+  setTimeout(() => firstIn(grid), 0);
+}
+function closeCat() {
+  const c = CATV; CATV = null;
+  go(c.tab, true);
+  setTimeout(() => { const chip = $$(".row.chips .chip").find(b => b._ok && b.textContent.indexOf(c.id === "all" ? "Tout voir" : clean(CATNAME[c.k][c.id] || "§")) >= 0); focus(chip || $(".row.chips .chip") || $(".hero .btn")); }, 0);
 }
 
 /* ---------------- TV en direct ---------------- */
 let LV = { c: "all", ch: null };
 function drawLive() {
-  const v = $("#view"); v.style.overflow = "hidden";
-  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="mhead"><h2></h2><div class="sub"></div></div><div class="mgrid" data-z data-nomem></div></div></div>`);
-  v.appendChild(wrap);
-  const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".mgrid", wrap);
+  const fi = new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === "l").map(x => String(x.id)));
+  const favs = VIEW.l.filter(x => fi.has(String(x.id)));
   const cnt = {}; VIEW.l.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
-  const favIds = () => new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === "l").map(x => String(x.id)));
-  const list = [];
-  if (favIds().size) list.push(["fav", "★ Mes chaînes", favIds().size]);
-  list.push(["all", "Toutes les chaînes", VIEW.l.length]);
-  if (!LV.seen) { LV.seen = true; if (favIds().size) LV.c = "fav"; }
-  visibleCats("l").forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]]]));
-  const fmt = t => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  // programme en cours, chargé seulement pour les vignettes visibles (3 à la fois)
-  const queue = [], fillEpg = (tile, x) => shortEpg(x).then(e => {
-    if (!e || !e.length || !tile.isConnected) return;
-    const now = Date.now() / 1000, cur = e.find(p => p.a <= now && p.b > now) || e[0];
-    $(".pr", tile).textContent = cur.t;
-    $(".pg i", tile).style.width = Math.max(2, Math.min(100, 100 * (now - cur.a) / ((cur.b - cur.a) || 1))) + "%";
-    tile._now = cur;
-    if (CUR === tile) head(x);
+  const cats = visibleCats("l").filter(c => cnt[c[0]]);
+  const lastCh = LV.ch != null && VIEW.l.find(x => x.id === LV.ch);
+  rowsPage({
+    picks: [[lastCh || favs[0] || VIEW.l[0], "l"]],
+    liveList: favs.length ? favs : VIEW.l,
+    rows: H => {
+      const out = [];
+      out.push(H.chips("Catégories", [[`Toutes les chaînes <small>${VIEW.l.length}</small>`, () => openCat("l", "all")]].concat(cats.map(c => [`${esc(clean(c[1]))} <small>${cnt[c[0]]}</small>`, () => openCat("l", c[0])]))));
+      out.push(H.chRow("★ Mes chaînes", favs));
+      cats.forEach(c => out.push(H.lazy(clean(c[1]), () => { const l = VIEW.l.filter(x => x.c === c[0]); const sorted = l.filter(x => fi.has(String(x.id))).concat(l.filter(x => !fi.has(String(x.id)))); return sorted.slice(0, 80).map(x => H.withFollow(chCard(x, sorted, H.ioRoot), x, "l")); }, { count: cnt[c[0]] })));
+      return out;
+    },
   });
-  let running = 0;
-  const pump = () => { while (running < 3 && queue.length) { const [t, x] = queue.shift(); if (!t.isConnected) continue; running++; fillEpg(t, x).finally(() => { running--; pump(); }); } };
-  const io = C.kind === "xt" && "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && !e.target._q) { e.target._q = 1; queue.push([e.target, e.target._x]); pump(); } }), { root: pane, rootMargin: "200px" }) : null;
-  const head = x => {
-    const t = grid._tile && grid._tile._now;
-    $(".mhead h2", pane).textContent = x ? x.n : "";
-    $(".mhead .sub", pane).innerHTML = x ? (t ? `<b style="color:var(--live)">●</b> ${esc(t.t)} · ${fmt(t.a)} – ${fmt(t.b)}` : esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")) + `<span class="mh">OK regarder · maintiens OK pour ${FAV[ikey("l", x.id)] ? "retirer de" : "ajouter à"} Mes chaînes</span>` : "";
-  };
-  const pick = id => {
-    LV.c = id;
-    $$(".cat", cats).forEach(b => b.classList.toggle("sel", b.dataset.c === id));
-    const fi = favIds();
-    const favFirst = l => l.filter(x => fi.has(String(x.id))).concat(l.filter(x => !fi.has(String(x.id))));
-    const items = id === "all" ? favFirst(VIEW.l) : id === "fav" ? VIEW.l.filter(x => fi.has(String(x.id))) : favFirst(VIEW.l.filter(x => x.c === id));
-    grid.innerHTML = ""; pane.scrollTop = 0; queue.length = 0;
-    fill(grid, items, (x, i) => {
-      const fav = FAV[ikey("l", x.id)];
-      const t = h(`<div class="mtile${LV.ch === x.id ? " cur" : ""}" role="button" tabindex="-1"><div class="mth">${x.img ? `<img class="bl" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.remove()"><img class="lg" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.parentNode.classList.add('nol');this.remove()">` : ""}<span class="ini">${esc(clean(x.n).slice(0, 2).toUpperCase())}</span><span class="n">${x.num || i + 1}</span>${fav ? `<span class="st">${I.star}</span>` : ""}<div class="pg"><i></i></div></div><b>${esc(x.n)}</b><span class="pr">${esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")}</span></div>`);
-      if (!x.img) t.querySelector(".mth").classList.add("nol");
-      t._x = x;
-      f(t, () => playLive(x, items));
-      t._long = () => { toggleFav(x, "l"); const st = $(".st", t); if (FAV[ikey("l", x.id)]) { if (!st) $(".mth", t).insertAdjacentHTML("beforeend", `<span class="st">${I.star}</span>`); } else if (st) st.remove(); head(x); };
-      t.addEventListener("contextmenu", ev => { ev.preventDefault(); focus(t, { noscroll: true }); t._long(); });
-      t._focus = () => { grid._tile = t; head(x); };
-      if (io) io.observe(t);
-      return t;
-    }, 60);
-    $(".mhead h2", pane).textContent = list.find(c => c[0] === id)[1];
-    $(".mhead .sub", pane).textContent = items.length + " chaîne" + (items.length > 1 ? "s" : "");
-  };
-  list.forEach(([id, label, n]) => {
-    const b = h(`<button class="cat" data-c="${esc(id)}"><span>${esc(label)}</span><small>${n}</small></button>`);
-    f(b, () => { pick(id); firstIn(grid); });
-    let tm; b._focus = () => { clearTimeout(tm); if (LV.c !== id) tm = setTimeout(() => CUR === b && pick(id), 350); else { $(".mhead h2", pane).textContent = label; $(".mhead .sub", pane).textContent = n + " chaîne" + (n > 1 ? "s" : ""); } };
-    cats.appendChild(b);
-  });
-  const cur = list.find(x => x[0] === LV.c) || list[0];
-  pick(cur[0]);
-  cats._last = $(`.cat[data-c="${CSS.escape(cur[0])}"]`, cats);
-  // revenir sur la chaîne qu'on regardait
-  const back = LV.ch != null && $(".mtile.cur", grid);
-  if (back) grid._last = back;
+  if (!favs.length) setTimeout(() => toast(matchMedia("(pointer:coarse)").matches ? "Astuce : appui long sur une chaîne pour l'ajouter à Mes chaînes" : "Astuce : maintiens OK sur une chaîne pour l'ajouter à Mes chaînes", 4000), 600);
 }
 
 /* ---------------- ma liste / recherche ---------------- */
@@ -2094,6 +2160,7 @@ function back() {
   if (!$("#edit").hidden) { const x = $("#se-x") || $("#pe-x"); if (x) x._ok(); else $("#edit").hidden = true; return; }
   if (!$("#menu").hidden) { const L = $("#menu"); L._close ? L._close() : (L.hidden = true); return; }
   if (!$("#fiche").hidden) return ficheBack();
+  if (CATV && !$("#app").hidden) return closeCat();
   if (!$("#app").hidden) {
     const inTop = CUR && CUR.closest("#top");
     if (TAB !== "home") { if (!inTop) { const t = $(".tab.sel") || $("#t-search"); return focus(t); } return go("home"); }
