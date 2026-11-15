@@ -446,6 +446,9 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .cflow h3{font-size:1.5rem;margin:0 var(--pad) .6rem}
 .cf{display:flex;gap:0;overflow-x:auto;overflow-y:visible;scrollbar-width:none;padding:1.2rem calc(50% - 6.8rem) 1rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .cf::-webkit-scrollbar{display:none}
+.qual{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.qual>span{color:var(--mute);font-size:.85rem;font-weight:600;margin-right:.3rem;text-transform:uppercase;letter-spacing:.06em}
+.qual .chip.sel{background:var(--accent);color:#fff}
 .mylb{position:relative;margin:.4rem var(--pad) 1.6rem;padding:1.1rem 0 .3rem;border-radius:1.4rem;background:linear-gradient(135deg,rgba(123,92,255,.28),rgba(123,92,255,.06) 55%,rgba(255,255,255,.03));border:1px solid rgba(160,140,255,.22);overflow:hidden}
 .mylb::before{content:"";position:absolute;right:-4rem;top:-5rem;width:16rem;height:16rem;border-radius:50%;background:radial-gradient(circle,rgba(123,92,255,.45),transparent 70%);pointer-events:none}
 .mylb-h{position:relative;display:flex;align-items:center;gap:.8rem;margin:0 1.2rem .5rem}
@@ -1049,8 +1052,9 @@ function indexCatalog() {
     CATNAME[k] = {}; (C.cats[k] || []).forEach(c => CATNAME[k][c[0]] = c[1]);
     // si le serveur ne range pas tout, on garde les éléments sans catégorie connue
     const known = new Set((C.cats[k] || []).map(c => c[0]));
-    VIEW[k] = (C[k] || []).filter(x => known.has(x.c) ? ok.has(x.c) : (P.adult || !ADULT.test(x.n)));
+    VIEW[k] = dedupe(k, (C[k] || []).filter(x => known.has(x.c) ? ok.has(x.c) : (P.adult || !ADULT.test(x.n))));
   });
+  migrateFavs();
   VIEW.l.sort((a, b) => (a.num || 1e9) - (b.num || 1e9));
   NEW.m = VIEW.m.slice().sort((a, b) => b.add - a.add);
   NEW.s = VIEW.s.slice().sort((a, b) => b.add - a.add);
@@ -1068,6 +1072,74 @@ function indexCatalog() {
 }
 const TOP = { m: [], s: [] };
 let BEST = [];
+/* ---------- doublons : « TF1 FHD », « TF1 HD », « TF1 4K » → une seule « TF1 », avec le choix de la qualité ---------- */
+const ALIAS = { l: {}, m: {}, s: {} };
+const byId = (k, id) => id == null ? null : ALIAS[k][String(id)] || null;
+const QWORDS = /(^|[\s|\-_\[\](){}.:•*~/])(4k|uhd|2160p?|fhd|full\s?hd|1080[pi]?|hd\+?|720p?|sd|hevc|h\.?26[45]|x26[45]|hdr(?:10)?|(?:50|60)\s?fps|backup|bkp|raw|lq|hq|vff?|vfq|vostfr|vost|multi|truefrench|french)(?=$|[\s|\-_\[\](){}.:•*~/])/gi;
+const SUPQ = /[ᵁᴴᴰᶠˢ]+/g;
+function qOf(n) {
+  const s = String(n);
+  if (/(^|[^a-z0-9])(4k|uhd|2160p?)([^a-z0-9]|$)|ᵁᴴᴰ/i.test(s)) return "4K";
+  if (/(^|[^a-z0-9])(fhd|full\s?hd|1080[pi]?)([^a-z0-9]|$)|ᶠᴴᴰ/i.test(s)) return "Full HD";
+  if (/(^|[^a-z0-9])(hd\+?|720p?)([^a-z0-9]|$)|ᴴᴰ/i.test(s)) return "HD";
+  if (/(^|[^a-z0-9])sd([^a-z0-9]|$)|ˢᴰ/i.test(s)) return "SD";
+  return "";
+}
+const lgOf = n => /(^|[^a-z])(vostfr|vost)([^a-z]|$)/i.test(n) ? "VOSTFR" : "";
+function baseName(n) {
+  let b = clean(n).replace(SUPQ, " ");
+  for (let i = 0; i < 3; i++) b = b.replace(QWORDS, "$1");
+  b = b.replace(/[\[(]\s*[\])]/g, "").replace(/\s{2,}/g, " ").replace(/^[\s|\-_:•*~]+|[\s|\-_:•*~]+$/g, "").trim();
+  return b || clean(n);
+}
+const QPREF = { fhd: ["Full HD", "HD", "", "4K", "SD"], "4k": ["4K", "Full HD", "HD", "", "SD"], hd: ["HD", "Full HD", "", "SD", "4K"] };
+function dedupe(k, list) {
+  ALIAS[k] = {};
+  const u = UI();
+  if (u.dup === false) { list.forEach(x => ALIAS[k][String(x.id)] = x); return list; }
+  const pref = QPREF[u.q] || QPREF.fhd;
+  const rk = o => (o.l ? 10 : 0) + (pref.indexOf(o.q) + 1 || 9);
+  const groups = new Map(), order = [];
+  list.forEach(x => {
+    const b = baseName(x.n);
+    const key = norm(b).replace(/[^a-z0-9+]+/g, " ").trim() + (k === "m" && x.y ? "|" + x.y : "");
+    let g = groups.get(key);
+    if (!g) { g = { b, items: [] }; groups.set(key, g); order.push(g); }
+    g.items.push(x);
+  });
+  return order.map(g => {
+    if (g.items.length === 1) { ALIAS[k][String(g.items[0].id)] = g.items[0]; return g.items[0]; }
+    const its = g.items.map(x => ({ x, q: qOf(x.n), l: lgOf(x.n) })).sort((a, b) => rk(a) - rk(b));
+    const seen = {};
+    const alts = its.map(o => { let lab = [o.q || "Standard", o.l].filter(Boolean).join(" · "); seen[lab] = (seen[lab] || 0) + 1; if (seen[lab] > 1) lab += " (" + seen[lab] + ")"; return { x: o.x, lab }; });
+    const best = its[0].x;
+    const r = Object.assign({}, best, { n: g.b, alts });
+    if (!r.img) { const w = its.find(o => o.x.img); if (w) r.img = w.x.img; }
+    r.add = Math.max.apply(null, its.map(o => o.x.add || 0));
+    r.r = Math.max.apply(null, its.map(o => o.x.r || 0));
+    its.forEach(o => ALIAS[k][String(o.x.id)] = r);
+    return r;
+  });
+}
+// une version précise (qualité) d'un titre regroupé, qui garde le nom et l'image du groupe
+function variant(r, id) {
+  if (!r || !r.alts) return r;
+  const a = r.alts.find(a => String(a.x.id) === String(id)) || r.alts[0];
+  return String(a.x.id) === String(r.id) && !r._rep ? r : Object.assign({}, a.x, { n: r.n, img: r.img || a.x.img, alts: r.alts, _rep: r._rep || r });
+}
+// les favoris posés sur une autre qualité suivent le titre regroupé
+function migrateFavs() {
+  if (!S) return;
+  const fd = LS.get("favdel." + P.id, {}) || {}; let ch = 0;
+  Object.keys(FAV).forEach(key => {
+    const v = FAV[key]; if (!v || v.src !== S.id) return;
+    const r = byId(v.k, v.id); if (!r || String(r.id) === String(v.id)) return;
+    const nk = ikey(v.k, r.id);
+    if (!FAV[nk]) FAV[nk] = Object.assign({}, v, { id: r.id, t: Date.now() });
+    delete FAV[key]; fd[key] = Date.now(); ch = 1;
+  });
+  if (ch) { LS.set(favKey(), FAV); LS.set("favdel." + P.id, fd); SYNC.push(); }
+}
 const sortItems = (items, how) => how === "az" ? items.slice().sort((a, b) => norm(clean(a.n)).localeCompare(norm(clean(b.n))))
   : how === "best" ? items.slice().sort((a, b) => (b.r || 0) - (a.r || 0) || b.add - a.add) : items.slice().sort((a, b) => b.add - a.add);
 const NEW = { m: [], s: [] };
@@ -1578,7 +1650,7 @@ function drawHome() {
     picks: homePicks(["m", "s"]),
     rows: H => {
       const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
-      const find = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
+      const find = (k, id) => byId(k, id);
       const build = {
         continue: () => {
           const items = continueItems().map(([key, p]) => {
@@ -1638,15 +1710,16 @@ function drawBrowse(k) {
   [[`Tout voir <small>${VIEW[k].length}</small>`, "all"]].concat(cats.map(c => [`${u.pin[k].indexOf(c[0]) >= 0 ? "★ " : ""}${esc(clean(c[1]))} <small>${cnt[c[0]]}</small>`, c[0]])).forEach(([l, id]) => { const c = h(`<button class="chip big">${l}</button>`); c.dataset.c = id; f(c, () => openCat(k, id)); cs.appendChild(c); });
   page.appendChild(chips);
   // continuer / ma liste : grandes images
+  const seenC = new Set();
   const cont = continueItems().filter(([key, p]) => k === "m" ? p.k === "m" : p.k === "e").map(([key, p]) => {
-    const x = p.k === "m" ? VIEW.m.find(y => String(y.id) === String(p.id)) : VIEW.s.find(y => String(y.id) === String(p.sid));
-    if (!x) return null;  // plus dans la source : on ne l'affiche plus
+    const x = p.k === "m" ? byId("m", p.id) : byId("s", p.sid);
+    if (!x || seenC.has(x)) return null; seenC.add(x);  // plus dans la source : on ne l'affiche plus
     const el = wideCard(x, k, { label: clean(p.n) + (p.lbl ? " · " + p.lbl : ""), bd: p.bd, pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
     longRemove(el, () => hideProg(p), "Retiré de « Continuer à regarder »");
     return el;
   }).filter(Boolean);
   const ids = Object.values(FAV).filter(x => x.src === S.id && x.k === k).sort((a, b) => b.t - a.t).map(x => String(x.id));
-  const mine = ids.map(id => VIEW[k].find(x => String(x.id) === id)).filter(Boolean);
+  const mine = ids.map(id => byId(k, id)).filter((x, i, a) => x && a.indexOf(x) === i);
   page.appendChild(myListBlock(mine, k));
   if (cont.length) { const r = row("Continuer à regarder", cont); $("h3", r).insertAdjacentHTML("beforeend", `<small>${HOLD_TXT} pour retirer</small>`); page.appendChild(r); }
   if (k === "m") page.appendChild(sagaRow());
@@ -1791,7 +1864,7 @@ function drawLive() {
   const favs = VIEW.l.filter(x => fi.has(String(x.id)));
   const cnt = {}; VIEW.l.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
   const cats = visibleCats("l").filter(c => cnt[c[0]]);
-  const lastCh = LV.ch != null && VIEW.l.find(x => x.id === LV.ch);
+  const lastCh = LV.ch != null && byId("l", LV.ch);
   rowsPage({
     picks: [[lastCh || favs[0] || VIEW.l[0], "l"]],
     liveList: favs.length ? favs : VIEW.l,
@@ -1814,7 +1887,7 @@ function drawMyList() {
   const wrap = h('<div class="bpage mylec"><h1 class="ptitle">Ma lecture</h1><div class="stabs" data-z></div><div id="ml"></div></div>');
   v.appendChild(wrap);
   const ml = $("#ml", wrap), tabs = $(".stabs", wrap);
-  const get = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
+  const get = (k, id) => byId(k, id);
   const cont = continueItems();
   const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
   const mine = favs.filter(x => x.k !== "l").map(x => [get(x.k, x.id), x.k]).filter(a => a[0]);
@@ -2016,6 +2089,7 @@ async function ficheSaga(L, x, k) {
 
 /* ---------------- ma liste (favoris) ---------------- */
 function toggleFav(x, k) {
+  if (x._rep) x = x._rep;
   const key = ikey(k, x.id);
   const fd = LS.get("favdel." + P.id, {}) || {};
   if (FAV[key]) { delete FAV[key]; fd[key] = Date.now(); toast("Retiré de ta liste"); }
@@ -2069,9 +2143,14 @@ async function openFiche(x, k, autoplay, nav) {
   const L = $("#fiche");
   const ret = !L.hidden && FI ? FI.ret : CUR;
   if (!nav || L.hidden) FSTACK = []; else if (nav === "push") pushCur();
+  // titre regroupé : on ouvre la qualité déjà commencée, sinon la préférée
+  if (x.alts && k !== "l" && nav !== "swap" && !x._rep) {
+    const pr = x.alts.map(a => [a, Object.entries(PROG).filter(([kk, q]) => kk.startsWith(S.id + "|") && !q.hide && (k === "m" ? q.k === "m" && String(q.id) === String(a.x.id) : q.k === "e" && String(q.sid) === String(a.x.id))).reduce((m, e) => Math.max(m, e[1].t || 0), 0)]).sort((a, b) => b[1] - a[1]);
+    if (pr[0][1]) x = variant(x, pr[0][0].x.id);
+  }
   L.hidden = false; L.scrollTop = 0;
   FI = { x, k, ret };
-  const r = TOP[k] ? TOP[k].indexOf(x) + 1 : 0;
+  const r = TOP[k] ? TOP[k].indexOf(x._rep || x) + 1 : 0;
   const kick = r ? `Top 10 · N° ${r} des ${k === "m" ? "films" : "séries"}` : isNew(x) ? (k === "m" ? "Nouveau film" : "Nouvelle série") + " · ajouté " + ago(x.add) : (k === "m" ? "Film" : "Série") + (CATNAME[k][x.c] ? " · " + clean(CATNAME[k][x.c]) : "");
   L.innerHTML = `<div class="fbd blur" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div>
     <div class="ftop"><div class="ftx">
@@ -2085,7 +2164,7 @@ async function openFiche(x, k, autoplay, nav) {
     </div><div class="fpo" style="background-image:${x.img ? `url('${esc(x.img)}')` : "none"}"></div></div>
     <div class="fmore"><div id="fi-eps"></div><div id="fi-saga"></div><div id="fi-cast"></div><div id="fi-sim"></div></div>`;
   const acts = $(".acts", L);
-  const favB = () => { const on = !!FAV[ikey(k, x.id)]; return `${on ? I.check : I.list}${on ? "Dans ma liste" : "Ma liste"}`; };
+  const favB = () => { const on = !!FAV[ikey(k, (x._rep || x).id)]; return `${on ? I.check : I.list}${on ? "Dans ma liste" : "Ma liste"}`; };
   const bf = h(`<button class="btn glass">${favB()}</button>`); f(bf, () => { toggleFav(x, k); bf.innerHTML = favB(); });
   const bp = h(`<button class="btn pri">${I.play}Lecture</button>`);
   acts.append(bp);
@@ -2095,6 +2174,11 @@ async function openFiche(x, k, autoplay, nav) {
     f(bp, () => playMovie(x, p && !p.done ? p.pos : 0));
   }
   acts.append(bf);
+  if (x.alts && x.alts.length > 1) {
+    const qz = h('<div class="qual" data-z><span>Qualité</span></div>');
+    x.alts.forEach(a => { const c = h(`<button class="chip${String(a.x.id) === String(x.id) ? " sel" : ""}">${esc(a.lab)}</button>`); f(c, () => { if (String(a.x.id) !== String(x.id)) { const nx = variant(x._rep || x, a.x.id); openFiche(nx, k, false, "swap"); setTimeout(() => focus($$(".qual .chip", L).find(b => b.classList.contains("sel"))), 0); } }); qz.appendChild(c); });
+    acts.after(qz);
+  }
   focus(bp);
   // films semblables, tout de suite
   const sim = similar(x, k);
@@ -2250,9 +2334,9 @@ function playLive(ch, list) {
   start({ list: list.map(c => ({ url: urlLive(c), title: c.n, sub: CATNAME.l[c.c] ? clean(CATNAME.l[c.c]) : "", live: true, img: c.img, ch: c })), i, at: 0, live: true });
 }
 async function resume(key, p) {
-  if (p.k === "m") { const x = VIEW.m.find(m => String(m.id) === String(p.id)); if (x) return playMovie(x, p.pos); }
+  if (p.k === "m") { const x = variant(byId("m", p.id), p.id); if (x) return playMovie(x, p.pos); }
   if (p.k === "e") {
-    const s = VIEW.s.find(m => String(m.id) === String(p.sid));
+    const s = variant(byId("s", p.sid), p.sid);
     if (s) { try { const inf = await seriesInfo(s); const i = inf.eps.findIndex(e => String(e.id) === String(p.id)); if (i >= 0) return playEpisodes(s, inf, i, p.pos); } catch (e) { } }
   }
   toast("Cette vidéo n'est plus dans la source");
@@ -2515,6 +2599,11 @@ function openSettings(ret, tab, kind) {
     tg("Afficher les titres sous les affiches", () => !!u.names, v => u.names = v);
     tg("Seulement les catégories françaises", () => frOnly(), v => { u.fronly = v; FRCHANGED = true; });
     tg("Cacher les catégories pour adultes", () => !P.adult, v => P.adult = !v);
+    tg("Regrouper les doublons (4K, Full HD, HD…)", () => u.dup !== false, v => u.dup = v);
+    const qL = { fhd: "Full HD", "4k": "4K", hd: "HD" };
+    const qb = h(`<button class="mi"><span>Qualité préférée</span><small>${qL[u.q || "fhd"]}</small></button>`);
+    f(qb, () => { const o = ["fhd", "4k", "hd"], n = o[(o.indexOf(u.q || "fhd") + 1) % o.length]; u.q = n; save(); $("small", qb).textContent = qL[n]; });
+    box.appendChild(qb);
     const fmtL = { auto: "Automatique", ts: "MPEG-TS", hls: "HLS (m3u8)" };
     const fm = h(`<button class="mi"><span>Format des chaînes</span><small>${fmtL[LS.get("livefmt", "auto")]}</small></button>`);
     f(fm, () => { const o = ["auto", "ts", "hls"], c = LS.get("livefmt", "auto"); const n = o[(o.indexOf(c) + 1) % o.length]; LS.set("livefmt", n); $("small", fm).textContent = fmtL[n]; });
