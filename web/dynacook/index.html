@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="data.js"></script>
+<script src="gen.js"></script>
 <style>
 :root{
   --bg:#09090d;--bg2:color-mix(in srgb,var(--bg),#fff 3.5%);--card:color-mix(in srgb,var(--bg),#fff 6%);--card2:color-mix(in srgb,var(--bg),#fff 10%);--on:#0b0b0f;
@@ -655,7 +656,8 @@ const busy=()=>$("cook").classList.contains("on");
 /* ================= Recettes ================= */
 const BASE=RECIPES.map(r=>({...r,src:"base",p:2}));
 function allRecipes(){return[...BASE,...arr(mine).filter(r=>r.t).map(r=>({...r,src:"mine",p:+r.p||2,i:r.i||[],s:r.s||[]}))]}
-function getR(id){return BASE.find(r=>r.id===id)||(mine[id]?{...mine[id],id,src:"mine",p:+mine[id].p||2,i:mine[id].i||[],s:mine[id].s||[]}:null)}
+let GEN=LS.get("dc_gen",{});
+function getR(id){if(GEN[id])return{...GEN[id],id,src:"gen",p:2};return BASE.find(r=>r.id===id)||(mine[id]?{...mine[id],id,src:"mine",p:+mine[id].p||2,i:mine[id].i||[],s:mine[id].s||[]}:null)}
 const pcache=new Map();
 function ingsOf(r){const key=r.id+"|"+(r.i||[]).join("¦");if(!pcache.has(key))pcache.set(key,(r.i||[]).map(parseIng));return pcache.get(key)}
 function fridgeList(){return arr(fridge).filter(x=>x.n)}
@@ -732,7 +734,7 @@ function vHome(){
   else if(p&&p.txt)out+=`<div class="glass tonight" data-go="week"><div class="tx"><div><label>Au menu ${slot==="midi"?"ce midi":"ce soir"}</label><h4>${esc(p.txt)}</h4></div><div class="row2"><span class="mini gh">${IC.cal}Voir la semaine</span></div></div></div>`;
   else out+=`<div class="glass tonight" data-go="week"><div class="tx"><div><label>${slot==="midi"?"Ce midi":"Ce soir"}</label><h4>Rien de prévu pour l'instant</h4></div><div class="row2"><button class="mini" data-dice>🎲 Une idée</button><button class="mini gh" data-plan="${dkey(Date.now())}|${slot}">${IC.cal}Choisir</button></div></div></div>`;
   out+=`<div class="stats"><div class="st" data-go="fridge"><b>${F.length}</b><small>au frigo</small></div><div class="st ${urg.length?"alert":""}" data-go="fridge"><b>${urg.length}</b><small>à finir vite</small></div><div class="st" data-go="shop"><b>${sc}</b><small>en courses</small></div></div>`;
-  out+=`<button class="dice" data-dice><span class="cube">🎲</span><span><b>Surprends-moi</b><small>${F.length?"Une recette avec ce que vous avez":"Une recette au hasard"}</small></span></button>`;
+  out+=`<button class="dice" data-dice><span class="cube">🎲</span><span><b>Surprends-moi</b><small>${F.length?"J'invente une recette avec ce que vous avez":"Remplis le frigo, j'invente une recette avec"}</small></span></button>`;
   if(urg.length)out+=`<div class="sec"><h3>À manger vite</h3><span>anti-gaspi</span></div><div class="hs">${urg.map(o=>{const[c,l]=expLabel(o.d);return`<div class="urg" data-ingf="${esc(o.x.k||o.x.n)}"><div class="ic">${o.x.img?`<img src="${esc(o.x.img)}" alt="">`:esc(o.x.e||"🍽️")}</div><div><b>${esc(o.x.n)}</b><span class="exp ${c}">${l}</span></div></div>`}).join("")}</div>`;
   if(R.length)out+=`<div class="sec"><h3>Avec ce qu'il y a</h3><button data-go="recipes" data-cat="ok">Tout voir</button></div><div class="hs">${R.map((o,i)=>rcard(o.r,o.m,i)).join("")}</div>`;
   else if(!allRecipes().length)out+=`<div class="sec"><h3>Vos recettes</h3></div>`+empty("🍳","Pas encore de recettes","Ajoutez vos recettes : un lien TikTok, Marmiton ou à la main. L'appli vous dira ensuite quoi cuisiner avec votre frigo.",`<button class="mini" data-go="recipes">${IC.plus}Ajouter une recette</button>`);
@@ -1034,14 +1036,15 @@ function openRecipe(id,keepMult){
     const inShop=arr(shop).some(x=>(x.k&&x.k===p.k)||norm(x.n)===norm(p.n));
     return`<div class="ing ${basic?"basic":have?"have":"miss"}"><span class="s">${basic?"·":have?IC.check:IC.plus}</span><span class="n">${fmtIng(p,curMult)}</span>${!basic&&!have?`<button class="ad ${inShop?"done":""}" data-addi="${esc(p.raw)}">${inShop?"Dans la liste":"+ Courses"}</button>`:""}</div>`};
   openSheet(`
-        <div class="hero" id="heroBox">${phHTML(r)}<button class="hb fv ${fav?"on":""}" id="rFav">${fav?IC.heart:IC.heartO}</button><button class="hb x" id="rX">${IC.x}</button>${vid?`<button class="play" id="rPlay">${IC.play}Voir la vidéo</button>`:""}</div>
+        <div class="hero" id="heroBox">${phHTML(r)}<button class="hb fv ${fav?"on":""}" id="rFav" ${r.src==="gen"?"hidden":""}>${fav?IC.heart:IC.heartO}</button><button class="hb x" id="rX">${IC.x}</button>${vid?`<button class="play" id="rPlay">${IC.play}Voir la vidéo</button>`:""}</div>
     <div class="rtitle">${esc(r.t)}</div>
-    <div class="pills"><span class="pill">${IC.clock}${fmtT(r.tm||30)}</span><span class="pill">${["","Facile","Moyen","Chef"][r.d||1]}</span>${r.c?`<span class="pill">${esc(r.c)}</span>`:""}${m.need?`<span class="pill ${m.pct===100?"g":""}">${m.pct===100?IC.check+"Tout est là":`${m.have}/${m.need} ingrédients`}</span>`:""}${cookedN?`<span class="pill">Fait ${cookedN} fois</span>`:""}${tt?`<span class="pill">${IC.tiktok}TikTok</span>`:r.video?`<a class="pill" href="${esc(r.video)}" target="_blank" rel="noopener">${esc(host(r.video))} ↗</a>`:""}</div>
+    <div class="pills">${r.src==="gen"?`<span class="pill g">✨ Inventée avec votre frigo</span>`:""}<span class="pill">${IC.clock}${fmtT(r.tm||30)}</span><span class="pill">${["","Facile","Moyen","Chef"][r.d||1]}</span>${r.c?`<span class="pill">${esc(r.c)}</span>`:""}${m.need?`<span class="pill ${m.pct===100?"g":""}">${m.pct===100?IC.check+"Tout est là":`${m.have}/${m.need} ingrédients`}</span>`:""}${cookedN?`<span class="pill">Fait ${cookedN} fois</span>`:""}${tt?`<span class="pill">${IC.tiktok}TikTok</span>`:r.video?`<a class="pill" href="${esc(r.video)}" target="_blank" rel="noopener">${esc(host(r.video))} ↗</a>`:""}</div>
     ${r.note?`<div class="cap" style="margin-top:10px">${esc(r.note)}</div>`:""}
     <div class="blk"><h3>Ingrédients</h3><div class="stepper"><button id="pM">−</button><span>${pers} pers.</span><button id="pP">+</button></div></div>
     ${P.length?`<div class="ings">${P.map(ingRow).join("")}</div>${m.miss.length?`<button class="sbtn" id="rMiss" style="width:100%;margin-top:10px">${IC.cart}Ajouter les ${m.miss.length} manquants aux courses</button>`:""}`:`<div class="cap">Pas encore d'ingrédients. ${tt?"Regarde la vidéo et note-les avec Modifier.":"Ajoute-les avec Modifier."}</div>`}
     <div class="blk"><h3>Étapes</h3></div>
     ${r.s&&r.s.length?`<div class="steps">${r.s.map(s=>`<div class="stp"><span>${esc(s)}</span></div>`).join("")}</div>`:`<div class="cap">Pas encore d'étapes.${tt?" Tout est dans la vidéo !":""}</div>`}
+    ${r.src==="gen"?`<div class="row2" style="margin-top:16px"><button class="mini" id="rKeep">${IC.heart}Garder dans nos recettes</button><button class="mini gh" id="rAgain">🎲 Une autre idée</button></div>`:""}
     ${r.src==="mine"?`<div class="row2" style="margin-top:16px"><button class="mini gh" id="rEd">${IC.edit}Modifier</button><button class="mini gh" id="rDel" style="color:var(--bad)">${IC.trash}Supprimer</button></div>`:""}
     <div class="acts stick"><button class="btn ghost" id="rPlan">${IC.cal}Planifier</button><button class="btn pri" id="rCook">${IC.play}Cuisiner</button></div>`);
   $("rX").onclick=closeSheet;
@@ -1051,7 +1054,9 @@ function openRecipe(id,keepMult){
   $("sheet").querySelectorAll("[data-addi]").forEach(b=>b.onclick=()=>{if(b.classList.contains("done"))return;const p=parseIng(b.dataset.addi);addToShop([{n:p.n,k:p.k,q:qtyText(p,curMult),from:r.t}]);b.classList.add("done");b.textContent="Dans la liste"});
   if($("rMiss"))$("rMiss").onclick=()=>{const n=addToShop(m.miss.map(p=>({n:p.n,k:p.k,q:qtyText(p,curMult),from:r.t})));toast(n?`${n} article${n>1?"s":""} ajouté${n>1?"s":""} aux courses`:"Déjà dans la liste");reopen(r.id)};
   $("rCook").onclick=()=>{closeSheet();setTimeout(()=>openCook(r.id),200)};
-  $("rPlan").onclick=()=>planRecipe(r.id);
+  $("rPlan").onclick=()=>planRecipe(r.src==="gen"?keepGen(r.id,true):r.id);
+  if($("rKeep"))$("rKeep").onclick=()=>{const nid=keepGen(r.id);toast("Ajoutée à vos recettes");openRecipe(nid)};
+  if($("rAgain"))$("rAgain").onclick=()=>{closeSheet();setTimeout(roulette,250)};
   if($("rPlay"))$("rPlay").onclick=()=>{const hb=$("heroBox");hb.classList.add("playing");hb.querySelectorAll("img,.emo,.play").forEach(e=>e.remove());hb.insertAdjacentHTML("afterbegin",`<iframe src="https://www.tiktok.com/embed/v2/${vid}" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>`)};
   if($("rEd"))$("rEd").onclick=()=>openRecipeForm(mine[r.id]?{...mine[r.id],id:r.id}:r);
   if($("rDel"))wireDel($("rDel"),()=>{const snap=mine[r.id];put("mine",r.id,null);closeSheet();toast("Recette supprimée",()=>put("mine",r.id,snap))});
@@ -1250,19 +1255,30 @@ function startAlarm(){let n=0;const iv=setInterval(()=>{beep(988,.15);setTimeout
 function stopAlarm(t){clearInterval(t.alarm);t.alarm=null}
 
 /* ================= Roulette ================= */
+function keepGen(gid,quiet){
+  const g=GEN[gid];if(!g)return gid;if(g.kept&&mine[g.kept])return g.kept;
+  const id=uid();put("mine",id,{t:g.t,e:g.e,tm:g.tm,p:2,c:g.c,i:g.i,s:g.s,note:"Inventée par Surprends-moi ✨",t0:Date.now()},quiet);
+  GEN[gid]={...g,kept:id};LS.set("dc_gen",GEN);return id;
+}
 function roulette(){
-  const R=ranked();if(!R.length){toast("Ajoute d'abord quelques recettes");rf={q:"",cat:"all",ing:null};go("recipes");return}const F=fridgeList().length;
-  let pool=F?R.filter(o=>o.m.have>0&&o.r.c!=="Dessert").slice(0,14):[];if(pool.length<4)pool=R.filter(o=>o.r.c!=="Dessert").sort(()=>Math.random()-.5).slice(0,14);
-  const pick=pool[Math.floor(Math.random()*Math.min(pool.length,F?6:pool.length))];
+  const F=fridgeList();
+  if(!F.length){toast("Le frigo est vide, ajoute ce que vous avez");go("fridge");return}
+  const items=F.map(x=>({k:x.k||(foodOf(x.n)||{}).n,n:x.n,d:daysLeft(x)}));
+  const C0=window.inventRecipes?inventRecipes(items,12):[];
+  if(!C0.length){toast("Pas assez de choses pour inventer un plat, ajoute quelques produits");go("fridge");return}
+  const main=C0.filter(r=>r.c!=="Dessert");const pool=main.length?main:C0;
+  const top=pool.slice(0,4);const tot=top.reduce((a,r)=>a+r.score,0);let x=Math.random()*tot,pk=top[0];for(const r of top){x-=r.score;if(x<=0){pk=r;break}}
+  const gid="g"+uid();const keep=Object.entries(GEN).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).slice(0,7);GEN=Object.fromEntries(keep);
+  GEN[gid]={t:pk.t,e:pk.e,tm:pk.tm,c:pk.c,i:pk.i,s:pk.s,at:Date.now()};LS.set("dc_gen",GEN);
   const ro=$("roul");ro.classList.add("on");
-  const card=o=>`<div class="cardr"><div class="ph">${phHTML(o.r)}</div><div class="bd"><h4>${esc(o.r.t)}</h4><small>${fmtT(o.r.tm||30)}${o.m.have?` · ${o.m.have}/${o.m.need} au frigo`:""}</small></div></div>`;
-  let k=0,delay=60;const seq=[...pool.sort(()=>Math.random()-.5)];
-  const spin=()=>{const o=seq[k++%seq.length];ro.innerHTML=`<div class="lbl">🎲 Je cherche…</div><div class="tick">${card(o)}</div>`;beep(520+Math.random()*200,.04);
+  const card=r=>`<div class="cardr"><div class="ph"><div class="emo" style="background:${grad(r.t)}">${esc(r.e)}</div></div><div class="bd"><h4>${esc(r.t)}</h4><small>${fmtT(r.tm||30)} · ${(r.keys||[]).length} produits de chez vous</small></div></div>`;
+  let k=0,delay=60;const seq=[...C0].sort(()=>Math.random()-.5);
+  const spin=()=>{const o=seq[k++%seq.length];ro.innerHTML=`<div class="lbl">✨ J'invente…</div><div class="tick">${card(o)}</div>`;beep(520+Math.random()*200,.04);
     delay*=1.13;if(delay<420)setTimeout(spin,delay);else land()};
-  const land=()=>{ro.innerHTML=`<div class="lbl">Ce soir, ce sera</div><div class="land">${card(pick)}</div><div class="ra"><button class="btn ghost" id="roA">🎲 Relancer</button><button class="btn pri" id="roOk">C'est parti</button></div><button class="mini gh" id="roX" style="margin-top:14px">Fermer</button>`;
+  const land=()=>{ro.innerHTML=`<div class="lbl">Avec ce que vous avez</div><div class="land">${card(pk)}</div><div class="ra"><button class="btn ghost" id="roA">🎲 Autre idée</button><button class="btn pri" id="roOk">Voir la recette</button></div><button class="mini gh" id="roX" style="margin-top:14px">Fermer</button>`;
     if(navigator.vibrate)navigator.vibrate([20,40,60]);const b=ro.querySelector(".cardr").getBoundingClientRect();burst(b.left+b.width/2,b.top+b.height/3,30);
-    $("roA").onclick=roulette;$("roX").onclick=()=>ro.classList.remove("on");$("roOk").onclick=()=>{ro.classList.remove("on");openRecipe(pick.r.id)};
-    ro.querySelector(".cardr").onclick=()=>{ro.classList.remove("on");openRecipe(pick.r.id)}};
+    $("roA").onclick=roulette;$("roX").onclick=()=>ro.classList.remove("on");$("roOk").onclick=()=>{ro.classList.remove("on");openRecipe(gid)};
+    ro.querySelector(".cardr").onclick=()=>{ro.classList.remove("on");openRecipe(gid)}};
   spin();
 }
 
