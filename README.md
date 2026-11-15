@@ -12,3 +12,4 @@ L'appli télé de Frigo Rosé TV (Fire TV / Google TV).
 - `web/dynacook/` : **DynaCook**, frigo (scan code-barres), « on mange quoi ce soir », recettes (base + les nôtres + TikTok), semaine, courses et mode cuisine. Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynacook/
 - `web/dynamemories/` : **Dyna Memories**, les photos de Dylan et Léna (albums, favoris, corbeille, diaporama), stockées sur Firebase Storage. Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynamemories/
 - `web/dynabudget/` : **Dyna Budget**, revenus, charges fixes, enveloppes du compte joint et épargne de Dylan et Léna. Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynabudget/
+- `web/dynawatch/` : **Dyna Watch**, les films et séries à voir ensemble façon Netflix (affiches, notes de Dylan et Léna, bandes-annonces, liens TikTok, demande sur Frigo Rosé TV). Ouvrir : https://dylker24.github.io/frigo-rose-tv/dynawatch/
