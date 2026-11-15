@@ -630,11 +630,11 @@ function unitLabel(u,v){let l=u?UNITS[u]:"";if(l&&PLUR[u]&&v>1&&!/^c\. à/.test(
 function qtyText(p,mult){if(p.q==null)return"";const v=p.q*(mult||1);const u=unitLabel(p.u,v);return(fmtNum(v,p.u)+(u?" "+u:"")).trim()}
 
 /* ================= État ================= */
-let fridge=LS.get("dc_fridge",{}),mine=LS.get("dc_mine",{}),plan=LS.get("dc_plan",{}),shop=LS.get("dc_shop",{}),favs=LS.get("dc_favs",{}),cooked=LS.get("dc_cooked",{});
+let fridge=LS.get("dc_fridge",{}),mine=LS.get("dc_mine",{}),plan=LS.get("dc_plan",{}),shop=LS.get("dc_shop",{}),favs=LS.get("dc_favs",{}),cooked=LS.get("dc_cooked",{}),cats=LS.get("dc_cats",{});
 let view=LS.get("dc_view","home"),db=null,animNext=true;
 let rf={q:"",cat:"all",ing:null},ff={q:"",zone:"all"},weekOff=0;
-const STORES={fridge:()=>fridge,mine:()=>mine,plan:()=>plan,shop:()=>shop,favs:()=>favs,cooked:()=>cooked};
-const SETS={fridge:v=>fridge=v,mine:v=>mine=v,plan:v=>plan=v,shop:v=>shop=v,favs:v=>favs=v,cooked:v=>cooked=v};
+const STORES={fridge:()=>fridge,mine:()=>mine,plan:()=>plan,shop:()=>shop,favs:()=>favs,cooked:()=>cooked,cats:()=>cats};
+const SETS={fridge:v=>fridge=v,mine:v=>mine=v,plan:v=>plan=v,shop:v=>shop=v,favs:v=>favs=v,cooked:v=>cooked=v,cats:v=>cats=v};
 const arr=o=>Object.keys(o||{}).map(k=>({...o[k],id:k}));
 function put(kind,id,val,silent){
   const st=STORES[kind]();
@@ -715,7 +715,7 @@ function rcard(r,m,i){
   const badge=m.need&&m.pct===100?`<span class="tag tl full">${IC.check}Tout est là</span>`:m.have?`<span class="tag tl"><span class="ring" style="--p:${m.pct}"><b>${m.have}/${m.need}</b></span></span>`:"";
   return`<div class="rc ${animNext?"in":""}" style="animation-delay:${Math.min(i||0,14)*40}ms" data-r="${esc(r.id)}">
     <div class="ph">${phHTML(r)}${badge}${fav?`<span class="tag tr fav">${IC.heart}</span>`:""}<span class="tag bl">${IC.clock}${r.tm?fmtT(r.tm):"?"}</span>${r.video&&/tiktok/.test(r.video)?`<span class="tt">${IC.tiktok}</span>`:""}</div>
-    <div class="bd"><h4>${esc(r.t)}</h4><div class="meta">${esc(r.c||"Maison")}${m.urgent?` · <span style="color:var(--warn)">anti-gaspi</span>`:""}</div></div></div>`;
+    <div class="bd"><h4>${esc(r.t)}</h4><div class="meta">${r.c?catEmoji(r.c)+" "+esc(r.c):"Maison"}${m.urgent?` · <span style="color:var(--warn)">anti-gaspi</span>`:""}</div></div></div>`;
 }
 const fmtT=m=>m>=60?Math.floor(m/60)+" h"+(m%60?" "+String(m%60).padStart(2,"0"):""):m+" min";
 
@@ -770,11 +770,31 @@ function vFridge(){
 }
 
 /* ---- Recettes ---- */
-const CATS=["Rapide","Pâtes & riz","Viande","Poisson","Veggie","Four","Soupes","Brunch","Dessert"];
+const DCATS=[["Rapide","⚡"],["Pâtes & riz","🍝"],["Viande","🥩"],["Poisson","🐟"],["Veggie","🥗"],["Four","🔥"],["Soupes","🥣"],["Brunch","🥞"],["Dessert","🍰"]];
+const CATS=DCATS.map(c=>c[0]);
+function allCats(){const m=new Map(DCATS);arr(cats).filter(c=>c.n).sort((a,b)=>(a.t||0)-(b.t||0)).forEach(c=>m.set(c.n,c.e||"🏷️"));allRecipes().forEach(r=>{if(r.c&&!m.has(r.c))m.set(r.c,"🏷️")});return[...m]}
+const catEmoji=n=>(allCats().find(c=>c[0]===n)||[0,"🏷️"])[1];
+function addCat(n,e){n=cap(String(n||"").trim());if(!n)return"";const ex=allCats().find(c=>norm(c[0])===norm(n));if(ex)return ex[0];put("cats",uid(),{n,e:e||"🏷️",t:Date.now()},true);return n}
+const CEMO=["🍝","🍕","🍔","🌮","🍜","🍛","🍣","🥗","🥘","🍲","🥩","🍗","🐟","🦐","🥚","🥞","🧀","🥖","🍰","🍪","🍫","🍦","🥤","🍹","🎉","🎂","❤️","⭐","🔥","👶","🥡","🏷️"];
+function openCatSheet(){
+  let emo="🍽️";
+  const custom=arr(cats).filter(c=>c.n).sort((a,b)=>(a.t||0)-(b.t||0));
+  openSheet(`<h2>Nouvelle catégorie</h2>
+    <div class="f"><label>Nom</label><input class="inp" id="kN" placeholder="Ex : Apéro, Repas du dimanche, Batch cooking…" autocomplete="off"></div>
+    <div class="f"><label>Emoji</label><div class="foods" id="kE" style="grid-template-columns:repeat(auto-fill,minmax(46px,1fr));max-height:none">${CEMO.map(e=>`<button class="fd ${e===emo?"on":""}" data-e="${e}" style="padding:8px 0"><span>${e}</span></button>`).join("")}</div></div>
+    ${custom.length?`<div class="f"><label>Vos catégories</label><div class="opts" id="kL">${custom.map(c=>`<span class="chip">${esc(c.e||"🏷️")} ${esc(c.n)}<button data-kdel="${c.id}" style="margin-left:4px;opacity:.6;display:grid">${IC.x}</button></span>`).join("")}</div></div>`:""}
+    <div class="acts"><button class="btn ghost" id="kC">Annuler</button><button class="btn pri" id="kOk">${IC.check}Créer</button></div>`);
+  const mark=()=>$("kE").querySelectorAll(".fd").forEach(b=>b.style.borderColor=b.dataset.e===emo?"var(--a)":"");mark();
+  $("kE").onclick=e=>{const b=e.target.closest(".fd");if(b){emo=b.dataset.e;mark()}};
+  if($("kL"))$("kL").onclick=e=>{const b=e.target.closest("[data-kdel]");if(!b)return;const id=b.dataset.kdel,x=cats[id];put("cats",id,null,true);b.parentNode.remove();toast("Catégorie retirée",()=>put("cats",id,x))};
+  $("kC").onclick=closeSheet;
+  $("kOk").onclick=()=>{const n=$("kN").value.trim();if(!n){$("kN").focus();return}const r=addCat(n,emo);rf.cat=r;closeSheet();animNext=true;render();toast(`${emo} ${r} créée`)};
+  setTimeout(()=>$("kN").focus(),350);
+}
 function vRecipes(){
   const H=haveIdx();let L=allRecipes().map(r=>({r,m:match(r,H)}));
   const nMine=L.filter(o=>o.r.src==="mine").length,nTT=L.filter(o=>o.r.video&&/tiktok/.test(o.r.video)).length,nFav=L.filter(o=>favs[o.r.id]).length;
-  const chips=[["all","Tout"],["ok","✓ Faisables"],...(nFav?[["fav",IC.heart+"Favoris"]]:[]),...(nMine?[["mine","Les nôtres"]]:[]),...(nTT?[["tt","TikTok"]]:[]),["quick","⚡ − de 25 min"],...CATS.filter(c=>c!=="Rapide").map(c=>[c,c])];
+  const chips=[["all","Tout"],["ok","✓ Faisables"],...(nFav?[["fav",IC.heart+"Favoris"]]:[]),...(nMine?[["mine","Les nôtres"]]:[]),...(nTT?[["tt","TikTok"]]:[]),["quick","⚡ − de 25 min"],...allCats().filter(([n])=>n!=="Rapide"&&(L.some(o=>o.r.c===n)||arr(cats).some(c=>c.n===n))).map(([n,e])=>[n,e+" "+n]),["__new","＋ Catégorie"]];
   if(rf.cat==="ok")L=L.filter(o=>o.m.need&&(o.m.pct>=75||o.m.miss.length<=1)&&o.m.have);
   else if(rf.cat==="fav")L=L.filter(o=>favs[o.r.id]);
   else if(rf.cat==="mine")L=L.filter(o=>o.r.src==="mine");
@@ -837,7 +857,7 @@ function bindView(){
     if(el=t.closest("[data-r]")){openRecipe(el.dataset.r);return}
     if(el=t.closest("[data-f]")){openItem(el.dataset.f);return}
     if(el=t.closest("#zseg button")){ff.zone=el.dataset.z;animNext=true;render();return}
-    if(el=t.closest("#rchips .chip")){rf.cat=el.dataset.c;animNext=true;render();return}
+    if(el=t.closest("#rchips .chip")){if(el.dataset.c==="__new"){openCatSheet();return}rf.cat=el.dataset.c;animNext=true;render();return}
     if(t.closest("#clrIng")){rf.ing=null;animNext=true;render();return}
     if(t.closest("#addR")){openAddRecipe();return}
     if(t.closest("#scanB,#scanB2")){openScan();return}
@@ -851,6 +871,7 @@ function bindView(){
     if(el=t.closest("[data-s]")){checkShop(el);return}
     if(el=t.closest("#sSug .chip")){addShopText(el.dataset.n);$("sIn").value="";$("sSug").innerHTML="";return}
   };
+  const rc=$("rchips"),con=rc&&rc.querySelector(".chip.on");if(con&&con.dataset.c!=="all")rc.scrollLeft=con.offsetLeft-rc.clientWidth/2+con.offsetWidth/2;
   const fq=$("fq");if(fq)fq.oninput=e=>{ff.q=e.target.value;const p=fq.selectionStart;render();const n=$("fq");n.focus();n.setSelectionRange(p,p)};
   const rq=$("rq");if(rq)rq.oninput=e=>{rf.q=e.target.value;const p=rq.selectionStart;render();const n=$("rq");n.focus();n.setSelectionRange(p,p)};
   const sf=$("sForm");if(sf){
@@ -1134,20 +1155,21 @@ async function importLink(u){
 }
 let draftImg="";
 function openRecipeForm(r,msg){
-  draftImg=r.img||r.thumb||"";const cats=CATS;
+  draftImg=r.img||r.thumb||"";const CL=allCats();
   openSheet(`<h2>${r.id&&mine[r.id]?"Modifier la recette":"Votre recette"}</h2>
     ${msg?`<div class="banner" style="font-weight:600">${esc(msg)}</div>`:""}
     <div class="f"><label>Nom</label><input class="inp" id="fT" value="${esc(r.t||"")}" placeholder="Ex : Pâtes crémeuses de mamie"></div>
     <div class="f"><label>Photo</label><div class="pick"><div class="thumb" id="fTh"></div><div class="pickb"><button class="sbtn" id="fPic">${IC.img}Choisir une photo</button><button class="sbtn" id="fNo">${IC.x}Sans photo</button></div></div></div>
     <div class="two"><div class="f"><label>Temps (min)</label><input class="inp" id="fTm" inputmode="numeric" value="${esc(r.tm||"")}" placeholder="30"></div><div class="f"><label>Pour combien</label><input class="inp" id="fP" inputmode="numeric" value="${esc(r.p||2)}"></div></div>
-    <div class="f"><label>Catégorie</label>${optRow("fC",cats.map(c=>[c,c]),r.c||"")}</div>
+    <div class="f"><label>Catégorie</label><div class="opts" id="fC">${CL.map(([n,e])=>`<button type="button" class="chip ${n===r.c?"on":""}" data-k="${esc(n)}">${e} ${esc(n)}</button>`).join("")}<input id="fCn" placeholder="+ nouvelle catégorie" style="flex:1;min-width:150px;padding:9px 13px;border-radius:99px;border:1px dashed var(--line2);font-size:13px;font-weight:700"></div></div>
     <div class="f"><label>Ingrédients · un par ligne</label><textarea class="inp" id="fI" placeholder="200 g pâtes&#10;2 œufs&#10;1 c. à soupe d'huile">${esc((r.i||[]).join("\n"))}</textarea></div>
     <div class="f"><label>Étapes · une par ligne</label><textarea class="inp" id="fS" placeholder="Fais cuire les pâtes 10 min.&#10;…">${esc((r.s||[]).join("\n"))}</textarea></div>
     <div class="f"><label>Lien de la vidéo</label><input class="inp" id="fV" value="${esc(r.video||"")}" placeholder="TikTok, YouTube, site…"></div>
     <div class="f"><label>Note</label><textarea class="inp" id="fN" style="min-height:70px" placeholder="Astuces, d'où elle vient…">${esc(r.note||"")}</textarea></div>
     <div class="acts stick"><button class="btn ghost" id="fX">Annuler</button><button class="btn pri" id="fOk">${IC.check}Enregistrer</button></div>`);
   const th=()=>{$("fTh").innerHTML=draftImg?`<img src="${esc(draftImg)}" alt="">`:IC.img};th();
-  bindOpt("fC");
+  $("fC").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const on=!b.classList.contains("on");$("fC").querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));if(on){b.classList.add("on");$("fCn").value=""}};
+  $("fCn").oninput=()=>$("fC").querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
   $("fPic").onclick=()=>{$("file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)compress(f,720).then(d=>{draftImg=d;th()})};$("file").click()};
   $("fNo").onclick=()=>{draftImg="";th()};
   $("fX").onclick=closeSheet;
@@ -1156,8 +1178,8 @@ function openRecipeForm(r,msg){
     const id=r.id&&mine[r.id]?r.id:uid();
     const lines=v=>v.split("\n").map(s=>s.trim()).filter(Boolean);
     const v=$("fV").value.trim();
-    const o={t,e:r.e||"🍽️",vid:r.vid||"",img:draftImg&&draftImg!==r.thumb?draftImg:"",thumb:draftImg===""?"":(r.thumb||""),tm:parseInt($("fTm").value)||"",p:parseInt($("fP").value)||2,c:readOpt("fC")||"",i:lines($("fI").value),s:lines($("fS").value),video:v,note:$("fN").value.trim(),t0:r.t0||Date.now()};
-    put("mine",id,o);closeSheet();toast("Recette enregistrée");setTimeout(()=>openRecipe(id),450);
+    const cat0=readOpt("fC")||addCat($("fCn").value);const o={t,e:cat0?catEmoji(cat0):(r.e||"🍽️"),vid:r.vid||"",img:draftImg&&draftImg!==r.thumb?draftImg:"",thumb:draftImg===""?"":(r.thumb||""),tm:parseInt($("fTm").value)||"",p:parseInt($("fP").value)||2,c:cat0,i:lines($("fI").value),s:lines($("fS").value),video:v,note:$("fN").value.trim(),t0:r.t0||Date.now()};
+    rf.cat="all";rf.ing=null;animNext=true;put("mine",id,o);closeSheet();toast("Recette enregistrée");setTimeout(()=>openRecipe(id),450);
   };
 }
 function compress(file,M){return new Promise(ok=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.74))};im.src=r.result};r.readAsDataURL(file)})}
