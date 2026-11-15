@@ -446,8 +446,8 @@ body.names .card:not(.noimg) .nm{display:-webkit-box}
 .cflow h3{font-size:1.5rem;margin:0 var(--pad) .6rem}
 .cf{display:flex;gap:0;overflow-x:auto;overflow-y:visible;scrollbar-width:none;padding:1.2rem calc(50% - 6.8rem) 1rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .cf::-webkit-scrollbar{display:none}
-.cf .cfc{flex:none;width:13.6rem;margin:0 -.7rem;scroll-snap-align:center;border-radius:1.2rem;transition:transform .25s ease,opacity .25s ease,box-shadow .2s;box-shadow:0 1.6rem 3rem rgba(0,0,0,.55);transform-origin:50% 60%}
-.cf .cfc.on{box-shadow:0 0 0 .22rem #fff,0 1.6rem 3rem rgba(0,0,0,.55)}
+.cf .cfc{flex:none;width:13.6rem;margin:0 -.7rem;scroll-snap-align:center;scroll-snap-stop:normal;border-radius:1.2rem;transition:none;box-shadow:0 .8rem 1.6rem rgba(0,0,0,.45);transform-origin:50% 60%;will-change:transform,opacity;backface-visibility:hidden;contain:layout paint}
+.cf .cfc.on{box-shadow:0 0 0 .22rem #fff,0 .8rem 1.6rem rgba(0,0,0,.45)}
 .cf .cfc .rk{position:absolute;left:.7rem;bottom:.5rem;font:900 3.6rem/1 var(--head);color:#fff;text-shadow:0 .2rem 1rem rgba(0,0,0,.7)}
 .cfi{text-align:center;padding:0 var(--pad);min-height:3.4rem}
 .cfi b{display:block;font:700 1.35rem var(--head);letter-spacing:-.01em}
@@ -1667,23 +1667,30 @@ function coverflow(title, items, k) {
     c._focus = () => { center(c, true); };
     cf.appendChild(c); return c;
   });
-  let raf = 0, last = null;
+  // fluide : positions mesurées une seule fois, puis seulement des transformations (pas de relecture de la page à chaque image)
+  let raf = 0, last = null, pos = [], w = 1, half = 0;
+  const measure = () => { pos = cards.map(c => c.offsetLeft + c.offsetWidth / 2); w = (cards[0] && cards[0].offsetWidth) || 1; half = cf.clientWidth / 2; };
   const paint = () => {
     raf = 0;
-    const box = cf.getBoundingClientRect(), mid = box.left + box.width / 2;
-    let best = null, bd = 1e9;
-    cards.forEach(c => {
-      const b = c.getBoundingClientRect(), d = (b.left + b.width / 2 - mid) / b.width;
-      const a = Math.min(Math.abs(d), 1.6);
-      c.style.transform = `scale(${1 - a * .16})`; c.style.opacity = String(1 - a * .3); c.style.zIndex = String(10 - Math.round(a * 4));
-      if (Math.abs(d) < bd) { bd = Math.abs(d); best = c; }
-    });
-    if (best && best !== last) { last = best; const x = best._x; $("b", info).textContent = clean(x.n); $("span", info).innerHTML = metaHtml(x, {}); }
+    if (!pos.length) measure();
+    const mid = cf.scrollLeft + half;
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < cards.length; i++) {
+      const d = (pos[i] - mid) / w, a = Math.min(Math.abs(d), 1.6);
+      if (Math.abs(d) < bd) { bd = Math.abs(d); best = i; }
+      if (Math.abs(d) > 3.5 && cards[i]._a === 1.6) continue;
+      cards[i]._a = a;
+      cards[i].style.transform = `translate3d(0,0,0) scale(${(1 - a * .16).toFixed(3)})`;
+      cards[i].style.opacity = (1 - a * .3).toFixed(2);
+      const z = a < .5 ? "3" : a < 1.2 ? "2" : "1"; if (cards[i]._z !== z) { cards[i]._z = z; cards[i].style.zIndex = z; }
+    }
+    const c = cards[best];
+    if (c && c !== last) { last = c; const x = c._x; $("b", info).textContent = clean(x.n); $("span", info).innerHTML = metaHtml(x, {}); }
   };
   const center = (c, smooth) => { cf.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - cf.clientWidth / 2, behavior: smooth ? "smooth" : "auto" }); };
   cf.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
-  setTimeout(() => { if (cards[0]) { center(cards[Math.min(1, cards.length - 1)], false); paint(); } }, 0);
-  window.addEventListener("resize", () => paint());
+  setTimeout(() => { if (cards[0]) { measure(); center(cards[Math.min(1, cards.length - 1)], false); paint(); } }, 0);
+  window.addEventListener("resize", () => { measure(); paint(); });
   return r;
 }
 function openCat(k, id) {
