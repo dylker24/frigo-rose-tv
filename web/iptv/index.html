@@ -42,6 +42,7 @@ svg{display:block}
 .logo{display:flex;align-items:center;gap:.8rem;font:800 1.15rem var(--brand);letter-spacing:-.01em}
 .logo .mk{width:2.3rem;height:2.3rem;border-radius:.7rem;background:linear-gradient(135deg,#8F73FF,#3D3BE0);display:grid;place-items:center;box-shadow:0 .4rem 1.4rem rgba(var(--accent-rgb),.35)}
 .logo .mk svg{width:1.3rem;height:1.3rem}
+.logo .big{font:800 1.55rem var(--brand);letter-spacing:.04em;line-height:1}
 .logo small{font:600 .62rem var(--ui);letter-spacing:.18em;color:var(--accent-t);margin-left:.1rem;align-self:flex-start;margin-top:.15rem}
 #boot .sp{margin-top:2rem;width:2.2rem;height:2.2rem;border-radius:50%;border:.22rem solid var(--s3);border-top-color:var(--accent);animation:spin 1s linear infinite}
 #boot p{color:var(--mute);margin-top:1rem;font-size:.9rem;min-height:1.2em}
@@ -171,6 +172,29 @@ svg{display:block}
 .hint{color:var(--faint);font-size:.82rem;margin-top:1.4rem;display:flex;gap:.6rem;align-items:center}
 .hint kbd{font:600 .72rem var(--ui);border:1px solid var(--line);border-radius:.35rem;padding:.1rem .45rem;color:var(--mute)}
 
+/* TV en direct : mosaïque */
+.mhead{display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;min-height:3.4rem}
+.mhead h2{margin:0}
+.mhead .sub{margin:0;display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.mhead .mh{color:var(--faint);font-size:.78rem;margin-left:.6rem}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.4rem,1fr));gap:1rem .8rem;padding:.4rem}
+.mtile{display:flex;flex-direction:column;gap:.35rem;min-width:0;cursor:pointer;border-radius:.7rem}
+.mtile.on{box-shadow:none}
+.mth{position:relative;aspect-ratio:16/9;border-radius:.65rem;background:var(--s2);overflow:hidden;display:grid;place-items:center;transition:transform .16s,box-shadow .16s}
+.mtile.on .mth{transform:scale(1.06);box-shadow:0 0 0 .2rem #fff,0 .8rem 1.6rem rgba(0,0,0,.6)}
+.mth .bl{position:absolute;inset:-30%;width:160%;height:160%;object-fit:cover;filter:blur(22px) saturate(1.4);opacity:.35}
+.mth .lg{position:relative;max-width:58%;max-height:52%;object-fit:contain;filter:drop-shadow(0 .2rem .5rem rgba(0,0,0,.45))}
+.mth .ini{display:none;font:800 1.6rem var(--ui);color:var(--mute)}
+.mth.nol .ini{display:block}
+.mth .n{position:absolute;top:.4rem;left:.4rem;background:rgba(0,0,0,.65);font-size:.66rem;font-weight:800;padding:.12rem .38rem;border-radius:.3rem;font-variant-numeric:tabular-nums}
+.mtile.on .mth .n{background:#fff;color:#000}
+.mth .st{position:absolute;top:.35rem;right:.4rem;color:#FFC93D}
+.mth .st .ic{width:.95rem;height:.95rem}
+.mth .pg{position:absolute;left:0;right:0;bottom:0;height:.2rem;background:rgba(255,255,255,.12)}
+.mth .pg i{display:block;height:100%;width:0;background:var(--accent)}
+.mtile.cur .mth::after{content:"EN COURS";position:absolute;right:.4rem;bottom:.5rem;background:var(--accent);font-size:.58rem;font-weight:800;letter-spacing:.08em;padding:.12rem .35rem;border-radius:.25rem}
+.mtile b{font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 .1rem}
+.mtile .pr{font-size:.74rem;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 .1rem;margin-top:-.2rem}
 /* recherche */
 .sbox{display:flex;align-items:center;gap:1rem;height:3.6rem;padding:0 1.3rem;border-radius:1rem;background:var(--s1);border:1px solid var(--line);margin:0 var(--pad) 1.6rem}
 .sbox input{flex:1;background:none;border:0;outline:none;font-size:1.25rem;font-weight:500;min-width:0}
@@ -287,7 +311,7 @@ svg{display:block}
   html{font-size:14px}
   :root{--pad:1rem}
   #top{gap:.6rem;padding:.7rem var(--pad) 1.6rem;flex-wrap:wrap}
-  #top .logo span.w{display:none}
+  .logo .big{font-size:1.35rem}
   #tabs{order:3;flex-basis:100%;overflow-x:auto;scrollbar-width:none}
   #tabs::-webkit-scrollbar{display:none}
   .tab{height:2.1rem;padding:0 .7rem;font-size:.9rem}
@@ -308,7 +332,10 @@ svg{display:block}
   .pane{padding:.4rem var(--pad) 4rem}
   .grid{grid-template-columns:repeat(auto-fill,minmax(6.8rem,1fr));gap:.9rem .6rem;padding:0}
   .chans{width:auto;flex:1;border:0;padding:.2rem .4rem 4rem}
-  .epgp{display:none}
+  .mgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem .5rem;padding:0}
+  .mtile b{font-size:.78rem}
+  .mtile .pr{font-size:.68rem}
+  .mhead .mh{display:none}
   .fi-in{flex-direction:column;padding-top:2.6rem;gap:1.3rem}
   .fi-in .po{width:9rem}
   .fi-tx h1{font-size:1.9rem}
@@ -324,13 +351,13 @@ svg{display:block}
 <body>
 
 <div id="boot" class="screen">
-  <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span>Frigo Rosé</span><small>IPTV</small></div>
+  <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span class="big">IPTV</span></div>
   <div class="sp"></div>
   <p id="boot-msg"></p>
 </div>
 
 <div id="who" class="screen" hidden>
-  <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span>Frigo Rosé</span><small>IPTV</small></div>
+  <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span class="big">IPTV</span></div>
   <h1>Qui regarde ?</h1>
   <div class="profs" id="profs" data-z></div>
   <div class="who-acts" data-z><button class="btn f" id="who-edit">Gérer les profils</button></div>
@@ -338,7 +365,7 @@ svg{display:block}
 
 <div id="app" hidden>
   <header id="top">
-    <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span class="w">Frigo Rosé</span></div>
+    <div class="logo"><span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 3l4 4 4-4"/><path d="M10.5 11.2v5.6l4.5-2.8z" fill="#fff" stroke="none"/></svg></span><span class="big">IPTV</span></div>
     <nav id="tabs" data-z></nav>
     <span class="grow"></span>
     <button class="tbtn f" id="t-search" aria-label="Rechercher" data-z></button>
@@ -1195,64 +1222,65 @@ function drawBrowse(k) {
 let LV = { c: "all", ch: null };
 function drawLive() {
   const v = $("#view"); v.style.overflow = "hidden";
-  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="chans" data-z></div><div class="epgp"></div></div>`);
+  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="mhead"><h2></h2><div class="sub"></div></div><div class="mgrid" data-z data-nomem></div></div></div>`);
   v.appendChild(wrap);
-  const cats = $(".cats", wrap), chans = $(".chans", wrap), ep = $(".epgp", wrap);
+  const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".mgrid", wrap);
   const cnt = {}; VIEW.l.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
-  const favIds = new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === "l").map(x => String(x.id)));
+  const favIds = () => new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === "l").map(x => String(x.id)));
   const list = [["all", "Toutes les chaînes", VIEW.l.length]];
-  if (favIds.size) list.push(["fav", "Mes chaînes", favIds.size]);
+  if (favIds().size) list.push(["fav", "Mes chaînes", favIds().size]);
   visibleCats("l").forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]]]));
+  const fmt = t => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  // programme en cours, chargé seulement pour les vignettes visibles (3 à la fois)
+  const queue = [], fillEpg = (tile, x) => shortEpg(x).then(e => {
+    if (!e || !e.length || !tile.isConnected) return;
+    const now = Date.now() / 1000, cur = e.find(p => p.a <= now && p.b > now) || e[0];
+    $(".pr", tile).textContent = cur.t;
+    $(".pg i", tile).style.width = Math.max(2, Math.min(100, 100 * (now - cur.a) / ((cur.b - cur.a) || 1))) + "%";
+    tile._now = cur;
+    if (CUR === tile) head(x);
+  });
+  let running = 0;
+  const pump = () => { while (running < 3 && queue.length) { const [t, x] = queue.shift(); if (!t.isConnected) continue; running++; fillEpg(t, x).finally(() => { running--; pump(); }); } };
+  const io = C.kind === "xt" && "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && !e.target._q) { e.target._q = 1; queue.push([e.target, e.target._x]); pump(); } }), { root: pane, rootMargin: "200px" }) : null;
+  const head = x => {
+    const t = grid._tile && grid._tile._now;
+    $(".mhead h2", pane).textContent = x ? x.n : "";
+    $(".mhead .sub", pane).innerHTML = x ? (t ? `<b style="color:var(--live)">●</b> ${esc(t.t)} · ${fmt(t.a)} – ${fmt(t.b)}` : esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")) + `<span class="mh">OK regarder · maintiens OK pour ${FAV[ikey("l", x.id)] ? "retirer de" : "ajouter à"} Mes chaînes</span>` : "";
+  };
   const pick = id => {
     LV.c = id;
     $$(".cat", cats).forEach(b => b.classList.toggle("sel", b.dataset.c === id));
-    const items = id === "all" ? VIEW.l : id === "fav" ? VIEW.l.filter(x => favIds.has(String(x.id))) : VIEW.l.filter(x => x.c === id);
-    chans.innerHTML = ""; chans.scrollTop = 0;
-    fill(chans, items, (x, i) => {
+    const fi = favIds();
+    const items = id === "all" ? VIEW.l : id === "fav" ? VIEW.l.filter(x => fi.has(String(x.id))) : VIEW.l.filter(x => x.c === id);
+    grid.innerHTML = ""; pane.scrollTop = 0; queue.length = 0;
+    fill(grid, items, (x, i) => {
       const fav = FAV[ikey("l", x.id)];
-      const b = h(`<button class="chn${LV.ch === x.id ? " cur" : ""}"><span class="no">${x.num || i + 1}</span><span class="lg">${x.img ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.remove()">` : ""}</span><span class="tt"><b>${esc(x.n)}</b><span>${esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")}</span></span>${fav ? `<span class="st">${I.star}</span>` : ""}</button>`);
-      f(b, () => playLive(x, items));
-      b.addEventListener("contextmenu", ev => { ev.preventDefault(); focus(b, { noscroll: true }); panelNow(x); chans._right(); });
-      let tm; b._focus = () => { clearTimeout(tm); tm = setTimeout(() => CUR === b && panel(x), 250); };
-      return b;
-    }, 80);
-    if (items[0]) panel(items[0]);
-  };
-  const panelNow = x => { ep._x = x; };
-  const panel = async x => {
-    ep._x = x;
-    const fav = !!FAV[ikey("l", x.id)];
-    ep.innerHTML = `<div class="big">${x.img ? `<img referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.remove()">` : I.tv}</div><h2>${esc(x.n)}</h2>
-      <div class="meta"><span>${esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")}</span>${fav ? '<span style="color:var(--accent-t)">Dans mes chaînes</span>' : ""}</div>
-      <div id="epg-box"></div>
-      <div class="hint"><kbd>OK</kbd> regarder <kbd>➜</kbd> ajouter à mes chaînes</div>`;
-    const e = await shortEpg(x);
-    if (ep._x !== x || !e || !e.length) return;
-    const now = Date.now() / 1000, cur = e.find(p => p.a <= now && p.b > now) || e[0];
-    const fmt = t => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-    const pct = Math.max(0, Math.min(100, 100 * (now - cur.a) / ((cur.b - cur.a) || 1)));
-    $("#epg-box", ep).innerHTML = `<div class="now"><div class="l"><i></i>En ce moment</div><h4>${esc(cur.t)}</h4><div class="tm">${fmt(cur.a)} – ${fmt(cur.b)}</div><div class="prog"><i style="width:${pct}%"></i></div>${cur.d ? `<p>${esc(cur.d)}</p>` : ""}</div>
-      <div class="nexts">${e.filter(p => p.a >= cur.b - 1).slice(0, 4).map(p => `<div><span>${fmt(p.a)}</span><b style="font-weight:500">${esc(p.t)}</b></div>`).join("")}</div>`;
+      const t = h(`<div class="mtile${LV.ch === x.id ? " cur" : ""}" role="button" tabindex="-1"><div class="mth">${x.img ? `<img class="bl" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.remove()"><img class="lg" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.img)}" alt="" onerror="this.parentNode.classList.add('nol');this.remove()">` : ""}<span class="ini">${esc(clean(x.n).slice(0, 2).toUpperCase())}</span><span class="n">${x.num || i + 1}</span>${fav ? `<span class="st">${I.star}</span>` : ""}<div class="pg"><i></i></div></div><b>${esc(x.n)}</b><span class="pr">${esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "")}</span></div>`);
+      if (!x.img) t.querySelector(".mth").classList.add("nol");
+      t._x = x;
+      f(t, () => playLive(x, items));
+      t._long = () => { toggleFav(x, "l"); const st = $(".st", t); if (FAV[ikey("l", x.id)]) { if (!st) $(".mth", t).insertAdjacentHTML("beforeend", `<span class="st">${I.star}</span>`); } else if (st) st.remove(); head(x); };
+      t.addEventListener("contextmenu", ev => { ev.preventDefault(); focus(t, { noscroll: true }); t._long(); });
+      t._focus = () => { grid._tile = t; head(x); };
+      if (io) io.observe(t);
+      return t;
+    }, 60);
+    $(".mhead h2", pane).textContent = list.find(c => c[0] === id)[1];
+    $(".mhead .sub", pane).textContent = items.length + " chaîne" + (items.length > 1 ? "s" : "");
   };
   list.forEach(([id, label, n]) => {
     const b = h(`<button class="cat" data-c="${esc(id)}"><span>${esc(label)}</span><small>${n}</small></button>`);
-    f(b, () => { pick(id); firstIn(chans); });
-    let tm; b._focus = () => { clearTimeout(tm); if (LV.c !== id) tm = setTimeout(() => CUR === b && pick(id), 350); };
+    f(b, () => { pick(id); firstIn(grid); });
+    let tm; b._focus = () => { clearTimeout(tm); if (LV.c !== id) tm = setTimeout(() => CUR === b && pick(id), 350); else { $(".mhead h2", pane).textContent = label; $(".mhead .sub", pane).textContent = n + " chaîne" + (n > 1 ? "s" : ""); } };
     cats.appendChild(b);
   });
   const cur = list.find(x => x[0] === LV.c) || list[0];
   pick(cur[0]);
   cats._last = $(`.cat[data-c="${CSS.escape(cur[0])}"]`, cats);
-  // flèche droite sur une chaîne : ajouter / retirer de « Mes chaînes »
-  chans._right = () => {
-    const x = ep._x; if (!x) return;
-    toggleFav(x, "l");
-    const isF = !!FAV[ikey("l", x.id)];
-    const st = CUR && CUR.querySelector(".st");
-    if (isF && !st && CUR) CUR.insertAdjacentHTML("beforeend", `<span class="st">${I.star}</span>`);
-    if (!isF && st) st.remove();
-    panel(x);
-  };
+  // revenir sur la chaîne qu'on regardait
+  const back = LV.ch != null && $(".mtile.cur", grid);
+  if (back) grid._last = back;
 }
 
 /* ---------------- ma liste / recherche ---------------- */
@@ -1464,7 +1492,7 @@ window.iptvClosed = function (j) {
 };
 function afterPlay() {
   if (!$("#fiche").hidden && FI) { const x = FI.x, k = FI.k, r = FI.ret; openFiche(x, k).then(() => { if (FI) FI.ret = r; }); return; }
-  if (TAB === "live") $$(".chn").forEach(b => b.classList.toggle("cur", false));
+  if (TAB === "live") { $$(".mtile").forEach(t => t.classList.toggle("cur", !!t._x && t._x.id === LV.ch)); const t = $(".mtile.cur"); if (t) { focus(t); return; } }
   refreshHome(CUR);
 }
 
@@ -1655,6 +1683,10 @@ function back() {
   }
   if (!$("#who").hidden && P && C) { $("#who").hidden = true; $("#app").hidden = false; go(TAB); }
 }
+let holdT = 0, holdDone = true;
+document.addEventListener("keyup", e => {
+  if ((e.key === "Enter" || e.key === " ") && CUR && CUR._long && !holdDone && $("#player").hidden && !(e.target && /INPUT/.test(e.target.tagName))) { holdDone = true; ok(); }
+});
 document.addEventListener("keydown", e => {
   let k = e.key;
   if (k === "Backspace" && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) k = "Escape";
@@ -1669,10 +1701,15 @@ document.addEventListener("keydown", e => {
   const dirs = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
   if (dirs[k]) {
     e.preventDefault();
-    if (k === "ArrowRight" && CUR && CUR.classList.contains("chn")) { const c = CUR.closest(".chans"); if (c && c._right) return c._right(); }
     move(dirs[k]);
     // en bas d'une grande grille : on ajoute la suite
     const g = CUR && CUR.parentElement; if (g && g._more && dirs[k] === "down") { const items = g.children, idx = [...items].indexOf(CUR); if (idx > items.length - 24) g._more(); }
+    return;
+  }
+  if ((k === "Enter" || k === " ") && CUR && CUR._long && layer().contains(CUR)) {
+    e.preventDefault();
+    if (!e.repeat) { holdT = Date.now(); holdDone = false; }
+    else if (!holdDone && Date.now() - holdT > 600) { holdDone = true; CUR._long(); }
     return;
   }
   if (k === "Enter" || k === " ") { e.preventDefault(); return ok(); }
