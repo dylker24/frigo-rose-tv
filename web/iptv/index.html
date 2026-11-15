@@ -62,7 +62,7 @@ svg{display:block}
 #top{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:2.2rem;padding:1.3rem var(--pad) 2.4rem;background:linear-gradient(to bottom,rgba(7,7,10,.92) 0%,rgba(7,7,10,.6) 55%,transparent 100%);pointer-events:none}
 #top>*{pointer-events:auto}
 #tabs{display:flex;gap:.4rem;flex:1;min-width:0}
-.tab{display:flex;align-items:center;gap:.5rem;height:2.4rem;padding:0 1rem;border-radius:.65rem;color:var(--mute);font-weight:600;font-size:.98rem;white-space:nowrap}
+.tab{display:flex;align-items:center;gap:.5rem;height:2.4rem;padding:0 .9rem;border-radius:.65rem;color:var(--mute);font-weight:600;font-size:1rem;white-space:nowrap}
 .tab.sel{color:#fff}
 .tab.sel::after{content:"";position:absolute;left:1rem;right:1rem;bottom:.25rem;height:.16rem;border-radius:1rem;background:var(--accent)}
 .tab{position:relative}
@@ -119,6 +119,47 @@ svg{display:block}
 .card.ch img{width:62%;height:56%;object-fit:contain}
 .card.ch .nm{background:linear-gradient(to top,rgba(0,0,0,.85),transparent);padding:1.2rem .6rem .45rem;font-size:.75rem;-webkit-line-clamp:1}
 
+/* accueil façon Netflix (télé : grande image qui suit la sélection) */
+.home{position:relative}
+.home.tvl{position:absolute;inset:0;overflow:hidden}
+.home.tvl .hero{position:absolute;inset:0;height:auto;min-height:0;align-items:flex-start;padding:7.4rem var(--pad) 0}
+.home.tvl .hero .bd{left:20%}
+.home.tvl .hero .bd::after{background:linear-gradient(to right,var(--bg) 0%,rgba(7,7,10,.6) 28%,rgba(7,7,10,0) 62%),linear-gradient(to top,var(--bg) 42%,rgba(7,7,10,.55) 60%,rgba(7,7,10,0) 82%),linear-gradient(to bottom,rgba(7,7,10,.6) 0%,rgba(7,7,10,0) 22%)}
+.hero .bd.logo{background-size:auto 34%;background-position:62% 34%;background-color:var(--bg);filter:none;transform:none}
+.home.tvl .hero .tx{max-width:46%}
+.home.tvl .hero h2{font-size:2.8rem;-webkit-line-clamp:1;margin-bottom:.7rem}
+.home.tvl .hero p{-webkit-line-clamp:2;margin:.8rem 0 1.2rem;max-width:40rem;min-height:3em}
+.hero .acts{transition:opacity .25s,transform .25s}
+.home.tvl.browsing .hero .acts{opacity:0;transform:translateY(.4rem)}
+.home.tvl .hero .hp{top:7.6rem;bottom:auto;right:calc(var(--pad) + 4rem);width:10.5rem}
+.home .hero .kick span{white-space:nowrap}
+.home.tvl .hrows{position:absolute;left:0;right:0;top:58%;bottom:0;overflow:hidden;scroll-behavior:smooth;z-index:2}
+.home:not(.tvl) .hrows{position:relative;margin-top:-1.8rem;z-index:2}
+.home.tvl .row{margin-bottom:1.4rem}
+.t10{position:relative;flex:none;display:flex;align-items:flex-end;padding-left:4.6rem}
+.t10 .num{position:absolute;left:-.4rem;bottom:-1.6rem;font:900 9.5rem/1 var(--ui);letter-spacing:-.08em;color:var(--bg);-webkit-text-stroke:.15rem rgba(255,255,255,.75);pointer-events:none}
+.t10 .card{position:relative}
+.top10 .strip{gap:1.3rem}
+.card:not(.noimg):not(.wide):not(.ch) .nm{display:none}
+body.names .card:not(.noimg) .nm{display:-webkit-box}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.phead .sub{margin:0}
+.sorts{display:flex;gap:.4rem}
+.cat.pin span::before{content:"★ ";color:#FFC93D}
+.panel.wide{max-width:62rem}
+.stabs,.kinds{display:flex;gap:.5rem;margin:0 0 1.2rem;flex-wrap:wrap}
+.hint2{color:var(--faint);font-size:.85rem;margin:0 0 .8rem;line-height:1.5}
+.slist{display:flex;flex-direction:column;gap:.35rem}
+.sline{display:flex;align-items:center;gap:.5rem}
+.sline .mi{flex:1}
+.sline .mi .sw{margin:0 .7rem 0 0}
+.sline .cn{flex:1;min-width:0;padding:.7rem 1rem;font-weight:600;display:flex;gap:.6rem;align-items:baseline;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sline .cn small{color:var(--faint);font-weight:500}
+.sline.off .cn{color:var(--faint);text-decoration:line-through}
+.ib{height:2.6rem;min-width:2.6rem;padding:0 .9rem;border-radius:.7rem;background:var(--s2);font-weight:700;color:var(--mute);flex:none}
+.ib.on{background:#fff;color:#000;box-shadow:none}
+.ib.pin.y{color:#FFC93D}
+.ib.pin.y.on{color:#B07800}
 /* parcourir */
 .browse{position:absolute;inset:0;display:flex;padding-top:5.4rem}
 .cats{width:19rem;flex:none;overflow-y:auto;scrollbar-width:none;padding:.6rem 1rem 3rem var(--pad)}
@@ -745,10 +786,25 @@ async function shortEpg(ch) {
 
 /* ---------------- catalogue ---------------- */
 const ADULT = /\b(adult[eo]?s?|xxx|porn\w*|for adults|erotic\w*)\b|18\s*\+|\+\s*18/i;
-function visibleCats(k) {
-  const all = C.cats[k] || [];
-  return P.adult ? all : all.filter(c => !ADULT.test(c[1]));
+// réglages d'affichage du profil (synchronisés avec le profil)
+const ROWDEF = [["continue", "Continuer à regarder"], ["newm", "Nouveaux films"], ["top10m", "Top 10 des films"], ["news", "Nouvelles séries"], ["top10s", "Top 10 des séries"], ["mych", "Mes chaînes"], ["mylist", "Ma liste"], ["best", "Les mieux notés"], ["live", "En direct"], ["cats", "Mes catégories préférées"]];
+function UI() {
+  if (!P.ui || typeof P.ui !== "object") P.ui = {};
+  const u = P.ui;
+  if (!Array.isArray(u.rows)) u.rows = [];
+  ROWDEF.forEach(([id]) => { if (!u.rows.some(r => r.id === id)) u.rows.push({ id, on: true }); });
+  u.rows = u.rows.filter(r => ROWDEF.some(d => d[0] === r.id));
+  ["hide", "pin"].forEach(x => { if (!u[x] || typeof u[x] !== "object") u[x] = {}; ["l", "m", "s"].forEach(k => { if (!Array.isArray(u[x][k])) u[x][k] = []; }); });
+  if (!u.sort || typeof u.sort !== "object") u.sort = { m: "new", s: "new" };
+  return u;
 }
+function catsOf(k, withHidden) {
+  const all = C.cats[k] || [], u = UI(), hid = new Set(u.hide[k]), pin = u.pin[k];
+  let l = all.filter(c => (P.adult || !ADULT.test(c[1])) && (withHidden || !hid.has(c[0])));
+  const pinned = pin.map(id => l.find(c => c[0] === id)).filter(Boolean);
+  return pinned.concat(l.filter(c => pin.indexOf(c[0]) < 0));
+}
+function visibleCats(k) { return catsOf(k, false); }
 let VIEW = { l: [], m: [], s: [] }, CATNAME = { l: {}, m: {}, s: {} };
 function indexCatalog() {
   ["l", "m", "s"].forEach(k => {
@@ -761,7 +817,21 @@ function indexCatalog() {
   VIEW.l.sort((a, b) => (a.num || 1e9) - (b.num || 1e9));
   NEW.m = VIEW.m.slice().sort((a, b) => b.add - a.add);
   NEW.s = VIEW.s.slice().sort((a, b) => b.add - a.add);
+  // Top 10 : les mieux notés parmi les ajouts récents (sinon les plus récents)
+  const now = Date.now() / 1000, rated = k => VIEW[k].some(x => x.r > 0);
+  ["m", "s"].forEach(k => {
+    const rec = NEW[k].filter(x => x.add > 1e9 && now - x.add < 120 * 86400);
+    const base = rec.length >= 10 ? rec : NEW[k].slice(0, 200);
+    TOP[k] = rated(k) ? base.slice().sort((a, b) => (b.r || 0) - (a.r || 0) || b.add - a.add).slice(0, 10) : NEW[k].slice(0, 10);
+  });
+  BEST = VIEW.m.filter(x => x.r >= 3.6).map(x => [x, "m"]).concat(VIEW.s.filter(x => x.r >= 3.6).map(x => [x, "s"]))
+    .sort((a, b) => b[0].r - a[0].r || b[0].add - a[0].add).slice(0, 30);
+  document.body.classList.toggle("names", !!UI().names);
 }
+const TOP = { m: [], s: [] };
+let BEST = [];
+const sortItems = (items, how) => how === "az" ? items.slice().sort((a, b) => norm(clean(a.n)).localeCompare(norm(clean(b.n))))
+  : how === "best" ? items.slice().sort((a, b) => (b.r || 0) - (a.r || 0) || b.add - a.add) : items.slice().sort((a, b) => b.add - a.add);
 const NEW = { m: [], s: [] };
 const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 // nettoyage léger des noms (« FR | Film (2023) » → « Film »)
@@ -791,6 +861,11 @@ function focus(el, opts) {
 function reveal(el) {
   let p = el.parentElement;
   while (p && p !== document.body) {
+    if (p.classList.contains("hrows") && el.closest(".row")) {
+      // accueil télé : la rangée active se cale toujours en haut, sous la grande image
+      p.scrollTop = el.closest(".row").offsetTop;
+      p = p.parentElement; continue;
+    }
     const cs = getComputedStyle(p);
     const r = el.getBoundingClientRect(), pr = p.getBoundingClientRect();
     if (/(auto|scroll)/.test(cs.overflowX) && p.scrollWidth > p.clientWidth) {
@@ -1036,7 +1111,7 @@ function drawTop() {
     if (id === "live" && !VIEW.l.length) return;
     if (id === "movies" && !VIEW.m.length) return;
     if (id === "series" && !VIEW.s.length) return;
-    const b = h(`<button class="tab" data-t="${id}">${ic}<span>${label}</span></button>`);
+    const b = h(`<button class="tab" data-t="${id}"><span>${label}</span></button>`);
     f(b, () => go(id));
     t.appendChild(b);
   });
@@ -1105,71 +1180,111 @@ let heroT = 0;
 function continueItems() {
   return Object.entries(PROG).filter(([key, p]) => key.startsWith(S.id + "|") && !p.done && p.pos > 30).sort((a, b) => b[1].t - a[1].t).slice(0, 20);
 }
+const ago = t => { const d = Math.floor((Date.now() / 1000 - t) / 86400); return d <= 0 ? "aujourd'hui" : d === 1 ? "hier" : "il y a " + d + " jours"; };
 function drawHome() {
-  const v = $("#view");
-  const picks = [];
-  NEW.m.slice(0, 4).forEach(x => picks.push([x, "m"]));
-  NEW.s.slice(0, 3).forEach(x => picks.push([x, "s"]));
-  picks.sort((a, b) => b[0].add - a[0].add);
-  if (!picks.length && VIEW.l.length) { /* liste sans films : on met en avant les chaînes */ }
-  const hero = h(`<section class="hero"><div class="bd"></div><div class="hp"></div><div class="tx"><div class="kick"><i></i><span></span></div><h2></h2><div class="meta"></div><p></p><div class="acts" data-z></div></div><div class="dots"></div></section>`);
-  if (picks.length) v.appendChild(hero);
-  let hi = 0;
-  const show = async i => {
-    const [x, k] = picks[i];
-    hero._x = picks[i];
-    $(".kick span", hero).textContent = isNew(x) || C.kind !== "xt" ? (k === "m" ? "Nouveau film" : "Nouvelle série") : (k === "m" ? "Film" : "Série");
-    $("h2", hero).textContent = clean(x.n);
-    $(".dots", hero).innerHTML = picks.map((_, j) => `<i class="${j === i ? "sel" : ""}"></i>`).join("");
+  const v = $("#view"), TVL = innerWidth > 760;
+  v.style.overflow = TVL ? "hidden" : "";
+  const home = h(`<div class="home${TVL ? " tvl" : ""}"><section class="hero"><div class="bd"></div><div class="hp"></div><div class="tx"><div class="kick"><i></i><span></span></div><h2></h2><div class="meta"></div><p></p><div class="acts" data-z></div></div></section><div class="hrows"></div></div>`);
+  v.appendChild(home);
+  const hero = $(".hero", home), rows = $(".hrows", home);
+  const rank = new Map(); ["m", "s"].forEach(k => TOP[k].forEach((x, i) => rank.set(k + x.id, i + 1)));
+  // la grande image : ce qui est mis en avant, puis ce que tu sélectionnes
+  let tok = 0;
+  const show = async (x, k, extra) => {
+    const my = ++tok;
+    hero._x = [x, k];
+    const r = rank.get(k + x.id);
+    $(".kick span", hero).textContent = extra && extra.kick ? extra.kick
+      : r ? `Top 10 · N° ${r} des ${k === "m" ? "films" : "séries"}`
+      : isNew(x) ? (k === "m" ? "Nouveau film" : "Nouvelle série") + " · ajouté " + ago(x.add)
+      : k === "l" ? "En direct" : (k === "m" ? "Film" : "Série") + (CATNAME[k][x.c] ? " · " + clean(CATNAME[k][x.c]) : "");
+    $("h2", hero).textContent = extra && extra.title || clean(x.n);
     const meta = $(".meta", hero), pp = $("p", hero), bd = $(".bd", hero), hp = $(".hp", hero);
-    meta.innerHTML = metaHtml(x, {});
+    meta.innerHTML = k === "l" ? esc(CATNAME.l[x.c] ? clean(CATNAME.l[x.c]) : "") : metaHtml(x, {});
     pp.textContent = x.plot || "";
-    bd.style.backgroundImage = x.bd ? `url("${x.bd}")` : (x.img ? `url("${x.img}")` : "none");
-    bd.classList.toggle("blur", !x.bd);
-    hp.style.backgroundImage = x.img ? `url("${x.img}")` : "none"; hp.hidden = !!x.bd || !x.img;
+    const img = extra && extra.bd || x.bd;
+    bd.style.backgroundImage = img ? `url("${img}")` : (x.img ? `url("${x.img}")` : "none");
+    bd.classList.toggle("blur", !img); bd.classList.toggle("logo", k === "l");
+    hp.style.backgroundImage = x.img ? `url("${x.img}")` : "none"; hp.hidden = !!img || !x.img || k === "l";
+    if (k === "l") {
+      const e = await shortEpg(x);
+      if (my !== tok || !e || !e.length) return;
+      const n = Date.now() / 1000, c = e.find(q => q.a <= n && q.b > n) || e[0];
+      meta.innerHTML = `<b style="color:var(--live)">● En ce moment</b><span>${esc(c.t)}</span>`; pp.textContent = c.d || "";
+      return;
+    }
     let inf = null;
     try { inf = k === "m" ? await vodInfo(x) : (C.kind === "xt" ? await seriesInfo(x) : null); } catch (e) { }
-    if (hero._x !== picks[i] || !inf) return;
+    if (my !== tok || !inf) return;
     meta.innerHTML = metaHtml(x, inf);
     pp.textContent = inf.plot || x.plot || "";
     if (inf.bd) { bd.style.backgroundImage = `url("${inf.bd}")`; bd.classList.remove("blur"); hp.hidden = true; }
   };
+  let ft = 0;
+  const follow = (x, k, extra) => { if (!TVL) return; home.classList.add("browsing"); clearTimeout(ft); ft = setTimeout(() => show(x, k, extra), 160); };
+  // ce qu'on met en avant au départ : nouveautés et Top 10
+  const picks = [];
+  const pushP = (x, k) => { if (x && !picks.some(p => p[0] === x)) picks.push([x, k]); };
+  NEW.m.slice(0, 3).forEach(x => pushP(x, "m")); TOP.m.slice(0, 2).forEach(x => pushP(x, "m"));
+  NEW.s.slice(0, 2).forEach(x => pushP(x, "s")); TOP.s.slice(0, 1).forEach(x => pushP(x, "s"));
+  let feat = 0;
   if (picks.length) {
     const acts = $(".acts", hero);
     const bp = h(`<button class="btn pri">${I.play}Lecture</button>`), bi = h(`<button class="btn">${I.info}Plus d'infos</button>`);
-    f(bp, () => { const [x, k] = hero._x; k === "m" ? playMovie(x) : openFiche(x, k, true); });
-    f(bi, () => { const [x, k] = hero._x; openFiche(x, k); });
+    f(bp, () => { const [x, k] = picks[feat]; k === "m" ? playMovie(x) : openFiche(x, k, true); });
+    f(bi, () => { const [x, k] = picks[feat]; openFiche(x, k); });
+    bp._focus = bi._focus = () => { home.classList.remove("browsing"); clearTimeout(ft); if (hero._x !== picks[feat]) show(...picks[feat]); };
     acts.append(bp, bi);
-    show(0);
-    if (picks.length > 1) heroT = setInterval(() => { if (!$("#fiche").hidden || !$("#player").hidden || document.hidden) return; hi = (hi + 1) % picks.length; show(hi); }, 11000);
-  }
-  const rows = h('<div class="rows"></div>');
-  if (!picks.length) rows.style.marginTop = "6.5rem";
-  v.appendChild(rows);
-  const add = r => r && rows.appendChild(r);
-  // continuer
-  const cont = continueItems().map(([key, p]) => card({ n: p.n, img: p.img }, "c", { wide: true, img: p.bd || p.img, label: p.lbl ? clean(p.n) + " · " + p.lbl : clean(p.n), pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) }));
-  add(row("Continuer à regarder", cont));
-  add(row("Nouveaux films", NEW.m.slice(0, 30), "m"));
-  add(row("Nouvelles séries", NEW.s.slice(0, 30), "s"));
-  const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
-  const favL = favs.filter(x => x.k === "l").map(x => VIEW.l.find(c => String(c.id) === String(x.id))).filter(Boolean);
-  if (favL.length) add(row("Mes chaînes", favL, "l", { list: favL }));
-  const favMS = favs.filter(x => x.k !== "l").map(x => (x.k === "m" ? VIEW.m : VIEW.s).find(c => String(c.id) === String(x.id)) && [x, (x.k === "m" ? VIEW.m : VIEW.s).find(c => String(c.id) === String(x.id))]).filter(Boolean);
-  if (favMS.length) add(row("Ma liste", favMS.map(([fv, x]) => card(x, fv.k))));
-  if (!favL.length && VIEW.l.length) add(row("En direct", VIEW.l.slice(0, 24), "l"));
-  // quelques catégories, films et séries mélangés
-  const byCat = (k, n) => {
-    const cnt = {}; VIEW[k].forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
-    return visibleCats(k).filter(c => cnt[c[0]] >= 6).slice(0, n).map(c => [k, c]);
+    show(...picks[0]);
+    if (picks.length > 1) heroT = setInterval(() => {
+      if (!$("#fiche").hidden || !$("#player").hidden || document.hidden || home.classList.contains("browsing")) return;
+      feat = (feat + 1) % picks.length; show(...picks[feat]);
+    }, 10000);
+  } else hero.hidden = true;
+  const add = r => { if (r) rows.appendChild(r); };
+  const withFollow = (el, x, k, extra) => { const o = el._focus; el._focus = () => { if (o) o(); follow(x, k, extra); }; return el; };
+  const crow = (title, items, k, opts) => {
+    if (!items.length) return null;
+    return row(title, items.map(x => withFollow(card(x, k, opts), x, k)), k);
   };
-  const mc = byCat("m", 6), sc = byCat("s", 4), mix = [];
-  for (let i = 0; i < Math.max(mc.length, sc.length); i++) { if (mc[i]) mix.push(mc[i]); if (sc[i]) mix.push(sc[i]); }
-  mix.forEach(([k, c]) => {
-    const items = VIEW[k].filter(x => x.c === c[0]).sort((a, b) => b.add - a.add).slice(0, 24);
-    add(row((k === "m" ? "Films · " : "Séries · ") + clean(c[1]), items, k));
-  });
-  if (!rows.children.length && !picks.length) v.innerHTML = '<div class="pane" style="padding-top:7rem"><div class="empty"><b>Rien à afficher</b>Cette source ne contient ni film, ni série, ni chaîne visibles.</div></div>';
+  const t10row = (title, items, k) => {
+    if (items.length < 3) return null;
+    const r = row(title, items.map((x, i) => { const w = h(`<div class="t10"><span class="num">${i + 1}</span></div>`); w.appendChild(withFollow(card(x, k), x, k)); return w; }), k);
+    r.classList.add("top10"); return r;
+  };
+  const favs = Object.values(FAV).filter(x => x.src === S.id).sort((a, b) => b.t - a.t);
+  const find = (k, id) => VIEW[k].find(c => String(c.id) === String(id));
+  const build = {
+    continue: () => {
+      const items = continueItems().map(([key, p]) => {
+        const x = p.k === "m" ? find("m", p.id) : p.sid != null ? find("s", p.sid) : null;
+        const el = card({ n: p.n, img: p.img }, "c", { wide: true, img: p.bd || p.img, label: p.lbl ? clean(p.n) + " · " + p.lbl : clean(p.n), pct: p.dur ? 100 * p.pos / p.dur : 0, ok: () => resume(key, p) });
+        return x ? withFollow(el, x, p.k === "m" ? "m" : "s", { kick: "Reprendre" + (p.lbl ? " · " + p.lbl : "") + " · encore " + Math.max(1, Math.round((p.dur - p.pos) / 60)) + " min" }) : el;
+      });
+      return row("Continuer à regarder", items);
+    },
+    newm: () => crow("Nouveaux films", NEW.m.slice(0, 30), "m"),
+    news: () => crow("Nouvelles séries", NEW.s.slice(0, 30), "s"),
+    top10m: () => t10row(C.kind === "xt" ? "Top 10 des films" : "À la une : films", TOP.m, "m"),
+    top10s: () => t10row(C.kind === "xt" ? "Top 10 des séries" : "À la une : séries", TOP.s, "s"),
+    best: () => BEST.length >= 6 ? row("Les mieux notés", BEST.map(([x, k]) => withFollow(card(x, k), x, k))) : null,
+    mych: () => { const l = favs.filter(x => x.k === "l").map(x => find("l", x.id)).filter(Boolean); return l.length ? row("Mes chaînes", l.map(x => withFollow(card(x, "l", { list: l }), x, "l"))) : null; },
+    mylist: () => { const l = favs.filter(x => x.k !== "l").map(x => [find(x.k, x.id), x.k]).filter(a => a[0]); return l.length ? row("Ma liste", l.map(([x, k]) => withFollow(card(x, k), x, k))) : null; },
+    live: () => VIEW.l.length ? row("En direct", VIEW.l.slice(0, 24).map(x => withFollow(card(x, "l"), x, "l"))) : null,
+    cats: () => {
+      const u = UI(), out = [];
+      const pick = k => (u.pin[k].length ? visibleCats(k).filter(c => u.pin[k].indexOf(c[0]) >= 0) : visibleCats(k).slice(0, k === "m" ? 4 : 2));
+      [["m", "Films"], ["s", "Séries"]].forEach(([k, lab]) => pick(k).forEach(c => {
+        const items = sortItems(VIEW[k].filter(x => x.c === c[0]), u.sort[k] || "new").slice(0, 24);
+        if (items.length >= 4) out.push(crow(lab + " · " + clean(c[1]), items, k));
+      }));
+      u.pin.l.forEach(id => { const l = VIEW.l.filter(x => x.c === id); if (l.length) out.push(row("Chaînes · " + clean(CATNAME.l[id] || ""), l.slice(0, 30).map(x => withFollow(card(x, "l", { list: l }), x, "l")))); });
+      return out;
+    },
+  };
+  UI().rows.forEach(r => { if (!r.on || !build[r.id]) return; const x = build[r.id](); (Array.isArray(x) ? x : [x]).forEach(add); });
+  if (TVL) rows.appendChild(h('<div style="height:60vh"></div>'));
+  if (!rows.children.length && !picks.length) v.innerHTML = '<div class="pane" style="padding-top:7rem"><div class="empty"><b>Rien à afficher</b>Cette source ne contient ni film, ni série, ni chaîne visibles, ou tout est masqué dans les réglages.</div></div>';
 }
 function metaHtml(x, inf) {
   const r = inf.r || x.r, y = inf.y || x.y, parts = [];
@@ -1184,29 +1299,39 @@ function metaHtml(x, inf) {
 const BR = { m: { c: "new" }, s: { c: "new" } };
 function drawBrowse(k) {
   const v = $("#view"); v.style.overflow = "hidden";
-  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><h2></h2><div class="sub"></div><div class="grid" data-z data-nomem></div></div></div>`);
+  const wrap = h(`<div class="browse"><div class="cats" data-z></div><div class="pane"><div class="phead"><div><h2></h2><div class="sub"></div></div><div class="sorts" data-z></div></div><div class="grid" data-z data-nomem></div></div></div>`);
   v.appendChild(wrap);
   const cats = $(".cats", wrap), pane = $(".pane", wrap), grid = $(".grid", wrap);
   const cnt = {}; VIEW[k].forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
   const favN = Object.values(FAV).filter(x => x.src === S.id && x.k === k).length;
   const list = [["new", "Nouveautés", ""], ["all", k === "m" ? "Tous les films" : "Toutes les séries", VIEW[k].length]];
   if (favN) list.push(["fav", "Ma liste", favN]);
-  visibleCats(k).forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]]]));
+  const pinned = new Set(UI().pin[k]);
+  visibleCats(k).forEach(c => cnt[c[0]] && list.push([c[0], clean(c[1]), cnt[c[0]], pinned.has(c[0])]));
+  const sorts = $(".sorts", wrap);
+  [["new", "Nouveautés"], ["best", "Mieux notés"], ["az", "A → Z"]].forEach(([id, lab]) => {
+    const c = h(`<button class="chip" data-s="${id}">${lab}</button>`);
+    f(c, () => { UI().sort[k] = id; P.u = Date.now(); saveProfiles(); const cur = list.find(x => x[0] === BR[k].c) || list[0]; pick(cur[0], cur[1]); });
+    sorts.appendChild(c);
+  });
   const pick = (id, label) => {
     BR[k].c = id;
+    const how = id === "new" ? "new" : (UI().sort[k] || (id === "all" ? "az" : "new"));
+    $$(".chip", sorts).forEach(c => c.classList.toggle("sel", c.dataset.s === how));
+    sorts.hidden = id === "new";
     $$(".cat", cats).forEach(b => b.classList.toggle("sel", b.dataset.c === id));
     let items;
     if (id === "new") items = NEW[k].slice(0, 300);
-    else if (id === "all") items = VIEW[k].slice().sort((a, b) => norm(clean(a.n)).localeCompare(norm(clean(b.n))));
-    else if (id === "fav") { const ids = new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === k).map(x => String(x.id))); items = VIEW[k].filter(x => ids.has(String(x.id))); }
-    else items = VIEW[k].filter(x => x.c === id).sort((a, b) => b.add - a.add);
+    else if (id === "all") items = sortItems(VIEW[k], how);
+    else if (id === "fav") { const ids = new Set(Object.values(FAV).filter(x => x.src === S.id && x.k === k).map(x => String(x.id))); items = sortItems(VIEW[k].filter(x => ids.has(String(x.id))), how); }
+    else items = sortItems(VIEW[k].filter(x => x.c === id), how);
     $("h2", pane).textContent = label;
     $(".sub", pane).textContent = items.length + (k === "m" ? " film" : " série") + (items.length > 1 ? "s" : "");
     grid.innerHTML = ""; pane.scrollTop = 0;
     fill(grid, items, x => card(x, k));
   };
-  list.forEach(([id, label, n]) => {
-    const b = h(`<button class="cat" data-c="${esc(id)}"><span>${esc(label)}</span>${n !== "" ? `<small>${n}</small>` : ""}</button>`);
+  list.forEach(([id, label, n, pin]) => {
+    const b = h(`<button class="cat${pin ? " pin" : ""}" data-c="${esc(id)}"><span>${esc(label)}</span>${n !== "" ? `<small>${n}</small>` : ""}</button>`);
     f(b, () => { pick(id, label); firstIn(grid); });
     let tm; b._focus = () => { clearTimeout(tm); if (BR[k].c !== id) tm = setTimeout(() => CUR === b && pick(id, label), 350); };
     cats.appendChild(b);
@@ -1629,6 +1754,7 @@ function openMenu() {
   const item = (ic, label, small, fn) => { const b = h(`<button class="mi">${ic}<span>${label}</span>${small || ""}</button>`); f(b, fn); mn.appendChild(b); return b; };
   if (P.sources.length > 1) P.sources.forEach(s => item(I.src, "Source : " + esc(s.name), s.id === S.id ? `<small>${I.check}</small>` : "", () => { if (s.id === S.id) return; P.src = s.id; P.u = Date.now(); saveProfiles(); L.hidden = true; enterProfile(P); }));
   item(I.ref, "Actualiser la liste", "<small>nouveautés du fournisseur</small>", () => { L.hidden = true; focus(ret); refreshQuiet(true); });
+  item(I.edit, "Réglages de l'affichage", "<small>accueil, catégories, tri</small>", () => openSettings(ret));
   item(I.edit, "Modifier le profil et les sources", "", () => { L.hidden = true; editProfile(P); });
   const sy = item(I.user, "Profils sur tous tes appareils", `<small>${SYNC.state() === "ok" ? "synchronisés ✓" : "Studio pas joignable"}</small>`, () => {
     if (VIA) { $("small", sy).textContent = "vérification…"; SYNC.now().then(() => $("small", sy).textContent = SYNC.state() === "ok" ? "synchronisés ✓" : "Studio pas joignable"); return; }
@@ -1663,6 +1789,66 @@ function editStudio(ret) {
     $("#st-msg").innerHTML = SYNC.state() === "ok" ? '<div class="msg ok">Connecté à Studio : tes profils sont synchronisés.</div>' : '<div class="msg err">Studio ne répond pas. Vérifie que le PC est allumé, que Studio tourne et que Tailscale est actif sur cet appareil.</div>';
   });
   focus($("#st-ok"));
+}
+function openSettings(ret, tab, kind) {
+  const L = $("#menu"); L.hidden = false; L.scrollTop = 0;
+  tab = tab || "home"; kind = kind || "m";
+  const u = UI();
+  const save = () => { P.u = Date.now(); LS.set("profiles", PROFILES); SYNC.push(); MENU_DIRTY = true; };
+  L.innerHTML = `<div class="panel wide"><h2>Réglages de l'affichage</h2><p class="sub">Pour le profil ${esc(P.name)}, sur tous tes appareils.</p>
+    <div class="stabs" data-z></div><div id="sg"></div></div>`;
+  const tabs = $(".stabs", L), sg = $("#sg", L);
+  [["home", "Accueil"], ["cats", "Catégories"], ["view", "Affichage"]].forEach(([id, lab]) => {
+    const c = h(`<button class="chip${id === tab ? " sel" : ""}">${lab}</button>`);
+    f(c, () => openSettings(ret, id, kind)); tabs.appendChild(c);
+  });
+  const sw = on => `<span class="sw ${on ? "y" : ""}"></span>`;
+  if (tab === "home") {
+    sg.innerHTML = '<p class="hint2">Choisis les rangées de l\'accueil et leur ordre (⬆ ⬇).</p><div class="slist" data-z></div>';
+    const box = $(".slist", sg);
+    u.rows.forEach((r, i) => {
+      const lab = (ROWDEF.find(d => d[0] === r.id) || [, r.id])[1];
+      const line = h(`<div class="sline"><button class="mi">${sw(r.on)}<span>${esc(lab)}</span></button><button class="ib" aria-label="Monter">⬆</button><button class="ib" aria-label="Descendre">⬇</button></div>`);
+      const [t, up, dn] = $$("button", line);
+      f(t, () => { r.on = !r.on; save(); $(".sw", t).classList.toggle("y", r.on); });
+      const mv = d => { const j = i + d; if (j < 0 || j >= u.rows.length) return; [u.rows[i], u.rows[j]] = [u.rows[j], u.rows[i]]; save(); openSettings(ret, "home"); focus($$(".sline", L)[j].querySelectorAll("button")[d < 0 ? 1 : 2]); };
+      f(up, () => mv(-1)); f(dn, () => mv(1));
+      box.appendChild(line);
+    });
+    const rz = h('<button class="btn" style="margin-top:1rem">Remettre l\'ordre de départ</button>');
+    f(rz, () => { u.rows = []; UI(); save(); openSettings(ret, "home"); });
+    sg.appendChild(rz);
+  } else if (tab === "cats") {
+    sg.innerHTML = `<div class="kinds" data-z></div><p class="hint2">★ épingle une catégorie : elle passe en premier et apparaît sur l'accueil. L'œil la masque partout.</p><div class="slist" data-z></div>`;
+    const kinds = $(".kinds", sg);
+    [["l", "TV en direct"], ["m", "Films"], ["s", "Séries"]].forEach(([k, lab]) => { if (!(C.cats[k] || []).length) return; const c = h(`<button class="chip${k === kind ? " sel" : ""}">${lab}</button>`); f(c, () => openSettings(ret, "cats", k)); kinds.appendChild(c); });
+    const cnt = {}; (C[kind] || []).forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
+    const box = $(".slist", sg);
+    const all = catsOf(kind, true).filter(c => cnt[c[0]]);
+    fill(box, all, c => {
+      const pinned = () => u.pin[kind].indexOf(c[0]) >= 0, hidden = () => u.hide[kind].indexOf(c[0]) >= 0;
+      const line = h(`<div class="sline${hidden() ? " off" : ""}"><span class="cn">${esc(clean(c[1]))}<small>${cnt[c[0]]}</small></span><button class="ib pin${pinned() ? " y" : ""}" aria-label="Épingler">★</button><button class="ib eye" aria-label="Masquer">${hidden() ? "Masquée" : "Visible"}</button></div>`);
+      const [pb, eb] = $$("button", line);
+      f(pb, () => { const a = u.pin[kind], i = a.indexOf(c[0]); i >= 0 ? a.splice(i, 1) : a.push(c[0]); if (i < 0) { const j = u.hide[kind].indexOf(c[0]); if (j >= 0) u.hide[kind].splice(j, 1); } save(); pb.classList.toggle("y", pinned()); eb.textContent = hidden() ? "Masquée" : "Visible"; line.classList.toggle("off", hidden()); });
+      f(eb, () => { const a = u.hide[kind], i = a.indexOf(c[0]); i >= 0 ? a.splice(i, 1) : a.push(c[0]); if (i < 0) { const j = u.pin[kind].indexOf(c[0]); if (j >= 0) u.pin[kind].splice(j, 1); } save(); eb.textContent = hidden() ? "Masquée" : "Visible"; line.classList.toggle("off", hidden()); pb.classList.toggle("y", pinned()); });
+      return line;
+    }, 80);
+    const rz = h('<button class="btn" style="margin-top:1rem">Tout réafficher</button>');
+    f(rz, () => { u.hide[kind] = []; save(); openSettings(ret, "cats", kind); });
+    sg.appendChild(rz);
+  } else {
+    sg.innerHTML = '<div class="mlist" data-z></div>';
+    const box = $(".mlist", sg);
+    const tg = (label, get, set) => { const b = h(`<button class="mi"><span>${label}</span>${sw(get())}</button>`); f(b, () => { set(!get()); save(); $(".sw", b).classList.toggle("y", get()); }); box.appendChild(b); };
+    tg("Afficher les titres sous les affiches", () => !!u.names, v => u.names = v);
+    tg("Cacher les catégories pour adultes", () => !P.adult, v => P.adult = !v);
+    const fmtL = { auto: "Automatique", ts: "MPEG-TS", hls: "HLS (m3u8)" };
+    const fm = h(`<button class="mi"><span>Format des chaînes</span><small>${fmtL[LS.get("livefmt", "auto")]}</small></button>`);
+    f(fm, () => { const o = ["auto", "ts", "hls"], c = LS.get("livefmt", "auto"); const n = o[(o.indexOf(c) + 1) % o.length]; LS.set("livefmt", n); $("small", fm).textContent = fmtL[n]; });
+    box.appendChild(fm);
+  }
+  L._close = () => { L.hidden = true; if (MENU_DIRTY) { MENU_DIRTY = false; indexCatalog(); drawTop(); go(TAB); } else if (ret && ret.isConnected) focus(ret); };
+  focus($(".stabs .chip.sel", L));
 }
 function closeAll() { ["fiche", "menu", "edit"].forEach(i => $("#" + i).hidden = true); }
 
