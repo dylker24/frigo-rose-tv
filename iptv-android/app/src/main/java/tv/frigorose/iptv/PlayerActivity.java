@@ -28,6 +28,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -55,6 +56,28 @@ public class PlayerActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Runnable hideInfo = () -> { if (info != null) info.setVisibility(View.GONE); };
     private int retries = 0;
+    // surveillance : si l'image ne bouge plus alors qu'on est en lecture, on reconnecte tout seul
+    private long lastPos = -1, stuckSince = 0, goodSince = 0;
+    private final Runnable watch = new Runnable() {
+        @Override public void run() {
+            if (player == null) return;
+            long now = System.currentTimeMillis();
+            boolean playing = player.getPlayWhenReady() && player.getPlaybackState() != Player.STATE_ENDED && player.getPlaybackState() != Player.STATE_IDLE;
+            long pos = player.getCurrentPosition();
+            if (!playing || pos != lastPos) { stuckSince = now; lastPos = pos; }
+            if (player.isPlaying()) { if (goodSince == 0) goodSince = now; if (now - goodSince > 30000) retries = 0; } else goodSince = 0;
+            if (playing && now - stuckSince > (live ? 9000 : 12000)) { stuckSince = now; reconnect(); }
+            ui.postDelayed(this, 1500);
+        }
+    };
+    private void reconnect() {
+        if (player == null) return;
+        errText.setVisibility(View.GONE);
+        int i = player.getCurrentMediaItemIndex();
+        if (live) player.seekToDefaultPosition(i);
+        else player.seekTo(i, Math.max(0, player.getCurrentPosition() - 2000));
+        player.prepare(); player.play();
+    }
     private boolean done = false;
 
     private int dp(float v) { return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics()); }
@@ -130,7 +153,11 @@ public class PlayerActivity extends Activity {
                 .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES | DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS);
         DefaultRenderersFactory rf = new DefaultRenderersFactory(this).setEnableDecoderFallback(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
+        DefaultLoadControl lc = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(live ? 15000 : 30000, live ? 45000 : 90000, 2000, 4000)
+                .setPrioritizeTimeOverSizeThresholds(true).build();
         player = new ExoPlayer.Builder(this, rf)
+                .setLoadControl(lc)
                 .setSeekBackIncrementMs(10000)
                 .setSeekForwardIncrementMs(10000)
                 .setTrackSelector(ts)
@@ -148,7 +175,8 @@ public class PlayerActivity extends Activity {
             if (live) b.setLiveConfiguration(new MediaItem.LiveConfiguration.Builder().setTargetOffsetMs(8000).build());
             mi.add(b.build());
         }
-        player.setRepeatMode(live ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
+        // en direct, si le serveur coupe le flux, on relance la même chaîne (au lieu de rester figé)
+        player.setRepeatMode(live ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
         player.setMediaItems(mi, Math.max(0, Math.min(index, mi.size() - 1)), live ? C.TIME_UNSET : start);
         player.addListener(new Player.Listener() {
             @Override
@@ -169,9 +197,9 @@ public class PlayerActivity extends Activity {
                     // après une longue pause sur une chaîne : on revient au direct
                     player.seekToDefaultPosition(); player.prepare(); player.play(); return;
                 }
-                if (retries < 2) {
+                if (retries < 6) {
                     retries++;
-                    ui.postDelayed(() -> { if (player != null) { player.prepare(); player.play(); } }, 1200);
+                    ui.postDelayed(() -> reconnect(), Math.min(1000L * retries, 4000L));
                     return;
                 }
                 errText.setText((live ? "Cette chaîne ne passe pas pour le moment.\nEssaie une autre chaîne avec ⬆ ⬇" : "Cette vidéo ne se lance pas.\nAppuie sur OK pour réessayer, Retour pour quitter")
@@ -182,6 +210,7 @@ public class PlayerActivity extends Activity {
         player.prepare();
         player.play();
         showInfo();
+        ui.postDelayed(watch, 3000);
     }
 
     private void showInfo() {
@@ -287,6 +316,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void release() {
+        ui.removeCallbacks(watch);
         ui.removeCallbacksAndMessages(null);
         if (player != null) { try { player.release(); } catch (Exception e) { } player = null; }
     }

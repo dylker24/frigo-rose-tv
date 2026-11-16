@@ -2460,7 +2460,15 @@ function plStep(d) {
   v.addEventListener("waiting", () => $("#pl-load").hidden = false);
   v.addEventListener("pause", () => { $("#pl-pp").innerHTML = I.play; plUi(true); });
   v.addEventListener("error", () => { const it = PL && PL.list[PL.i]; if (it) plFail(it, v.error && v.error.message); });
-  v.addEventListener("ended", () => { const it = PL && PL.list[PL.i]; if (!it) return; if (!it.live && PL.i < PL.list.length - 1) { saveProg(it, 1e6, 1e6); plStep(1); } else plClose(); });
+  v.addEventListener("ended", () => { const it = PL && PL.list[PL.i]; if (!it) return; if (it.live) return plLoad(); if (PL.i < PL.list.length - 1) { saveProg(it, 1e6, 1e6); plStep(1); } else plClose(); });
+  // l'image ne bouge plus alors qu'on est en lecture : on reconnecte tout seul
+  let wPos = -1, wT = 0;
+  setInterval(() => {
+    if (!PL || v.paused || !$("#pl-err").hidden) { wT = Date.now(); wPos = -1; return; }
+    if (v.currentTime !== wPos) { wPos = v.currentTime; wT = Date.now(); return; }
+    const it = PL.list[PL.i];
+    if (Date.now() - wT > (it.live ? 9000 : 12000)) { wT = Date.now(); if (!it.live) PL.at = Math.max(0, v.currentTime - 2); plLoad(); }
+  }, 1500);
   v.addEventListener("timeupdate", () => {
     if (!PL) return; const it = PL.list[PL.i]; if (it.live || !isFinite(v.duration)) return;
     const pct = 100 * v.currentTime / v.duration;
