@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QG LES GOATS</title>
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="theme-color" content="#ff3d7f">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: bande de potes, fun, rapide, comme un menu de jeu
+   IDEA: le carnet de bord d'un crew à Leonida, coucher de soleil sur la côte
+   PICTURE: l'onglet actif (garage, carte dessinée, mur de screens) occupe l'écran
+   COLOUR & TYPE: rose coucher de soleil, orange, turquoise lagon ; Big Shoulders + Inter
+   LAYOUT: barre crew en haut, onglets, grille de cartes, bouton + flottant */
+:root{color-scheme:light dark;
+--bg:light-dark(#fff4ec,#120c14);--card:light-dark(#ffffff,#1d1520);--ink:light-dark(#1d1220,#fbefe8);
+--mute:light-dark(#7a6672,#b49fac);--line:light-dark(#f0dcd2,#30232f);
+--pink:#ff3d7f;--orange:#ff8a3d;--teal:#17c3b2;--sun:linear-gradient(120deg,#ff3d7f,#ff8a3d)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;padding-bottom:110px}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,.big{font-family:"Big Shoulders Display",Impact,sans-serif;font-weight:900;line-height:1.02;margin:0}
+.top{background:var(--sun);color:#fff;padding:22px max(5vw,16px) 0;position:relative;overflow:hidden}
+.top svg.sky{position:absolute;right:-30px;top:-10px;width:260px;height:200px;opacity:.35;pointer-events:none}
+.top h1{font-size:clamp(38px,8vw,56px);letter-spacing:.5px;position:relative}
+.top p{margin:4px 0 14px;opacity:.92;font-weight:500;position:relative}
+.crew{display:flex;gap:8px;flex-wrap:wrap;position:relative;margin-bottom:16px}
+.who{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:99px;border:2px solid rgba(255,255,255,.5);background:rgba(255,255,255,.12);color:#fff;font-weight:600;min-height:44px}
+.who.on{background:#fff;color:#1d1220;border-color:#fff}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;flex:none}
+.tabs{display:flex;gap:4px;position:relative}
+.tabs button{flex:1;border:0;background:rgba(0,0,0,.14);color:#fff;padding:12px 6px;border-radius:14px 14px 0 0;font-weight:700;font-size:15px;min-height:48px}
+.tabs button.on{background:var(--bg);color:var(--ink)}
+.wrap{max-width:1240px;margin:0 auto;padding:18px max(4vw,14px)}
+.status{font-size:13px;color:var(--mute);margin:0 0 12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.chip{border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;min-height:40px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{flex:1 1 180px;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:16px;min-height:44px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border-radius:16px;padding:12px 14px;border:1.5px solid var(--line)}
+.stat .big{font-size:34px}.stat small{color:var(--mute);font-size:13px;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:14px}
+.card{background:var(--card);border-radius:18px;overflow:hidden;border:1.5px solid var(--line);display:flex;flex-direction:column;text-align:left;padding:0}
+.ph{aspect-ratio:16/10;background:var(--line) center/cover;position:relative}
+.ph.none{display:grid;place-items:center;color:var(--mute)}
+.ph .tag{position:absolute;left:10px;top:10px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px}
+.cb{padding:12px 14px 14px}
+.cb h3{margin:0 0 4px;font-size:18px;line-height:1.2}
+.meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.meta .av{width:22px;height:22px;font-size:11px}
+.note{font-size:14px;margin:6px 0 0;color:var(--mute)}
+.empty{text-align:center;padding:50px 20px;color:var(--mute)}
+.empty .big{font-size:30px;color:var(--ink);margin-bottom:6px}
+.fab{position:fixed;right:max(5vw,18px);bottom:24px;background:var(--sun);color:#fff;border:0;border-radius:99px;padding:0 24px;height:58px;font-weight:800;font-size:17px;box-shadow:0 10px 30px rgba(255,61,127,.45);display:flex;align-items:center;gap:8px;z-index:5}
+.mapbox{background:var(--card);border-radius:20px;border:1.5px solid var(--line);overflow:hidden;position:relative}
+.mapbox svg{display:block;width:100%;height:auto;max-height:72vh;cursor:crosshair;touch-action:manipulation}
+.hint{font-size:13px;color:var(--mute);margin:8px 2px 16px}
+.list{display:grid;gap:8px}
+.row{display:flex;gap:12px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;text-align:left;width:100%}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.wall{columns:3 260px;column-gap:14px}
+.shot{break-inside:avoid;margin-bottom:14px;background:var(--card);border-radius:18px;overflow:hidden;border:1.5px solid var(--line)}
+.shot img{width:100%;display:block;cursor:zoom-in}
+.shot .cb{display:flex;gap:10px;align-items:flex-start}
+.fire{margin-left:auto;display:flex;align-items:center;gap:4px;border:1.5px solid var(--line);background:transparent;border-radius:99px;padding:6px 12px;font-weight:700;font-size:14px;min-height:40px;flex:none}
+.fire.on{background:var(--pink);border-color:var(--pink);color:#fff}
+.ov{position:fixed;inset:0;background:rgba(10,4,12,.6);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.ov.show{display:flex}
+.sheet{background:var(--bg);width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:22px 20px 28px;max-height:92vh;overflow:auto}
+@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:24px}}
+.sheet h2{font-size:30px;margin-bottom:14px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 6px}
+input[type=text],textarea,select{width:100%;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 12px;font:16px Inter,sans-serif}
+textarea{min-height:76px;resize:vertical}
+.pick{display:grid;place-items:center;border:2px dashed var(--line);border-radius:16px;min-height:130px;background:var(--card) center/cover;color:var(--mute);font-weight:600;cursor:pointer;text-align:center;padding:10px}
+.btns{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;border:0;border-radius:14px;min-height:50px;font-weight:800;font-size:16px;background:var(--line)}
+.btn.go{background:var(--sun);color:#fff}.btn.del{background:transparent;color:var(--pink);border:1.5px solid var(--pink);flex:0 0 auto;padding:0 16px}
+.btn:disabled{opacity:.5}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:30;padding:14px}
+.lb.show{display:flex}.lb img{max-width:100%;max-height:100%;border-radius:10px}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+@media(max-width:600px){.stat .big{font-size:28px}.top svg.sky{width:180px}}
+@media(prefers-reduced-motion:no-preference){.card,.shot,.row{animation:up .35s ease both}@keyframes up{from{opacity:0;transform:translateY(8px)}}}
+</style>
+</head>
+<body>
+<header class="top">
+  <svg class="sky" viewBox="0 0 260 200" aria-hidden="true"><circle cx="150" cy="120" r="70" fill="#fff"/><g fill="#fff"><rect x="40" y="128" width="220" height="7"/><rect x="60" y="145" width="200" height="6"/><rect x="85" y="160" width="175" height="5"/></g><path d="M215 200 C212 150 210 110 222 70" stroke="#1d1220" stroke-width="6" fill="none"/><path d="M222 70 c-20-6-38 2-48 14 M222 70 c-8-18-24-24-40-22 M222 70 c12-18 30-20 44-12 M222 70 c20-2 34 10 38 26" stroke="#1d1220" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
+  <h1>QG LES GOATS</h1>
+  <p>Dylan, Sofian et Calvin à Leonida : les caisses, les spots, les screens.</p>
+  <div class="crew" id="crew"></div>
+  <nav class="tabs" id="tabs">
+    <button data-t="garage">Garage</button><button data-t="carte">Carte</button><button data-t="captures">Captures</button>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="status" id="status">Connexion au QG…</p>
+  <section id="v-garage"></section>
+  <section id="v-carte" hidden></section>
+  <section id="v-captures" hidden></section>
+</main>
+<button class="fab" id="fab"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg><span id="fabt">Ajouter</span></button>
+<div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
+<div class="lb" id="lb"><img id="lbi" alt=""></div>
+<script>
+{
+const CREW=[{n:"Dylan",c:"#ff3d7f"},{n:"Sofian",c:"#17c3b2"},{n:"Calvin",c:"#ff8a3d"}];
+const CATS=["Sport","Super","Muscle","Luxe","4x4","Moto","Bateau","Avion","Autre"];
+const PINS={Planque:"#ff3d7f",Caisse:"#ff8a3d",Secret:"#8b5cf6",Spot:"#17c3b2",Danger:"#1d1220",Autre:"#7a6672"};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const col=n=>(CREW.find(p=>p.n===n)||{c:"#999"}).c;
+const av=n=>`<span class="av" style="background:${col(n)}">${esc((n||"?")[0])}</span>`;
+const ago=t=>{const m=Math.round((Date.now()-t)/6e4);return m<1?"à l'instant":m<60?`il y a ${m} min`:m<1440?`il y a ${Math.round(m/60)} h`:new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})};
+const src=o=>o.photo||"";
+let me=null;try{me=localStorage.getItem("qg-me")}catch(e){}
+let tab=(location.hash||"#garage").slice(1);if(!["garage","carte","captures"].includes(tab))tab="garage";
+const S={cars:[],pins:[],shots:[]};
+let db=null,fCar="Tous",q="",fPin="Tous";
+
+function renderCrew(){
+  $("#crew").innerHTML=CREW.map(p=>`<button class="who ${me===p.n?"on":""}" data-me="${p.n}">${av(p.n)}${p.n}</button>`).join("");
+}
+$("#crew").onclick=e=>{const b=e.target.closest("[data-me]");if(!b)return;me=b.dataset.me;try{localStorage.setItem("qg-me",me)}catch(e){}renderCrew()};
+
+function setTab(t){tab=t;for(const b of document.querySelectorAll("#tabs button"))b.classList.toggle("on",b.dataset.t===t);
+  for(const k of["garage","carte","captures"])$("#v-"+k).hidden=k!==t;
+  $("#fabt").textContent={garage:"Ajouter une caisse",carte:"Épingler un spot",captures:"Poster un screen"}[t];
+  if(location.hash!=="#"+t)history.replaceState(null,"","#"+t);render()}
+$("#tabs").onclick=e=>{const b=e.target.closest("button");if(b)setTab(b.dataset.t)};
+addEventListener("hashchange",()=>{const t=location.hash.slice(1);if(["garage","carte","captures"].includes(t)&&t!==tab)setTab(t)});
+
+function render(){if(tab==="garage")rGarage();else if(tab==="carte")rCarte();else rShots()}
+
+function rGarage(){
+  const n=x=>S.cars.filter(c=>c.by===x).length;
+  let L=S.cars.filter(c=>(fCar==="Tous"||c.by===fCar)&&(!q||(c.name+" "+c.cat+" "+c.where).toLowerCase().includes(q)));
+  $("#v-garage").innerHTML=`<div class="stats">${CREW.map(p=>`<div class="stat" style="border-color:${p.c}"><div class="big" style="color:${p.c}">${n(p.n)}</div><small>caisses à ${p.n}</small></div>`).join("")}</div>
+  <div class="bar">${["Tous",...CREW.map(p=>p.n)].map(x=>`<button class="chip ${fCar===x?"on":""}" data-f="${x}">${x}</button>`).join("")}<input class="search" id="q" placeholder="Chercher une caisse…" value="${esc(q)}"></div>
+  ${L.length?`<div class="grid">${L.map(c=>`<button class="card" data-car="${c.id}"><div class="ph ${src(c)?"":"none"}" style="${src(c)?`background-image:url('${esc(src(c))}')`:""}">${src(c)?"":"Pas de photo"}<span class="tag">${esc(c.cat)}</span></div><div class="cb"><h3>${esc(c.name)}</h3><div class="meta">${av(c.by)}${esc(c.by)} · ${ago(c.ts)}</div>${c.where?`<p class="note">${esc(c.where)}</p>`:""}</div></button>`).join("")}</div>`
+  :`<div class="empty"><div class="big">Garage vide</div>${S.cars.length?"Rien ne correspond.":"Première caisse trouvée ? Ajoute-la avec le bouton en bas."}</div>`}`;
+  const i=$("#q");i.oninput=()=>{q=i.value.toLowerCase();const p=i.selectionStart;rGarage();const j=$("#q");j.focus();j.setSelectionRange(p,p)};
+}
+$("#v-garage").onclick=e=>{const f=e.target.closest("[data-f]");if(f){fCar=f.dataset.f;rGarage();return}
+  const c=e.target.closest("[data-car]");if(c)carForm(S.cars.find(x=>x.id===c.dataset.car))};
+
+const MAP=`<defs><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe0d6"/><stop offset="1" stop-color="#2bb3c9"/></linearGradient></defs>
+<rect width="400" height="560" fill="url(#sea)"/>
+<g fill="#ffffff" opacity=".18">${Array.from({length:14},(_,i)=>`<rect x="${(i*53)%380}" y="${20+i*38}" width="${30+(i*17)%40}" height="3" rx="1.5"/>`).join("")}</g>
+<path d="M40 40 L330 34 C350 60 340 90 318 118 C300 150 296 190 304 230 C318 290 336 330 330 380 C326 420 300 446 270 452 C246 456 230 440 214 418 C190 384 176 344 160 300 C146 262 130 226 118 190 C104 150 96 120 60 104 C44 96 30 80 30 62 Z" fill="#f6dfb8" stroke="#e9c58f" stroke-width="3"/>
+<path d="M150 300 C170 340 196 380 226 410 C210 360 200 330 196 300 C180 290 166 292 150 300Z" fill="#9fcf8a" opacity=".8"/>
+<path d="M120 190 C150 200 190 210 230 200 C240 240 230 270 200 290 C170 280 140 240 120 190Z" fill="#b7d88f" opacity=".7"/>
+<path d="M200 70 L230 40 L262 76 Z" fill="#c9a77a"/><path d="M222 50 L230 40 L240 54Z" fill="#fff"/>
+<g fill="#f6dfb8" stroke="#e9c58f" stroke-width="2"><ellipse cx="292" cy="482" rx="16" ry="7"/><ellipse cx="258" cy="502" rx="13" ry="6"/><ellipse cx="220" cy="516" rx="11" ry="5"/><ellipse cx="184" cy="526" rx="9" ry="4"/></g>
+<g fill="#ffb3cb"><rect x="292" y="350" width="8" height="34"/><rect x="304" y="340" width="9" height="44"/><rect x="316" y="356" width="7" height="28"/><rect x="282" y="362" width="7" height="22"/></g>
+<g font-family="Big Shoulders Display,Impact,sans-serif" font-weight="800" fill="#1d1220" text-anchor="middle" pointer-events="none">
+<text x="302" y="404" font-size="19">VICE CITY</text><text x="236" y="474" font-size="14">LEONIDA KEYS</text>
+<text x="196" y="352" font-size="14">GRASSRIVERS</text><text x="76" y="86" font-size="14">PORT GELLHORN</text>
+<text x="180" y="236" font-size="15">AMBROSIA</text><text x="232" y="96" font-size="13">MOUNT KALAGA</text></g>`;
+
+function rCarte(){
+  const L=S.pins.filter(p=>fPin==="Tous"||p.cat===fPin);
+  $("#v-carte").innerHTML=`<div class="bar">${["Tous",...Object.keys(PINS)].map(x=>`<button class="chip ${fPin===x?"on":""}" data-pf="${x}">${x==="Tous"?x:`<span class="dot" style="display:inline-block;vertical-align:-1px;width:10px;height:10px;background:${PINS[x]}"></span> ${x}`}</button>`).join("")}</div>
+  <div class="mapbox"><svg id="map" viewBox="0 0 400 560" role="img" aria-label="Carte de Leonida, touche pour épingler">${MAP}
+  ${L.map(p=>`<g data-pin="${p.id}" style="cursor:pointer" transform="translate(${p.x} ${p.y})"><circle r="16" fill="transparent"/><path d="M0 0 C-9-12-11-16-11-21 a11 11 0 1 1 22 0 c0 5-2 9-11 21Z" fill="${PINS[p.cat]||"#777"}" stroke="#fff" stroke-width="2.5"/><circle cy="-21" r="4.5" fill="${col(p.by)}" stroke="#fff" stroke-width="1.5"/></g>`).join("")}</svg></div>
+  <p class="hint">Touche la carte pour épingler un spot. Carte dessinée maison pour se repérer, place les pins à peu près.</p>
+  ${L.length?`<div class="list">${L.map(p=>`<button class="row" data-pin="${p.id}"><span class="dot" style="background:${PINS[p.cat]}"></span><div style="flex:1"><b>${esc(p.title)}</b><div class="meta">${esc(p.cat)} · ${esc(p.by)} · ${ago(p.ts)}</div></div>${av(p.by)}</button>`).join("")}</div>`:`<div class="empty"><div class="big">Aucun spot</div>Le premier qui trouve une planque l'épingle.</div>`}`;
+  const m=$("#map");m.onclick=e=>{const g=e.target.closest("[data-pin]");if(g){pinForm(S.pins.find(x=>x.id===g.dataset.pin));return}
+    const pt=m.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const r=pt.matrixTransform(m.getScreenCTM().inverse());
+    pinForm(null,Math.round(r.x),Math.round(r.y))};
+}
+$("#v-carte").onclick=e=>{const f=e.target.closest("[data-pf]");if(f){fPin=f.dataset.pf;rCarte();return}
+  const r=e.target.closest(".row[data-pin]");if(r)pinForm(S.pins.find(x=>x.id===r.dataset.pin))};
+
+function rShots(){
+  $("#v-captures").innerHTML=S.shots.length?`<div class="wall">${S.shots.map(s=>{const l=Object.keys(s.likes||{}).filter(k=>s.likes[k]);const mine=me&&l.includes(me);
+  return `<div class="shot"><img src="${esc(src(s))}" data-zoom="${esc(src(s))}" alt="${esc(s.cap||"Capture")}" loading="lazy"><div class="cb">${av(s.by)}<div style="flex:1"><div style="font-weight:600">${esc(s.cap||"")}</div><div class="meta">${esc(s.by)} · ${ago(s.ts)}${s.by===me?` · <a href="#" data-dshot="${s.id}" style="color:var(--pink)">supprimer</a>`:""}</div></div>
+  <button class="fire ${mine?"on":""}" data-like="${s.id}" title="${esc(l.join(", "))}"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-10z" fill="currentColor"/></svg>${l.length}</button></div></div>`}).join("")}</div>`
+  :`<div class="empty"><div class="big">Aucun screen</div>Balance ton premier moment wtf.</div>`;
+}
+$("#v-captures").onclick=async e=>{const z=e.target.closest("[data-zoom]");if(z){$("#lbi").src=z.dataset.zoom;$("#lb").classList.add("show");return}
+  const d=e.target.closest("[data-dshot]");if(d){e.preventDefault();if(d.dataset.sure){await del("shots",d.dataset.dshot)}else{d.dataset.sure=1;d.textContent="sûr ? retouche"}return}
+  const b=e.target.closest("[data-like]");if(!b||!db)return;if(!me){toast("Choisis qui tu es en haut");return}
+  const s=S.shots.find(x=>x.id===b.dataset.like);const on=!(s.likes&&s.likes[me]);
+  try{await db.ref("goats/shots/"+s.id+"/likes/"+me).set(on)}catch(err){toast("Pas pu liker")}};
+$("#lb").onclick=()=>$("#lb").classList.remove("show");
+
+const ov=$("#ov"),sh=$("#sheet");
+function open(html){sh.innerHTML=html;ov.classList.add("show")}
+function close(){ov.classList.remove("show");sh.innerHTML=""}
+ov.onclick=e=>{if(e.target===ov)close()};
+function toast(t){$("#status").textContent=t}
+
+async function photo(file,big){
+  const url=URL.createObjectURL(file);const img=new Image();await new Promise((ok,ko)=>{img.onload=ok;img.onerror=ko;img.src=url});
+  const enc=(max,qq)=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c};
+  const d=enc(big?1200:800).toDataURL("image/jpeg",.72);URL.revokeObjectURL(url);return{photo:d};
+}
+function pickHTML(o){return `<label>Photo</label><label class="pick" id="pk" style="${o&&src(o)?`background-image:url('${esc(src(o))}')`:""}">${o&&src(o)?"":"Touche pour choisir une photo"}<input type="file" accept="image/*" id="pf" hidden></label>`}
+function wirePick(st){$("#pf").onchange=()=>{const f=$("#pf").files[0];if(!f)return;st.file=f;const u=URL.createObjectURL(f);const k=$("#pk");k.style.backgroundImage=`url('${u}')`;k.firstChild.textContent=""}}
+function wireDel(coll,o){const b=$("#dl");if(!b)return;b.onclick=async()=>{if(!b.dataset.s){b.dataset.s=1;b.textContent="Sûr ?";return}await del(coll,o.id);close()}}
+async function del(coll,id){try{await db.ref("goats/"+coll+"/"+id).remove()}catch(e){toast("Suppression impossible")}}
+function needMe(){if(!me){toast("Choisis d'abord qui tu es (Dylan, Sofian ou Calvin) en haut.");scrollTo({top:0,behavior:"smooth"});return false}if(!db){toast("Pas de connexion au QG, rien ne peut s'enregistrer.");return false}return true}
+
+function carForm(o){if(!o&&!needMe())return;const st={};
+  open(`<h2>${o?"La caisse":"Nouvelle caisse"}</h2>${pickHTML(o)}
+  <label for="n">Nom</label><input type="text" id="n" value="${esc(o?.name)}" placeholder="Ex : la sportive rose de la plage">
+  <label for="c">Catégorie</label><select id="c">${CATS.map(c=>`<option ${o?.cat===c?"selected":""}>${c}</option>`).join("")}</select>
+  <label for="w">Où tu l'as trouvée</label><input type="text" id="w" value="${esc(o?.where)}" placeholder="Ex : parking de Vice Beach, la nuit">
+  ${o?`<p class="meta" style="margin-top:12px">${av(o.by)} Ajoutée par ${esc(o.by)}, ${ago(o.ts)}</p>`:""}
+  <div class="btns">${o?`<button class="btn del" id="dl">Supprimer</button>`:""}<button class="btn" id="x">Fermer</button><button class="btn go" id="ok">${o?"Enregistrer":"Ajouter"}</button></div>`);
+  wirePick(st);wireDel("cars",o);$("#x").onclick=close;
+  $("#ok").onclick=async()=>{const name=$("#n").value.trim();if(!name){$("#n").focus();return}if(!db)return;const b=$("#ok");b.disabled=true;b.textContent="Envoi…";
+    try{const ph=st.file?await photo(st.file):{};const ref=o?db.ref("goats/cars/"+o.id):db.ref("goats/cars").push();
+      const base=o?{...o}:{by:me,ts:Date.now()};delete base.id;await ref.set({...base,name,cat:$("#c").value,where:$("#w").value.trim(),...ph});close()}
+    catch(e){b.disabled=false;b.textContent="Réessayer";toast("Envoi raté, réessaie.")}};
+}
+
+function pinForm(o,x,y){if(!o&&!needMe())return;
+  open(`<h2>${o?esc(o.title):"Nouveau spot"}</h2>
+  <label for="t">Nom du spot</label><input type="text" id="t" value="${esc(o?.title)}" placeholder="Ex : planque derrière le motel">
+  <label for="k">Type</label><select id="k">${Object.keys(PINS).map(c=>`<option ${o?.cat===c?"selected":""}>${c}</option>`).join("")}</select>
+  <label for="d">Détails</label><textarea id="d" placeholder="Comment y aller, ce qu'il y a…">${esc(o?.note)}</textarea>
+  ${o?`<p class="meta" style="margin-top:12px">${av(o.by)} Épinglé par ${esc(o.by)}, ${ago(o.ts)}</p>`:""}
+  <div class="btns">${o?`<button class="btn del" id="dl">Supprimer</button>`:""}<button class="btn" id="x">Fermer</button><button class="btn go" id="ok">${o?"Enregistrer":"Épingler"}</button></div>`);
+  wireDel("pins",o);$("#x").onclick=close;
+  $("#ok").onclick=async()=>{const title=$("#t").value.trim();if(!title){$("#t").focus();return}if(!db)return;const b=$("#ok");b.disabled=true;
+    try{const ref=o?db.ref("goats/pins/"+o.id):db.ref("goats/pins").push();const base=o?{...o}:{by:me,ts:Date.now(),x,y};delete base.id;
+      await ref.set({...base,title,cat:$("#k").value,note:$("#d").value.trim()});close()}catch(e){b.disabled=false;toast("Envoi raté, réessaie.")}};
+}
+
+function shotForm(){if(!needMe())return;const st={};
+  open(`<h2>Nouveau screen</h2>${pickHTML()}<label for="cp">Légende</label><input type="text" id="cp" placeholder="Ex : quand Calvin a voulu sauter le pont">
+  <div class="btns"><button class="btn" id="x">Fermer</button><button class="btn go" id="ok">Poster</button></div>`);
+  wirePick(st);$("#x").onclick=close;
+  $("#ok").onclick=async()=>{if(!st.file){$("#pk").style.borderColor="var(--pink)";return}const b=$("#ok");b.disabled=true;b.textContent="Envoi…";
+    try{const ph=await photo(st.file,true);await db.ref("goats/shots").push({by:me,ts:Date.now(),cap:$("#cp").value.trim(),likes:{},...ph});close()}
+    catch(e){b.disabled=false;b.textContent="Réessayer";toast("Envoi raté, réessaie.")}};
+}
+$("#fab").onclick=()=>tab==="garage"?carForm():tab==="carte"?pinForm(null,300,300):shotForm();
+
+renderCrew();setTab(tab);
+const FBC={apiKey:"AIzaSyC54a8ejVmz8--xvWu3KtZfqPGrabM_-E0",authDomain:"nosrecettes-ede01.firebaseapp.com",databaseURL:"https://nosrecettes-ede01-default-rtdb.europe-west1.firebasedatabase.app",projectId:"nosrecettes-ede01",storageBucket:"nosrecettes-ede01.firebasestorage.app",messagingSenderId:"230506326823",appId:"1:230506326823:web:784e4b36ada74f1a3e1702"};
+const timer=setTimeout(()=>toast("Le QG met du temps à répondre, vérifie ta connexion."),10000);
+try{firebase.initializeApp(FBC);db=firebase.database();
+  db.ref(".info/connected").on("value",s=>{if(s.val()===true){clearTimeout(timer);toast(me?`Connecté en tant que ${me}. Tout est synchro entre vous trois.`:"Choisis qui tu es en haut pour commencer.")}});
+  for(const k of["cars","pins","shots"])db.ref("goats/"+k).on("value",s=>{const v=s.val()||{};S[k]=Object.keys(v).map(id=>({id,...v[id]})).sort((a,b)=>(b.ts||0)-(a.ts||0));render()},()=>toast("Synchro coupée, recharge la page."));
+}catch(e){clearTimeout(timer);db=null;toast("Pas de connexion au QG, recharge la page.")}
+}
+</script>
+</body>
+</html>
