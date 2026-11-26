@@ -63,5 +63,8 @@
 
         <TextView android:id="@id/exo_duration" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:textColor="#D9FFFFFF" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+
+        <ImageButton android:id="@+id/frs_cc" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginStart="18dp"
+            android:background="@drawable/frs_btn" android:src="@drawable/frs_cc" android:scaleType="center" android:contentDescription="Sous-titres" android:focusable="true" />
     </LinearLayout>
 </FrameLayout>

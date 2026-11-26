@@ -144,7 +144,10 @@ public class PlayerActivity extends Activity {
         setContentView(root);
 
         DefaultTrackSelector ts = new DefaultTrackSelector(this);
-        ts.setParameters(ts.buildUponParameters().setPreferredAudioLanguages("fr", "fra", "fre").setPreferredTextLanguage("fr"));
+        subsOn = getSharedPreferences("frs", MODE_PRIVATE).getBoolean("subs", false);
+        // sous-titres coupés par défaut ; le bouton CC (ou la touche sous-titres) les remet
+        ts.setParameters(ts.buildUponParameters().setPreferredAudioLanguages("fr", "fra", "fre").setPreferredTextLanguage("fr")
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subsOn));
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
                 .setUserAgent("VLC/3.0.20 LibVLC/3.0.20")
                 .setAllowCrossProtocolRedirects(true)
@@ -164,6 +167,8 @@ public class PlayerActivity extends Activity {
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(http, ex))
                 .build();
         view.setPlayer(player);
+        cc = view.findViewById(R.id.frs_cc);
+        if (cc != null) { cc.setOnClickListener(v -> toggleSubs()); cc.setAlpha(subsOn ? 1f : .45f); }
 
         List<MediaItem> mi = new ArrayList<>();
         for (String[] it : items) {
@@ -226,6 +231,19 @@ public class PlayerActivity extends Activity {
         ui.postDelayed(hideInfo, live ? 4000 : 3000);
     }
 
+    private boolean subsOn = false;
+    private View cc;
+
+    private void toggleSubs() {
+        if (player == null) return;
+        subsOn = !subsOn;
+        player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subsOn).build());
+        getSharedPreferences("frs", MODE_PRIVATE).edit().putBoolean("subs", subsOn).apply();
+        if (cc != null) cc.setAlpha(subsOn ? 1f : .45f);
+        android.widget.Toast.makeText(this, subsOn ? "Sous-titres activés" : "Sous-titres désactivés", android.widget.Toast.LENGTH_SHORT).show();
+    }
+
     private void zap(int d) {
         if (player == null) return;
         int n = items.size(), i = (player.getCurrentMediaItemIndex() + d + n) % n;
@@ -254,6 +272,7 @@ public class PlayerActivity extends Activity {
             return true;
         }
         if (e.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e);
+        if (k == KeyEvent.KEYCODE_CAPTIONS) { toggleSubs(); return true; }
         boolean err = errText.getVisibility() == View.VISIBLE;
         if (live) {
             switch (k) {
